@@ -22,14 +22,25 @@ def display_table(table):
     max_header_width = max(len(label) for label in headers + row_labels)
     cell_width = max(max_cell_width, max_header_width)
 
-    horizontal_border = "+" + "+".join("-" * (cell_width + 2) for _ in range(cols + 1)) + "+"
+    def build_border(fill_char):
+        label_segment = fill_char * (cell_width + 2)
+        body_segments = [fill_char * (cell_width + 2) for _ in range(cols)]
+        return "+" + label_segment + "++" + "+".join(body_segments) + "+"
 
-    top_row = ["".rjust(cell_width)] + [header.rjust(cell_width) for header in headers]
+    def format_row(cells):
+        label_cell = cells[0]
+        body_cells = cells[1:]
+        return "| " + label_cell + " || " + " | ".join(body_cells) + " |"
+
+    horizontal_border = build_border("-")
+    header_border = build_border("=")
+
+    top_row = ["x".rjust(cell_width)] + [header.rjust(cell_width) for header in headers]
     print(horizontal_border)
-    print("| " + " | ".join(top_row) + " |")
-    print(horizontal_border)
+    print(format_row(top_row))
+    print(header_border)
 
     for label, row in zip(row_labels, table):
         row_str = [label.rjust(cell_width)] + [str(cell).rjust(cell_width) for cell in row]
-        print("| " + " | ".join(row_str) + " |")
+        print(format_row(row_str))
         print(horizontal_border)
