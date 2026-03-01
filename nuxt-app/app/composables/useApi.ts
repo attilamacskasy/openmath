@@ -32,6 +32,32 @@ export function useApi() {
       age: number | null
       gender: "female" | "male" | "other" | "prefer_not_say" | null
       learned_timetables: number[]
+      stats: {
+        overall: {
+          quiz_type_code: string
+          quiz_type_description: string
+          sessions: number
+          completed_sessions: number
+          in_progress_sessions: number
+          total_questions: number
+          correct_answers: number
+          wrong_answers: number
+          average_score_percent: number
+          total_time_seconds: number
+        }
+        by_quiz_type: Array<{
+          quiz_type_code: string
+          quiz_type_description: string
+          sessions: number
+          completed_sessions: number
+          in_progress_sessions: number
+          total_questions: number
+          correct_answers: number
+          wrong_answers: number
+          average_score_percent: number
+          total_time_seconds: number
+        }>
+      }
     }>(`/api/students/${id}`)
   }
 

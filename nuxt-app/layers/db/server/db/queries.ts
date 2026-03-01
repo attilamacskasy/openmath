@@ -117,6 +117,126 @@ export async function getStudentProfile(studentId: string) {
   })
 }
 
+type StudentPerformanceBucket = {
+  quiz_type_code: string
+  quiz_type_description: string
+  sessions: number
+  completed_sessions: number
+  in_progress_sessions: number
+  total_questions: number
+  correct_answers: number
+  wrong_answers: number
+  average_score_percent: number
+  total_time_seconds: number
+}
+
+function createPerformanceBucket(quizTypeCode: string, quizTypeDescription: string): StudentPerformanceBucket {
+  return {
+    quiz_type_code: quizTypeCode,
+    quiz_type_description: quizTypeDescription,
+    sessions: 0,
+    completed_sessions: 0,
+    in_progress_sessions: 0,
+    total_questions: 0,
+    correct_answers: 0,
+    wrong_answers: 0,
+    average_score_percent: 0,
+    total_time_seconds: 0,
+  }
+}
+
+export async function getStudentPerformanceStats(studentId: string) {
+  const sessionRows = await db
+    .select({
+      quizTypeCode: quizTypes.code,
+      quizTypeDescription: quizTypes.description,
+      totalQuestions: quizSessions.totalQuestions,
+      correctCount: quizSessions.correctCount,
+      wrongCount: quizSessions.wrongCount,
+      scorePercent: quizSessions.scorePercent,
+      startedAt: quizSessions.startedAt,
+      finishedAt: quizSessions.finishedAt,
+    })
+    .from(quizSessions)
+    .leftJoin(quizTypes, eq(quizSessions.quizTypeId, quizTypes.id))
+    .where(eq(quizSessions.studentId, studentId))
+
+  const overall = createPerformanceBucket("all", "All quiz types")
+  const byQuizTypeMap = new Map<string, StudentPerformanceBucket>()
+  let overallScoreSum = 0
+  let overallScoreCount = 0
+  const byQuizTypeScore = new Map<string, { sum: number; count: number }>()
+
+  for (const row of sessionRows) {
+    const quizTypeCode = row.quizTypeCode ?? "unknown"
+    const quizTypeDescription = row.quizTypeDescription ?? "Unknown"
+
+    if (!byQuizTypeMap.has(quizTypeCode)) {
+      byQuizTypeMap.set(quizTypeCode, createPerformanceBucket(quizTypeCode, quizTypeDescription))
+      byQuizTypeScore.set(quizTypeCode, { sum: 0, count: 0 })
+    }
+
+    const byQuizType = byQuizTypeMap.get(quizTypeCode)
+    const scoreTracker = byQuizTypeScore.get(quizTypeCode)
+
+    if (!byQuizType || !scoreTracker) {
+      continue
+    }
+
+    const isCompleted = !!row.finishedAt
+    const startMs = row.startedAt ? new Date(row.startedAt).getTime() : NaN
+    const endMs = row.finishedAt ? new Date(row.finishedAt).getTime() : Date.now()
+    const durationSeconds = Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs
+      ? Math.floor((endMs - startMs) / 1000)
+      : 0
+
+    overall.sessions += 1
+    overall.completed_sessions += isCompleted ? 1 : 0
+    overall.in_progress_sessions += isCompleted ? 0 : 1
+    overall.total_questions += row.totalQuestions
+    overall.correct_answers += row.correctCount
+    overall.wrong_answers += row.wrongCount
+    overall.total_time_seconds += durationSeconds
+
+    byQuizType.sessions += 1
+    byQuizType.completed_sessions += isCompleted ? 1 : 0
+    byQuizType.in_progress_sessions += isCompleted ? 0 : 1
+    byQuizType.total_questions += row.totalQuestions
+    byQuizType.correct_answers += row.correctCount
+    byQuizType.wrong_answers += row.wrongCount
+    byQuizType.total_time_seconds += durationSeconds
+
+    if (isCompleted) {
+      const score = Number(row.scorePercent)
+
+      overallScoreSum += score
+      overallScoreCount += 1
+
+      scoreTracker.sum += score
+      scoreTracker.count += 1
+    }
+  }
+
+  overall.average_score_percent = overallScoreCount > 0 ? Number((overallScoreSum / overallScoreCount).toFixed(2)) : 0
+
+  const by_quiz_type = Array.from(byQuizTypeMap.values())
+    .map((item) => {
+      const tracker = byQuizTypeScore.get(item.quiz_type_code)
+      const average = tracker && tracker.count > 0 ? Number((tracker.sum / tracker.count).toFixed(2)) : 0
+
+      return {
+        ...item,
+        average_score_percent: average,
+      }
+    })
+    .sort((a, b) => a.quiz_type_description.localeCompare(b.quiz_type_description))
+
+  return {
+    overall,
+    by_quiz_type,
+  }
+}
+
 export async function updateStudentProfile(
   studentId: string,
   payload: {

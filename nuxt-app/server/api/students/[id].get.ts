@@ -1,5 +1,5 @@
 import { createError } from "h3"
-import { getStudentProfile } from "~~/layers/db/server/db/queries"
+import { getStudentPerformanceStats, getStudentProfile } from "~~/layers/db/server/db/queries"
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, "id")
@@ -14,11 +14,14 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: "Student not found" })
   }
 
+  const stats = await getStudentPerformanceStats(id)
+
   return {
     id: student.id,
     name: student.name,
     age: student.age,
     gender: student.gender,
     learned_timetables: student.learnedTimetables,
+    stats,
   }
 })
