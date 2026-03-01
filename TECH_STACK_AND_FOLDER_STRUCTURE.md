@@ -1,4 +1,4 @@
-# OpenMath Tech Stack and Folder Structure (Nuxt v1.5)
+# OpenMath v1.5 Tech Stack and Folder Structure (Nuxt 4)
 
 ## 1) Full-Stack Overview
 
