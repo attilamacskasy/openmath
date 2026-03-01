@@ -6,6 +6,20 @@ import type { Difficulty } from "../../../core/server/logic/types"
 import type { GeneratedQuestion } from "../../../core/server/logic/generator"
 
 export const DEFAULT_QUIZ_TYPE_CODE = "multiplication_1_10"
+const DEFAULT_LEARNED_TIMETABLES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+function sanitizeLearnedTimetables(values: number[] | undefined) {
+  if (!values || values.length === 0) {
+    return DEFAULT_LEARNED_TIMETABLES
+  }
+
+  const filtered = values.filter((item) => Number.isInteger(item) && item >= 1 && item <= 10)
+  if (filtered.length === 0) {
+    return DEFAULT_LEARNED_TIMETABLES
+  }
+
+  return [...new Set(filtered)]
+}
 
 export const statsTableNames = ["quiz_types", "students", "quiz_sessions", "questions", "answers"] as const
 export type StatsTableName = (typeof statsTableNames)[number]
@@ -90,6 +104,48 @@ export async function listStudents() {
     .orderBy(asc(students.name), desc(students.createdAt))
 }
 
+export async function getStudentProfile(studentId: string) {
+  return typedDb.query.students.findFirst({
+    where: eq(students.id, studentId),
+    columns: {
+      id: true,
+      name: true,
+      age: true,
+      gender: true,
+      learnedTimetables: true,
+    },
+  })
+}
+
+export async function updateStudentProfile(
+  studentId: string,
+  payload: {
+    name: string
+    age?: number
+    gender?: "female" | "male" | "other" | "prefer_not_say"
+    learnedTimetables: number[]
+  }
+) {
+  const updatedRows = await db
+    .update(students)
+    .set({
+      name: payload.name.trim(),
+      age: payload.age ?? null,
+      gender: payload.gender ?? null,
+      learnedTimetables: sanitizeLearnedTimetables(payload.learnedTimetables),
+    })
+    .where(eq(students.id, studentId))
+    .returning({
+      id: students.id,
+      name: students.name,
+      age: students.age,
+      gender: students.gender,
+      learnedTimetables: students.learnedTimetables,
+    })
+
+  return updatedRows[0] ?? null
+}
+
 export async function listQuizTypes() {
   return db
     .select({
@@ -106,25 +162,41 @@ export async function createSession(params: {
   totalQuestions: number
   studentId?: string
   studentName?: string
+  studentAge?: number
+  studentGender?: "female" | "male" | "other" | "prefer_not_say"
+  learnedTimetables?: number[]
   quizTypeCode?: string
 }) {
   let studentId: string | null = null
+  let learnedTimetables = DEFAULT_LEARNED_TIMETABLES
   const quizTypeId = await getQuizTypeIdByCode(params.quizTypeCode ?? DEFAULT_QUIZ_TYPE_CODE)
 
   if (params.studentId) {
     const existingStudent = await typedDb.query.students.findFirst({
       where: eq(students.id, params.studentId),
-      columns: { id: true },
+      columns: { id: true, learnedTimetables: true },
     })
 
     if (existingStudent) {
       studentId = existingStudent.id
+      learnedTimetables = sanitizeLearnedTimetables(existingStudent.learnedTimetables)
     }
   } else if (params.studentName && params.studentName.trim().length > 0) {
-    const insertedStudents = await db.insert(students).values({ name: params.studentName.trim() }).returning({ id: students.id })
+    learnedTimetables = sanitizeLearnedTimetables(params.learnedTimetables)
+
+    const insertedStudents = await db
+      .insert(students)
+      .values({
+        name: params.studentName.trim(),
+        age: params.studentAge,
+        gender: params.studentGender,
+        learnedTimetables,
+      })
+      .returning({ id: students.id, learnedTimetables: students.learnedTimetables })
     const student = insertedStudents[0]
     if (student) {
       studentId = student.id
+      learnedTimetables = sanitizeLearnedTimetables(student.learnedTimetables)
     }
   }
 
@@ -148,7 +220,10 @@ export async function createSession(params: {
     throw new Error("Failed to create session")
   }
 
-  return session
+  return {
+    ...session,
+    learnedTimetables,
+  }
 }
 
 export async function insertQuestions(sessionId: string, quizTypeId: string, generated: GeneratedQuestion[]) {

@@ -6,6 +6,9 @@ export function useApi() {
     totalQuestions: number
     studentId?: string
     studentName?: string
+    studentAge?: number
+    studentGender?: "female" | "male" | "other" | "prefer_not_say"
+    learnedTimetables?: number[]
     quizTypeCode?: string
   }) => {
     return $fetch<{
@@ -20,6 +23,37 @@ export function useApi() {
 
   const listStudents = () => {
     return $fetch<Array<{ id: string; name: string }>>("/api/students")
+  }
+
+  const getStudentProfile = (id: string) => {
+    return $fetch<{
+      id: string
+      name: string
+      age: number | null
+      gender: "female" | "male" | "other" | "prefer_not_say" | null
+      learned_timetables: number[]
+    }>(`/api/students/${id}`)
+  }
+
+  const updateStudentProfile = (
+    id: string,
+    payload: {
+      name: string
+      age: number | null
+      gender: "female" | "male" | "other" | "prefer_not_say" | null
+      learned_timetables: number[]
+    }
+  ) => {
+    return $fetch<{
+      id: string
+      name: string
+      age: number | null
+      gender: "female" | "male" | "other" | "prefer_not_say" | null
+      learned_timetables: number[]
+    }>(`/api/students/${id}`, {
+      method: "PATCH",
+      body: payload,
+    })
   }
 
   const listQuizTypes = () => {
@@ -75,6 +109,8 @@ export function useApi() {
   return {
     createSession,
     listStudents,
+    getStudentProfile,
+    updateStudentProfile,
     listQuizTypes,
     submitAnswer,
     listSessions,

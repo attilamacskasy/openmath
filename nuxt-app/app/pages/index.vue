@@ -14,19 +14,35 @@
 
       <DifficultySelect v-model="difficulty" />
 
-      <label>
-        Student
-        <select v-model="selectedStudent" class="student-select">
-          <option value="">No student</option>
-          <option v-for="student in students" :key="student.id" :value="student.id">{{ student.name }}</option>
-          <option value="__new__">Add new student</option>
-        </select>
-      </label>
-
-      <label v-if="selectedStudent === '__new__'">
+      <label v-if="!currentStudentId">
         New student name
         <BaseInput v-model="studentName" type="text" placeholder="Anna" />
       </label>
+
+      <label v-if="!currentStudentId">
+        Age
+        <BaseInput v-model.number="studentAge" type="number" min="4" max="120" />
+      </label>
+
+      <label v-if="!currentStudentId">
+        Gender
+        <select v-model="studentGender" class="student-select">
+          <option value="">Prefer not to say</option>
+          <option value="female">Female</option>
+          <option value="male">Male</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+
+      <fieldset v-if="!currentStudentId" class="tables-fieldset">
+        <legend>Learned timetables (1–10)</legend>
+        <div class="tables-grid">
+          <label v-for="table in timetableOptions" :key="table" class="table-option">
+            <input v-model="learnedTimetables" type="checkbox" :value="table" />
+            <span>{{ table }}</span>
+          </label>
+        </div>
+      </fieldset>
 
       <label>
         Total questions
@@ -46,13 +62,16 @@ const api = useApi()
 const router = useRouter()
 const difficulty = ref<"low" | "medium" | "hard">("low")
 const totalQuestions = ref(10)
-const students = ref<Array<{ id: string; name: string }>>([])
 const quizTypes = ref<Array<{ id: string; code: string; description: string }>>([])
 const selectedQuizTypeCode = ref("multiplication_1_10")
-const selectedStudent = ref("")
 const studentName = ref("")
+const studentAge = ref<number | null>(null)
+const studentGender = ref<"female" | "male" | "other" | "prefer_not_say" | "">("")
+const learnedTimetables = ref<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 const pending = ref(false)
 const errorMessage = ref("")
+const timetableOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+const currentStudentId = useState<string>("currentStudentId", () => "")
 
 const activeQuiz = useState<{
   sessionId: string
@@ -64,8 +83,14 @@ async function startQuiz() {
   pending.value = true
   errorMessage.value = ""
 
-  if (selectedStudent.value === "__new__" && studentName.value.trim().length === 0) {
+  if (!currentStudentId.value && studentName.value.trim().length === 0) {
     errorMessage.value = "Please enter a new student name."
+    pending.value = false
+    return
+  }
+
+  if (!currentStudentId.value && learnedTimetables.value.length === 0) {
+    errorMessage.value = "Please select at least one learned timetable."
     pending.value = false
     return
   }
@@ -74,8 +99,11 @@ async function startQuiz() {
     const response = await api.createSession({
       difficulty: difficulty.value,
       totalQuestions: totalQuestions.value,
-      studentId: selectedStudent.value && selectedStudent.value !== "__new__" ? selectedStudent.value : undefined,
-      studentName: selectedStudent.value === "__new__" ? studentName.value.trim() : undefined,
+      studentId: currentStudentId.value || undefined,
+      studentName: !currentStudentId.value ? studentName.value.trim() : undefined,
+      studentAge: !currentStudentId.value ? studentAge.value ?? undefined : undefined,
+      studentGender: !currentStudentId.value ? (studentGender.value || "prefer_not_say") : undefined,
+      learnedTimetables: !currentStudentId.value ? learnedTimetables.value : undefined,
       quizTypeCode: selectedQuizTypeCode.value,
     })
 
@@ -94,9 +122,7 @@ async function startQuiz() {
 }
 
 onMounted(async () => {
-  const [studentList, quizTypeList] = await Promise.all([api.listStudents(), api.listQuizTypes()])
-
-  students.value = studentList
+  const quizTypeList = await api.listQuizTypes()
   quizTypes.value = quizTypeList
 
   if (quizTypeList.length > 0 && !quizTypeList.some((item) => item.code === selectedQuizTypeCode.value)) {
@@ -130,5 +156,25 @@ onMounted(async () => {
 }
 .error {
   color: #dc2626;
+}
+
+.tables-fieldset {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.tables-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.table-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 </style>

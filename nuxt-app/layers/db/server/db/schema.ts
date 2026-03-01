@@ -15,8 +15,15 @@ export const quizTypes = pgTable(
 export const students = pgTable("students", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
+  age: integer("age"),
+  gender: text("gender"),
+  learnedTimetables: integer("learned_timetables").array().notNull().default([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-})
+},
+  (table) => [
+    check("students_age_check", sql`${table.age} is null or ${table.age} between 4 and 120`),
+    check("students_gender_check", sql`${table.gender} is null or ${table.gender} in ('female', 'male', 'other', 'prefer_not_say')`),
+  ])
 
 export const quizSessions = pgTable(
   "quiz_sessions",
