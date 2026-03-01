@@ -1,6 +1,7 @@
 <template>
   <main class="page">
     <h1>Quiz</h1>
+    <p v-if="quizTypeCode"><strong>Quiz type:</strong> {{ quizTypeCode }}</p>
 
     <QuestionCard
       v-if="currentQuestion"
@@ -31,10 +32,12 @@ const api = useApi()
 
 const activeQuiz = useState<{
   sessionId: string
+  quizTypeCode: string
   questions: Array<{ id: string; a: number; b: number; position: number }>
 } | null>("activeQuiz", () => null)
 
 const questions = ref<Array<{ id: string; a: number; b: number; position: number }>>([])
+const quizTypeCode = ref("")
 const currentIndex = ref(0)
 const currentAnswer = ref<number | null>(null)
 const pending = ref(false)
@@ -48,10 +51,12 @@ onMounted(async () => {
 
   if (activeQuiz.value?.sessionId === sessionId) {
     questions.value = activeQuiz.value.questions
+    quizTypeCode.value = activeQuiz.value.quizTypeCode
     return
   }
 
   const detail = await api.getSession(sessionId)
+  quizTypeCode.value = detail.session?.quizTypeCode ?? ""
   questions.value = detail.questions.map((row: any) => ({
     id: row.id,
     a: row.a,

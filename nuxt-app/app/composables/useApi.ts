@@ -8,7 +8,11 @@ export function useApi() {
     studentName?: string
     quizTypeCode?: string
   }) => {
-    return $fetch<{ sessionId: string; questions: Array<{ id: string; a: number; b: number; position: number }> }>("/api/sessions", {
+    return $fetch<{
+      sessionId: string
+      quizTypeCode: string
+      questions: Array<{ id: string; a: number; b: number; position: number }>
+    }>("/api/sessions", {
       method: "POST",
       body: payload,
     })
@@ -16,6 +20,10 @@ export function useApi() {
 
   const listStudents = () => {
     return $fetch<Array<{ id: string; name: string }>>("/api/students")
+  }
+
+  const listQuizTypes = () => {
+    return $fetch<Array<{ id: string; code: string; description: string }>>("/api/quiz-types")
   }
 
   const submitAnswer = (payload: { questionId: string; value: number }) => {
@@ -67,6 +75,7 @@ export function useApi() {
   return {
     createSession,
     listStudents,
+    listQuizTypes,
     submitAnswer,
     listSessions,
     getSession,

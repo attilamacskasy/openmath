@@ -3,6 +3,15 @@
     <h1>OpenMath</h1>
     <p>Multiplication is the first quiz type students can run.</p>
     <form class="card" @submit.prevent="startQuiz">
+      <label>
+        Quiz type
+        <select v-model="selectedQuizTypeCode" class="student-select">
+          <option v-for="quizType in quizTypes" :key="quizType.id" :value="quizType.code">
+            {{ quizType.description }} ({{ quizType.code }})
+          </option>
+        </select>
+      </label>
+
       <DifficultySelect v-model="difficulty" />
 
       <label>
@@ -38,6 +47,8 @@ const router = useRouter()
 const difficulty = ref<"low" | "medium" | "hard">("low")
 const totalQuestions = ref(10)
 const students = ref<Array<{ id: string; name: string }>>([])
+const quizTypes = ref<Array<{ id: string; code: string; description: string }>>([])
+const selectedQuizTypeCode = ref("multiplication_1_10")
 const selectedStudent = ref("")
 const studentName = ref("")
 const pending = ref(false)
@@ -45,6 +56,7 @@ const errorMessage = ref("")
 
 const activeQuiz = useState<{
   sessionId: string
+  quizTypeCode: string
   questions: Array<{ id: string; a: number; b: number; position: number }>
 } | null>("activeQuiz", () => null)
 
@@ -64,10 +76,12 @@ async function startQuiz() {
       totalQuestions: totalQuestions.value,
       studentId: selectedStudent.value && selectedStudent.value !== "__new__" ? selectedStudent.value : undefined,
       studentName: selectedStudent.value === "__new__" ? studentName.value.trim() : undefined,
+      quizTypeCode: selectedQuizTypeCode.value,
     })
 
     activeQuiz.value = {
       sessionId: response.sessionId,
+      quizTypeCode: response.quizTypeCode,
       questions: response.questions,
     }
 
@@ -80,7 +94,14 @@ async function startQuiz() {
 }
 
 onMounted(async () => {
-  students.value = await api.listStudents()
+  const [studentList, quizTypeList] = await Promise.all([api.listStudents(), api.listQuizTypes()])
+
+  students.value = studentList
+  quizTypes.value = quizTypeList
+
+  if (quizTypeList.length > 0 && !quizTypeList.some((item) => item.code === selectedQuizTypeCode.value)) {
+    selectedQuizTypeCode.value = quizTypeList[0]?.code ?? "multiplication_1_10"
+  }
 })
 </script>
 

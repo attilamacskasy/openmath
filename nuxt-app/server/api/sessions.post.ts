@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { createError, readBody } from "h3"
-import { createSession, insertQuestions } from "~~/layers/db/server/db/queries"
+import { createSession, insertQuestions, DEFAULT_QUIZ_TYPE_CODE } from "~~/layers/db/server/db/queries"
 import { generateQuestions } from "~~/layers/core/server/logic/generator"
 import { isDifficulty } from "~~/layers/core/server/logic/difficulty"
 
@@ -39,6 +39,7 @@ export default defineEventHandler(async (event) => {
 
   return {
     sessionId: session.id,
+    quizTypeCode: quizTypeCode ?? DEFAULT_QUIZ_TYPE_CODE,
     questions,
   }
 })

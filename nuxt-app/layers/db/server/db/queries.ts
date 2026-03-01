@@ -90,6 +90,17 @@ export async function listStudents() {
     .orderBy(asc(students.name), desc(students.createdAt))
 }
 
+export async function listQuizTypes() {
+  return db
+    .select({
+      id: quizTypes.id,
+      code: quizTypes.code,
+      description: quizTypes.description,
+    })
+    .from(quizTypes)
+    .orderBy(asc(quizTypes.code))
+}
+
 export async function createSession(params: {
   difficulty: Difficulty
   totalQuestions: number
