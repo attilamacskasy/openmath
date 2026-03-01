@@ -6,6 +6,7 @@
       :correct="sessionDetail.session.correctCount"
       :wrong="sessionDetail.session.wrongCount"
       :percent="Number(sessionDetail.session.scorePercent)"
+      :average-time-per-question-seconds="averageTimePerQuestionSeconds"
     />
 
     <table class="detail-table">
@@ -37,6 +38,23 @@
 const route = useRoute()
 const api = useApi()
 const sessionDetail = ref<any | null>(null)
+
+const averageTimePerQuestionSeconds = computed(() => {
+  const session = sessionDetail.value?.session
+
+  if (!session || !session.startedAt || !session.totalQuestions || session.totalQuestions <= 0) {
+    return null
+  }
+
+  const startMs = new Date(session.startedAt).getTime()
+  const endMs = session.finishedAt ? new Date(session.finishedAt).getTime() : Date.now()
+
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+    return 0
+  }
+
+  return Math.floor((endMs - startMs) / 1000 / session.totalQuestions)
+})
 
 onMounted(async () => {
   sessionDetail.value = await api.getSession(route.params.sessionId as string)

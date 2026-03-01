@@ -6,6 +6,7 @@
         <th>Difficulty</th>
         <th>Questions</th>
         <th>Time Spent</th>
+        <th>Avg / Question</th>
         <th>Score</th>
         <th>Started</th>
         <th>Finished</th>
@@ -19,6 +20,7 @@
         </td>
         <td>{{ row.total_questions }}</td>
         <td>{{ formatDuration(row.started_at, row.finished_at) }}</td>
+        <td>{{ formatAverageTimePerQuestion(row.started_at, row.finished_at, row.total_questions) }}</td>
         <td>{{ row.score_percent }}%</td>
         <td>{{ formatDate(row.started_at) }}</td>
         <td>
@@ -74,6 +76,37 @@ function formatDuration(startedAt: string, finishedAt: string | null): string {
   const hours = Math.floor(totalSeconds / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)
   const seconds = totalSeconds % 60
+
+  return `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`
+}
+
+function formatAverageTimePerQuestion(startedAt: string, finishedAt: string | null, totalQuestions: number): string {
+  if (totalQuestions <= 0) {
+    return "0s"
+  }
+
+  const startMs = new Date(startedAt).getTime()
+  const endMs = finishedAt ? new Date(finishedAt).getTime() : Date.now()
+
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+    return "0s"
+  }
+
+  const avgSeconds = Math.floor((endMs - startMs) / 1000 / totalQuestions)
+
+  if (avgSeconds < 60) {
+    return `${avgSeconds}s`
+  }
+
+  if (avgSeconds < 3600) {
+    const minutes = Math.floor(avgSeconds / 60)
+    const seconds = avgSeconds % 60
+    return `${pad2(minutes)}:${pad2(seconds)}`
+  }
+
+  const hours = Math.floor(avgSeconds / 3600)
+  const minutes = Math.floor((avgSeconds % 3600) / 60)
+  const seconds = avgSeconds % 60
 
   return `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`
 }
