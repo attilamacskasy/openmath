@@ -1,7 +1,13 @@
 export function useApi() {
-  type StatsTableName = "students" | "quiz_sessions" | "questions" | "answers"
+  type StatsTableName = "quiz_types" | "students" | "quiz_sessions" | "questions" | "answers"
 
-  const createSession = (payload: { difficulty: string; totalQuestions: number; studentId?: string; studentName?: string }) => {
+  const createSession = (payload: {
+    difficulty: string
+    totalQuestions: number
+    studentId?: string
+    studentName?: string
+    quizTypeCode?: string
+  }) => {
     return $fetch<{ sessionId: string; questions: Array<{ id: string; a: number; b: number; position: number }> }>("/api/sessions", {
       method: "POST",
       body: payload,
@@ -23,7 +29,18 @@ export function useApi() {
   }
 
   const listSessions = () => {
-    return $fetch<Array<{ id: string; difficulty: string; total_questions: number; score_percent: number; started_at: string; finished_at: string | null; student_name: string | null }>>(
+    return $fetch<
+      Array<{
+        id: string
+        difficulty: string
+        total_questions: number
+        score_percent: number
+        started_at: string
+        finished_at: string | null
+        student_name: string | null
+        quiz_type_code: string | null
+      }>
+    >(
       "/api/sessions"
     )
   }
@@ -33,7 +50,7 @@ export function useApi() {
   }
 
   const getDatabaseStats = () => {
-    return $fetch<{ students: number; quiz_sessions: number; questions: number; answers: number }>("/api/stats")
+    return $fetch<{ quiz_types: number; students: number; quiz_sessions: number; questions: number; answers: number }>("/api/stats")
   }
 
   const getDatabaseTableRows = (table: StatsTableName) => {

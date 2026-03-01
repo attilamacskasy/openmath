@@ -9,6 +9,7 @@ const sessionSchema = z.object({
   totalQuestions: z.number().int().min(1).max(50).default(10),
   studentId: z.string().uuid().optional(),
   studentName: z.string().optional(),
+  quizTypeCode: z.string().optional(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -19,7 +20,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: "Invalid request payload" })
   }
 
-  const { difficulty, totalQuestions, studentId, studentName } = parsed.data
+  const { difficulty, totalQuestions, studentId, studentName, quizTypeCode } = parsed.data
 
   if (!isDifficulty(difficulty)) {
     throw createError({ statusCode: 400, statusMessage: "Invalid difficulty" })
@@ -30,10 +31,11 @@ export default defineEventHandler(async (event) => {
     totalQuestions,
     studentId,
     studentName,
+    quizTypeCode,
   })
 
   const generated = generateQuestions(difficulty, totalQuestions)
-  const questions = await insertQuestions(session.id, generated)
+  const questions = await insertQuestions(session.id, session.quizTypeId, generated)
 
   return {
     sessionId: session.id,

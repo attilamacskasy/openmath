@@ -1,6 +1,17 @@
 import { sql } from "drizzle-orm"
 import { boolean, check, index, integer, numeric, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core"
 
+export const quizTypes = pgTable(
+  "quiz_types",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    code: text("code").notNull(),
+    description: text("description").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [unique("quiz_types_code_unique").on(table.code)]
+)
+
 export const students = pgTable("students", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
@@ -12,6 +23,7 @@ export const quizSessions = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     studentId: uuid("student_id").references(() => students.id, { onDelete: "set null" }),
+    quizTypeId: uuid("quiz_type_id").notNull().references(() => quizTypes.id),
     difficulty: text("difficulty").notNull(),
     totalQuestions: integer("total_questions").notNull(),
     correctCount: integer("correct_count").default(0).notNull(),
@@ -23,6 +35,7 @@ export const quizSessions = pgTable(
   (table) => [
     check("quiz_sessions_difficulty_check", sql`${table.difficulty} in ('low', 'medium', 'hard')`),
     check("quiz_sessions_total_questions_check", sql`${table.totalQuestions} > 0`),
+    index("idx_sessions_quiz_type").on(table.quizTypeId),
     index("idx_sessions_started").on(table.startedAt),
   ]
 )
@@ -32,6 +45,7 @@ export const questions = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     sessionId: uuid("session_id").notNull().references(() => quizSessions.id, { onDelete: "cascade" }),
+    quizTypeId: uuid("quiz_type_id").notNull().references(() => quizTypes.id),
     a: integer("a").notNull(),
     b: integer("b").notNull(),
     correct: integer("correct").notNull(),
@@ -42,6 +56,7 @@ export const questions = pgTable(
     check("questions_b_check", sql`${table.b} between 1 and 10`),
     check("questions_position_check", sql`${table.position} >= 1`),
     unique("questions_session_position_unique").on(table.sessionId, table.position),
+    index("idx_questions_quiz_type").on(table.quizTypeId),
     index("idx_questions_session").on(table.sessionId),
   ]
 )
@@ -51,12 +66,14 @@ export const answers = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     questionId: uuid("question_id").notNull().references(() => questions.id, { onDelete: "cascade" }),
+    quizTypeId: uuid("quiz_type_id").notNull().references(() => quizTypes.id),
     value: integer("value").notNull(),
     isCorrect: boolean("is_correct").notNull(),
     answeredAt: timestamp("answered_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     unique("answers_question_unique").on(table.questionId),
+    index("idx_answers_quiz_type").on(table.quizTypeId),
     index("idx_answers_question").on(table.questionId),
   ]
 )

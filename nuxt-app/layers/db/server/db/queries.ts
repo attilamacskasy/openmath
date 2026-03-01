@@ -1,15 +1,31 @@
 import { asc, desc, eq, inArray, sql } from "drizzle-orm"
 import { db, typedDb } from "./client"
-import { answers, questions, quizSessions, students } from "./schema"
+import { answers, questions, quizSessions, quizTypes, students } from "./schema"
 import { calculatePercent } from "../../../core/server/logic/scoring"
 import type { Difficulty } from "../../../core/server/logic/types"
 import type { GeneratedQuestion } from "../../../core/server/logic/generator"
 
-export const statsTableNames = ["students", "quiz_sessions", "questions", "answers"] as const
+export const DEFAULT_QUIZ_TYPE_CODE = "multiplication_1_10"
+
+export const statsTableNames = ["quiz_types", "students", "quiz_sessions", "questions", "answers"] as const
 export type StatsTableName = (typeof statsTableNames)[number]
 
+async function getQuizTypeIdByCode(code: string) {
+  const quizType = await typedDb.query.quizTypes.findFirst({
+    where: eq(quizTypes.code, code),
+    columns: { id: true },
+  })
+
+  if (!quizType) {
+    throw new Error(`Quiz type not found: ${code}`)
+  }
+
+  return quizType.id
+}
+
 export async function getDatabaseStatistics() {
-  const [studentsCountResult, sessionsCountResult, questionsCountResult, answersCountResult] = await Promise.all([
+  const [quizTypesCountResult, studentsCountResult, sessionsCountResult, questionsCountResult, answersCountResult] = await Promise.all([
+    db.select({ count: sql<number>`cast(count(*) as int)` }).from(quizTypes),
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(students),
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(quizSessions),
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(questions),
@@ -17,6 +33,7 @@ export async function getDatabaseStatistics() {
   ])
 
   return {
+    quiz_types: quizTypesCountResult[0]?.count ?? 0,
     students: studentsCountResult[0]?.count ?? 0,
     quiz_sessions: sessionsCountResult[0]?.count ?? 0,
     questions: questionsCountResult[0]?.count ?? 0,
@@ -25,6 +42,12 @@ export async function getDatabaseStatistics() {
 }
 
 export async function getDatabaseTableRows(table: StatsTableName) {
+  if (table === "quiz_types") {
+    return typedDb.query.quizTypes.findMany({
+      orderBy: [asc(quizTypes.code)],
+    })
+  }
+
   if (table === "students") {
     return typedDb.query.students.findMany({
       orderBy: [desc(students.createdAt)],
@@ -67,8 +90,15 @@ export async function listStudents() {
     .orderBy(asc(students.name), desc(students.createdAt))
 }
 
-export async function createSession(params: { difficulty: Difficulty; totalQuestions: number; studentId?: string; studentName?: string }) {
+export async function createSession(params: {
+  difficulty: Difficulty
+  totalQuestions: number
+  studentId?: string
+  studentName?: string
+  quizTypeCode?: string
+}) {
   let studentId: string | null = null
+  const quizTypeId = await getQuizTypeIdByCode(params.quizTypeCode ?? DEFAULT_QUIZ_TYPE_CODE)
 
   if (params.studentId) {
     const existingStudent = await typedDb.query.students.findFirst({
@@ -91,11 +121,13 @@ export async function createSession(params: { difficulty: Difficulty; totalQuest
     .insert(quizSessions)
     .values({
       studentId,
+      quizTypeId,
       difficulty: params.difficulty,
       totalQuestions: params.totalQuestions,
     })
     .returning({
       id: quizSessions.id,
+      quizTypeId: quizSessions.quizTypeId,
       difficulty: quizSessions.difficulty,
       totalQuestions: quizSessions.totalQuestions,
     })
@@ -108,10 +140,11 @@ export async function createSession(params: { difficulty: Difficulty; totalQuest
   return session
 }
 
-export async function insertQuestions(sessionId: string, generated: GeneratedQuestion[]) {
+export async function insertQuestions(sessionId: string, quizTypeId: string, generated: GeneratedQuestion[]) {
   await db.insert(questions).values(
     generated.map((item) => ({
       sessionId,
+      quizTypeId,
       a: item.a,
       b: item.b,
       correct: item.correct,
@@ -141,9 +174,11 @@ export async function listSessions() {
       startedAt: quizSessions.startedAt,
       finishedAt: quizSessions.finishedAt,
       studentName: students.name,
+      quizTypeCode: quizTypes.code,
     })
     .from(quizSessions)
     .leftJoin(students, eq(quizSessions.studentId, students.id))
+    .leftJoin(quizTypes, eq(quizSessions.quizTypeId, quizTypes.id))
     .orderBy(desc(quizSessions.startedAt))
 }
 
@@ -179,6 +214,12 @@ export async function getSessionById(sessionId: string) {
     session: {
       ...session,
       studentName: student?.name ?? null,
+      quizTypeCode: (
+        await typedDb.query.quizTypes.findFirst({
+          where: eq(quizTypes.id, session.quizTypeId),
+          columns: { code: true },
+        })
+      )?.code ?? null,
     },
     questions: sessionQuestions.map((question) => ({
       ...question,
@@ -205,6 +246,7 @@ export async function submitAnswer(questionId: string, value: number) {
   if (!existing) {
     await db.insert(answers).values({
       questionId,
+      quizTypeId: question.quizTypeId,
       value,
       isCorrect,
     })

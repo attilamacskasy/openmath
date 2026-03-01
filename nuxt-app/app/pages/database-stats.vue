@@ -10,6 +10,12 @@
     <section class="card" v-if="stats">
       <ul class="list">
         <li>
+          <button class="table-button" type="button" @click="openTable('quiz_types')">
+            <strong>quiz_types:</strong>
+            <span>{{ stats.quiz_types }}</span>
+          </button>
+        </li>
+        <li>
           <button class="table-button" type="button" @click="openTable('students')">
             <strong>students:</strong>
             <span>{{ stats.students }}</span>
@@ -90,12 +96,12 @@
 
 <script setup lang="ts">
 const api = useApi()
-type StatsTableName = "students" | "quiz_sessions" | "questions" | "answers"
+type StatsTableName = "quiz_types" | "students" | "quiz_sessions" | "questions" | "answers"
 type TableRow = Record<string, unknown>
 
 const loading = ref(true)
 const errorMessage = ref("")
-const stats = ref<{ students: number; quiz_sessions: number; questions: number; answers: number } | null>(null)
+const stats = ref<{ quiz_types: number; students: number; quiz_sessions: number; questions: number; answers: number } | null>(null)
 const selectedTable = ref<StatsTableName | null>(null)
 const tableRows = ref<TableRow[]>([])
 const tableColumns = ref<string[]>([])

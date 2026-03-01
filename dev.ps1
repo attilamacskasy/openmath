@@ -13,6 +13,8 @@ $script:RunLogDir = Join-Path $script:RepoRoot ".dev-assistant\logs\$script:RunI
 $script:RunLogPath = Join-Path $script:RunLogDir "run.log"
 $script:ErrorLogPath = Join-Path $script:RunLogDir "errors.log"
 $script:SummaryPath = Join-Path $script:RunLogDir "summary.json"
+$script:StateDir = Join-Path $script:RepoRoot ".dev-assistant\state"
+$script:NuxtPidPath = Join-Path $script:StateDir "nuxt-dev.pid"
 $script:CompactLogMode = $false
 $script:StepResults = New-Object System.Collections.Generic.List[object]
 $script:DetectedSignatures = New-Object System.Collections.Generic.List[string]
@@ -23,6 +25,7 @@ $script:LastLogLines = New-Object System.Collections.Generic.List[string]
 $script:AutoApproveEnabled = [bool]$AutoApprove
 
 New-Item -ItemType Directory -Force -Path $script:RunLogDir | Out-Null
+New-Item -ItemType Directory -Force -Path $script:StateDir | Out-Null
 New-Item -ItemType File -Force -Path $script:RunLogPath | Out-Null
 New-Item -ItemType File -Force -Path $script:ErrorLogPath | Out-Null
 
@@ -572,6 +575,101 @@ function Invoke-NuxtUp {
     Invoke-Flow -FlowLabel "NUXT-UP" -Steps $steps
 }
 
+function Get-NuxtDevProcess {
+    if (-not (Test-Path $script:NuxtPidPath)) {
+        return $null
+    }
+
+    try {
+        $pidValue = Get-Content -Path $script:NuxtPidPath -ErrorAction Stop | Select-Object -First 1
+        if ([string]::IsNullOrWhiteSpace($pidValue)) {
+            return $null
+        }
+
+        $id = [int]$pidValue
+        return Get-Process -Id $id -ErrorAction SilentlyContinue
+    }
+    catch {
+        return $null
+    }
+}
+
+function Start-NuxtDevServer {
+    $existing = Get-NuxtDevProcess
+    if ($existing) {
+        Write-Log -Level "WARN" -StepLabel "NUXT-START" -Message "Nuxt dev server appears to be already running (PID $($existing.Id))."
+        return
+    }
+
+    $pm = Get-PackageManager
+    $nuxtDir = Join-Path $script:RepoRoot "nuxt-app"
+    $command = "Set-Location '$nuxtDir'; $pm dev"
+
+    $proc = Start-Process -FilePath $script:ShellExe -ArgumentList @("-NoExit", "-Command", $command) -PassThru
+    Set-Content -Path $script:NuxtPidPath -Value $proc.Id -Encoding ASCII
+
+    Write-Log -Level "SUCCESS" -StepLabel "NUXT-START" -Message "✅ Nuxt dev server started (PID $($proc.Id))."
+    Write-Log -Level "INFO" -StepLabel "NUXT-START" -Message "Vite logs are shown in the opened PowerShell window."
+
+    $script:StepResults.Add([ordered]@{
+        label = "NUXT-START"
+        name = "Nuxt Start Dev Server"
+        command = "$script:ShellExe -NoExit -Command $command"
+        cwd = $nuxtDir
+        status = "passed"
+        durationSeconds = 0
+        exitCode = 0
+    }) | Out-Null
+}
+
+function Stop-NuxtDevServer {
+    $proc = Get-NuxtDevProcess
+    if (-not $proc) {
+        if (Test-Path $script:NuxtPidPath) {
+            Remove-Item -Path $script:NuxtPidPath -Force -ErrorAction SilentlyContinue
+        }
+
+        Write-Log -Level "WARN" -StepLabel "NUXT-STOP" -Message "Nuxt dev PID not found or process already stopped."
+        return
+    }
+
+    Stop-Process -Id $proc.Id -Force
+    Remove-Item -Path $script:NuxtPidPath -Force -ErrorAction SilentlyContinue
+
+    Write-Log -Level "SUCCESS" -StepLabel "NUXT-STOP" -Message "✅ Nuxt dev server stopped (PID $($proc.Id))."
+
+    $script:StepResults.Add([ordered]@{
+        label = "NUXT-STOP"
+        name = "Nuxt Stop Dev Server"
+        command = "Stop-Process -Id $($proc.Id) -Force"
+        cwd = $script:RepoRoot
+        status = "passed"
+        durationSeconds = 0
+        exitCode = 0
+    }) | Out-Null
+}
+
+function Invoke-DbMigrations {
+    $migrationScript = Join-Path $script:RepoRoot "scripts\apply-migrations.ps1"
+
+    if (-not (Test-Path $migrationScript)) {
+        throw "Migration script not found: $migrationScript"
+    }
+
+    $steps = @(
+        @{
+            name = "Apply DB Migrations"
+            command = "$script:ShellExe -NoProfile -ExecutionPolicy Bypass -File `"$migrationScript`""
+            cwd = $script:RepoRoot
+            reason = "Apply SQL migrations using Windows PowerShell migration runner."
+            expected = "All migration files apply successfully; reminder shown to restart Nuxt server."
+            required = $true
+        }
+    )
+
+    Invoke-Flow -FlowLabel "DB-MIGRATE" -Steps $steps
+}
+
 function Invoke-ReactPlanned {
     param([string]$Message)
     Write-Log -Level "WARN" -StepLabel "REACT-PLAN" -Message "Planned - not implemented yet: $Message"
@@ -614,18 +712,20 @@ function Show-Menu {
         Write-Host "2. Docker/DB: Start Postgres"
         Write-Host "3. Docker/DB: Stop Postgres"
         Write-Host "4. Docker/DB: Status + Logs (tail)"
-        Write-Host "5. Nuxt: Install deps"
-        Write-Host "6. Nuxt: Approve builds"
-        Write-Host "7. Nuxt: Prepare"
-        Write-Host "8. Nuxt: Validate"
-        Write-Host "9. Nuxt: Build"
-        Write-Host "10. Nuxt: Dev"
-        Write-Host "11. Nuxt: Full Dev Up"
-        Write-Host "12. React/Laravel: Doctor (planned)"
-        Write-Host "13. React frontend: Install/Validate/Build (planned)"
-        Write-Host "14. Laravel backend: Install/Test/Serve (planned)"
-        Write-Host "15. React/Laravel: Full Dev Up (planned)"
-        Write-Host "16. Open latest log file"
+        Write-Host "5. Docker/DB: Apply Migrations (PowerShell)"
+        Write-Host "6. Nuxt: Install deps"
+        Write-Host "7. Nuxt: Approve builds"
+        Write-Host "8. Nuxt: Prepare"
+        Write-Host "9. Nuxt: Validate"
+        Write-Host "10. Nuxt: Build"
+        Write-Host "11. Nuxt: Start Dev Server (Vite)"
+        Write-Host "12. Nuxt: Stop Dev Server"
+        Write-Host "13. Nuxt: Full Dev Up"
+        Write-Host "14. React/Laravel: Doctor (planned)"
+        Write-Host "15. React frontend: Install/Validate/Build (planned)"
+        Write-Host "16. Laravel backend: Install/Test/Serve (planned)"
+        Write-Host "17. React/Laravel: Full Dev Up (planned)"
+        Write-Host "18. Open latest log file"
         Write-Host "0. Exit"
 
         $choice = Read-Host "Choose"
@@ -643,31 +743,30 @@ function Show-Menu {
                     @{ name = "DB Logs Tail"; command = "docker compose logs --tail=100 postgres"; cwd = $script:RepoRoot; reason = "Show recent postgres logs."; expected = "Recent postgres log lines."; required = $false }
                 )
             }
-            "5" {
+            "5" { Invoke-DbMigrations }
+            "6" {
                 $pm = Get-PackageManager
                 Invoke-Flow -FlowLabel "NUXT-INSTALL" -Steps @(@{ name = "Nuxt Install"; command = "$pm install"; cwd = (Join-Path $script:RepoRoot "nuxt-app"); reason = "Install deps."; expected = "Dependencies installed."; required = $true })
             }
-            "6" {
+            "7" {
                 $pm = Get-PackageManager
                 Invoke-Flow -FlowLabel "NUXT-APPROVE" -Steps @(@{ name = "Approve Builds"; command = "$pm approve-builds"; cwd = (Join-Path $script:RepoRoot "nuxt-app"); reason = "Approve blocked scripts."; expected = "Approval complete."; required = $false })
             }
-            "7" {
+            "8" {
                 $pm = Get-PackageManager
                 Invoke-Flow -FlowLabel "NUXT-PREPARE" -Steps @(@{ name = "Nuxt Prepare"; command = "$pm nuxt prepare"; cwd = (Join-Path $script:RepoRoot "nuxt-app"); reason = "Generate Nuxt artifacts."; expected = "Prepare complete."; required = $true })
             }
-            "8" { Invoke-NuxtValidate }
-            "9" { Invoke-NuxtBuild }
-            "10" {
-                $pm = Get-PackageManager
-                Invoke-Flow -FlowLabel "NUXT-DEV" -Steps @(@{ name = "Nuxt Dev"; command = "$pm dev"; cwd = (Join-Path $script:RepoRoot "nuxt-app"); reason = "Start dev server."; expected = "Server runs."; required = $true })
-            }
-            "11" { Invoke-NuxtUp }
-            "12" { Invoke-ReactPlanned -Message "React/Laravel Doctor" }
-            "13" { Invoke-ReactPlanned -Message "React frontend Install/Validate/Build" }
-            "14" { Invoke-ReactPlanned -Message "Laravel backend Install/Test/Serve" }
-            "15" { Invoke-ReactPlanned -Message "React/Laravel Full Dev Up" }
-            "16" { Open-LatestLog }
-            "0" { break }
+            "9" { Invoke-NuxtValidate }
+            "10" { Invoke-NuxtBuild }
+            "11" { Start-NuxtDevServer }
+            "12" { Stop-NuxtDevServer }
+            "13" { Invoke-NuxtUp }
+            "14" { Invoke-ReactPlanned -Message "React/Laravel Doctor" }
+            "15" { Invoke-ReactPlanned -Message "React frontend Install/Validate/Build" }
+            "16" { Invoke-ReactPlanned -Message "Laravel backend Install/Test/Serve" }
+            "17" { Invoke-ReactPlanned -Message "React/Laravel Full Dev Up" }
+            "18" { Open-LatestLog }
+            "0" { return }
             default { Write-Host "Invalid choice" -ForegroundColor Yellow }
         }
     }
@@ -679,8 +778,11 @@ try {
     switch ($Mode.ToLowerInvariant()) {
         "menu" { Show-Menu }
         "doctor" { Invoke-Doctor }
+        "migrate-db" { Invoke-DbMigrations }
         "validate-nuxt" { Invoke-NuxtValidate }
         "build-nuxt" { Invoke-NuxtBuild }
+        "start-nuxt" { Start-NuxtDevServer }
+        "stop-nuxt" { Stop-NuxtDevServer }
         "up-nuxt" { Invoke-NuxtUp }
         "up-react" { Invoke-ReactPlanned -Message "React/Laravel Full Dev Up" }
         "doctor-react" { Invoke-ReactPlanned -Message "React/Laravel Doctor" }

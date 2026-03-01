@@ -10,6 +10,7 @@ export default defineEventHandler(async () => {
     startedAt: Date
     finishedAt: Date | null
     studentName: string | null
+    quizTypeCode: string | null
   }) => ({
     id: session.id,
     difficulty: session.difficulty,
@@ -18,5 +19,6 @@ export default defineEventHandler(async () => {
     started_at: session.startedAt,
     finished_at: session.finishedAt,
     student_name: session.studentName,
+    quiz_type_code: session.quizTypeCode,
   }))
 })
