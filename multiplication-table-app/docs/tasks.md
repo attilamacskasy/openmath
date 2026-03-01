@@ -1,12 +1,13 @@
 # Task Backlog
 
 ## Ready
-- [ ] Add input unit tests covering minimum, maximum, and invalid cases once a test harness is introduced.
-- [ ] Extend table rendering to support optional row/column headers toggling via command-line flags.
+- [ ] Add unit tests for difficulty selection, input validation, and score calculation.
+- [ ] Add optional command-line argument to set question count.
 
 ## In Progress
-- [ ] Document example runs that highlight the ASCII separators for both operands and products.
+- [ ] Collect sample runs for each difficulty level.
 
 ## Done
-- [x] Generate multiplication tables for user-selected dimensions (1-12).
-- [x] Render ASCII borders that distinguish operand labels from computed results.
+- [x] Implement 10-question console quiz with difficulty menu.
+- [x] Validate integer input and re-prompt on invalid answers.
+- [x] Calculate and print correct, wrong, and percentage score.

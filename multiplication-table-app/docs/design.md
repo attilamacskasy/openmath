@@ -1,16 +1,18 @@
 # Design Overview
 
 ## Architecture
-- `src/main.py` handles input validation and orchestrates table generation and rendering.
-- `src/utils.py` exposes `generate_multiplication_table` for producing numeric grids and `display_table` for ASCII formatting.
+- `src/main.py` is the executable console application.
+- The program uses small functions for menu input, numeric validation, question generation, and quiz orchestration.
+- Randomized question generation uses Python's `random` module from the standard library.
 
 ## Data Flow
-1. Gather validated dimensions from the user.
-2. Build a nested list where each row contains the multiplication products for a given multiplicand.
-3. Determine cell width based on the widest value and format the table with a dedicated label column and header row.
-4. Print the table using distinct borders to emphasize operand headers vs. result body.
+1. Ask the user to choose a difficulty (`low`, `medium`, `hard`).
+2. For each of 10 questions, choose one focused factor from the difficulty set and one factor from `1..10`.
+3. Ask `What is A x B?` and validate integer input.
+4. Check correctness using `A * B` and track counts.
+5. Print final summary: total, correct, wrong, and rounded percentage score.
 
-## Formatting Strategy
-- Use shared width calculations to right-align all cells.
-- Employ double-character separators (`++`, `||`, `=`) between operand labels and results for clearer grouping.
-- Emit horizontal borders after every row to preserve alignment in terminals that lack box-drawing characters.
+## Validation Strategy
+- Difficulty input loops until a valid option is entered.
+- Answer input loops until a valid integer is entered.
+- Invalid numeric input does not consume a question attempt.

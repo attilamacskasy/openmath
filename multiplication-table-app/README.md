@@ -1,12 +1,14 @@
-# Multiplication Table App
+# Multiplication Practice App
 
-This is a simple Python application that generates a multiplication table based on user-defined dimensions. The application prompts the user to enter the number of rows and columns (from 1 to 12) and then displays the multiplication table in the console.
+This is a Python console app for grade 2 multiplication practice. The app lets the student choose a difficulty (`low`, `medium`, or `hard`), asks 10 multiplication questions, and shows a summary with correct answers, wrong answers, and percentage score.
 
 ## Features
 
-- User-friendly interface to input dimensions.
-- Generates multiplication tables for any dimensions between 1 and 12.
-- Displays the table neatly in the console.
+- Difficulty menu: `low`, `medium`, `hard`.
+- 10-question quiz with random factors in the range `1..10`.
+- Difficulty-aware question generation where at least one factor comes from the selected difficulty set.
+- Input validation that re-asks the same prompt if the user does not enter an integer.
+- Final score summary with `Correct`, `Wrong`, and `Score`.
 
 ## Getting Started
 
@@ -32,12 +34,12 @@ Make sure you have Python installed on your machine. You can download it from [p
 
 ### Running the Application
 
-To run the application, execute the following command:
+To run the application, execute:
 ```
 python src/main.py
 ```
 
-Follow the prompts to enter the desired dimensions for the multiplication table.
+Then choose a difficulty and answer the quiz questions.
 
 ## License
 
