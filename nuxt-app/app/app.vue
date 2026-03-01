@@ -4,6 +4,7 @@
       <NuxtLink to="/">Start</NuxtLink>
       <NuxtLink to="/profile">Profile</NuxtLink>
       <NuxtLink to="/history">History</NuxtLink>
+      <NuxtLink to="/user-guide">User Guide</NuxtLink>
       <NuxtLink to="/database-stats">Database Statistics</NuxtLink>
 
       <label class="student-label">
