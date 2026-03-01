@@ -5,6 +5,7 @@
         <th>Student</th>
         <th>Difficulty</th>
         <th>Questions</th>
+        <th>Time Spent</th>
         <th>Score</th>
         <th>Started</th>
         <th>Finished</th>
@@ -17,9 +18,13 @@
           <NuxtLink :to="`/history/${row.id}`">{{ row.difficulty }}</NuxtLink>
         </td>
         <td>{{ row.total_questions }}</td>
+        <td>{{ formatDuration(row.started_at, row.finished_at) }}</td>
         <td>{{ row.score_percent }}%</td>
         <td>{{ formatDate(row.started_at) }}</td>
-        <td>{{ row.finished_at ? formatDate(row.finished_at) : "In progress" }}</td>
+        <td>
+          <NuxtLink v-if="!row.finished_at" :to="`/quiz/${row.id}`">In progress</NuxtLink>
+          <span v-else>{{ formatDate(row.finished_at) }}</span>
+        </td>
       </tr>
     </tbody>
   </table>
@@ -40,6 +45,37 @@ defineProps<{
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString()
+}
+
+function pad2(value: number): string {
+  return String(value).padStart(2, "0")
+}
+
+function formatDuration(startedAt: string, finishedAt: string | null): string {
+  const startMs = new Date(startedAt).getTime()
+  const endMs = finishedAt ? new Date(finishedAt).getTime() : Date.now()
+
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+    return "0s"
+  }
+
+  const totalSeconds = Math.floor((endMs - startMs) / 1000)
+
+  if (totalSeconds < 60) {
+    return `${totalSeconds}s`
+  }
+
+  if (totalSeconds < 3600) {
+    const minutes = Math.floor(totalSeconds / 60)
+    const seconds = totalSeconds % 60
+    return `${pad2(minutes)}:${pad2(seconds)}`
+  }
+
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  return `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`
 }
 </script>
 

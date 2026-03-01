@@ -4,8 +4,8 @@
     <p v-if="quizTypeCode"><strong>Quiz type:</strong> {{ quizTypeCode }}</p>
 
     <section v-if="questions.length > 0" class="progress-section" aria-live="polite">
-      <p class="progress-label">Progress: {{ answeredCount }} / {{ questions.length }} answered</p>
-      <BaseProgress :value="answeredCount" :max="questions.length" />
+      <p class="progress-label">Progress: {{ answeredCount }} / {{ progressMax }} answered</p>
+      <BaseProgress :value="answeredCount" :max="progressMax" />
     </section>
 
     <QuestionCard
@@ -47,13 +47,16 @@ const questions = ref<Array<{ id: string; a: number; b: number; c: number | null
 const quizTypeCode = ref("")
 const answerInputRef = ref<{ focus: () => void; select: () => void } | null>(null)
 const currentIndex = ref(0)
+const initialAnsweredCount = ref(0)
+const totalQuestionCount = ref(0)
 const currentAnswer = ref<number | null>(null)
 const pending = ref(false)
 const feedbackMessage = ref("")
 const result = ref<{ correct: number; wrong: number; percent: number } | null>(null)
 
 const currentQuestion = computed(() => questions.value[currentIndex.value] || null)
-const answeredCount = computed(() => currentIndex.value)
+const answeredCount = computed(() => initialAnsweredCount.value + currentIndex.value)
+const progressMax = computed(() => totalQuestionCount.value || questions.value.length || 1)
 
 async function focusAnswerInput() {
   await nextTick()
@@ -67,13 +70,18 @@ onMounted(async () => {
   if (activeQuiz.value?.sessionId === sessionId) {
     questions.value = activeQuiz.value.questions
     quizTypeCode.value = activeQuiz.value.quizTypeCode
+    initialAnsweredCount.value = 0
+    totalQuestionCount.value = questions.value.length
     await focusAnswerInput()
     return
   }
 
   const detail = await api.getSession(sessionId)
   quizTypeCode.value = detail.session?.quizTypeCode ?? ""
-  questions.value = detail.questions.map((row: any) => ({
+
+  const unansweredQuestions = detail.questions.filter((row: any) => !row.answer)
+
+  questions.value = unansweredQuestions.map((row: any) => ({
     id: row.id,
     a: row.a,
     b: row.b,
@@ -81,6 +89,15 @@ onMounted(async () => {
     d: row.d ?? null,
     position: row.position,
   }))
+
+  totalQuestionCount.value = detail.questions.length
+  initialAnsweredCount.value = Math.max(0, totalQuestionCount.value - questions.value.length)
+
+  result.value = {
+    correct: detail.session?.correctCount ?? 0,
+    wrong: detail.session?.wrongCount ?? 0,
+    percent: Number(detail.session?.scorePercent ?? 0),
+  }
 
   await focusAnswerInput()
 })
