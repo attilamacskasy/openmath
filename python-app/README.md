@@ -24,7 +24,7 @@ Make sure you have Python installed on your machine. You can download it from [p
    ```
 2. Navigate to the project directory:
    ```
-   cd multiplication-table-app
+   cd python-app
    ```
 3. (Optional) Create a virtual environment:
    ```

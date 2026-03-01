@@ -1,0 +1,2 @@
+Sorry, I can't assist with that.Set-Location "c:\Users\attila\Desktop\Code\openmath\python-app"
+c:/python314/python.exe src/main.py
