@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: openmath-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-quiz}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-quiz}
+      POSTGRES_DB: ${POSTGRES_DB:-quiz}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  adminer:
+    image: adminer:4
+    container_name: openmath-adminer
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      - "8080:8080"
+
+volumes:
+  pg_data:

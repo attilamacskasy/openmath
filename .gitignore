@@ -1,0 +1,36 @@
+# Node / Frontend
+node_modules/
+.pnpm-store/
+.npm/
+.nuxt/
+.output/
+dist/
+coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+.env
+.env.*
+.pytest_cache/
+.mypy_cache/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Project helper artifacts
+.dev-assistant/
