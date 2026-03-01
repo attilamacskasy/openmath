@@ -1,4 +1,4 @@
-# Multiplication Practice — Full-Stack Web App SPEC (React + Laravel + PostgreSQL)
+# Multiplication Practice — Full-Stack Web App SPEC (React + Laravel + PostgreSQL + Chakra UI)
 
 ## 1) Goal (v3)
 Create a modern web app for Grade 2 multiplication practice with:
@@ -8,22 +8,24 @@ Create a modern web app for Grade 2 multiplication practice with:
 
 Tech stack:
 - **React** (frontend)
+- **Chakra UI** (frontend component library)
 - **Laravel** (backend API)
 - **PostgreSQL** (database)
 
 ## 2) Recommended UI Controls / Component Library
-Use **MUI (Material UI)** for React:
-- Most popular, very large ecosystem, excellent docs, accessible, looks modern out of the box.
-- Controls needed for this app are first-class: buttons, inputs, dialogs, cards, progress, tables.
+Use **Chakra UI** for React:
+- Accessible-by-default primitives, strong theming system, and clean developer experience.
+- Fits this app well with ready components for forms, feedback, layout, and tables.
+- Easy to keep a kid-friendly visual style with custom color tokens and component variants.
 
 Suggested components:
-- Layout: `Container`, `Box`, `Stack`, `AppBar`
-- Start screen: `RadioGroup`/`ToggleButtonGroup` (difficulty), `TextField` (name), `Slider` or `Select` (question count), `Button`
-- Quiz: `Card`, `Typography`, `TextField` (numeric), `Button`, `LinearProgress` (progress), `Snackbar` (feedback)
-- Results: `Card`, `Alert`, `CircularProgress` (score visualization)
-- History: `Table` or `DataGrid` (optional), `Chip` (difficulty badge)
+- Layout: `Container`, `Box`, `Stack`, `Flex`, `Heading`
+- Start screen: `RadioGroup` (difficulty), `Input` (name), `Slider` or `Select` (question count), `Button`
+- Quiz: `Card` (or `Box` + style recipe), `Text`, numeric `Input`, `Button`, `Progress` (progress), `Toast` (feedback)
+- Results: `Card`/`Box`, `Alert`, `CircularProgress` (score visualization)
+- History: `Table`, `Badge` (difficulty badge)
 
-(Alternative: Ant Design is also popular, but MUI is the most common default pick for this type of app.)
+Optional alternatives include MUI or Ant Design, but this spec standardizes on Chakra UI.
 
 ## 3) Core Features
 ### Student
@@ -192,19 +194,19 @@ Keep controllers thin; put logic in services:
 
 ## 9) React Pages (UI behavior)
 - **Home**:
-  - `ToggleButtonGroup` difficulty
+  - `RadioGroup` difficulty
   - `Slider` (e.g. 5–30) question count
-  - `TextField` optional name
+  - `Input` optional name
   - Start button → calls `POST /sessions`, navigates to `/quiz/:sessionId`
 - **Quiz**:
   - Displays current question in `Card`
-  - Numeric `TextField` + submit
-  - `LinearProgress` (answered / total)
-  - Optional `Snackbar` feedback
+  - Numeric `Input` + submit
+  - `Progress` (answered / total)
+  - Optional `Toast` feedback
 - **History**:
   - `Table` listing sessions + score + date, click row → details
 - **Session**:
-  - `Table` of questions with user answer and correctness (`Chip`/`Icon`)
+  - `Table` of questions with user answer and correctness (`Badge`/`Icon`)
 
 ## 10) Acceptance Criteria (v3)
 - Questions are generated server-side according to difficulty.

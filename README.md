@@ -43,8 +43,8 @@ These web stacks are planned to share a single PostgreSQL database and canonical
 ### Cross-project specs
 
 - `multiplication_practice_spec.md` — Python console app spec
-- `multiplication_practice_fullstack_spec.md` — Nuxt full-stack spec
-- `multiplication_practice_react_laravel_spec.md` — React + Laravel spec
+- `multiplication_practice_nuxt4_drizzle_reka_spec.md` — Nuxt full-stack spec + Reka UI spec
+- `multiplication_practice_react_laravel_chakra_spec.md` — React + Laravel + Chakra UI spec
 - `multiproject_repo_spec.md` — monorepo strategy and shared DB guidance
 
 ## Quick Start (Python App)
