@@ -3,6 +3,11 @@
     <h1>Quiz</h1>
     <p v-if="quizTypeCode"><strong>Quiz type:</strong> {{ quizTypeCode }}</p>
 
+    <section v-if="questions.length > 0" class="progress-section" aria-live="polite">
+      <p class="progress-label">Progress: {{ answeredCount }} / {{ questions.length }} answered</p>
+      <BaseProgress :value="answeredCount" :max="questions.length" />
+    </section>
+
     <QuestionCard
       v-if="currentQuestion"
       :a="currentQuestion.a"
@@ -46,6 +51,7 @@ const feedbackMessage = ref("")
 const result = ref<{ correct: number; wrong: number; percent: number } | null>(null)
 
 const currentQuestion = computed(() => questions.value[currentIndex.value] || null)
+const answeredCount = computed(() => currentIndex.value)
 
 async function focusAnswerInput() {
   await nextTick()
@@ -127,5 +133,15 @@ async function submitCurrent() {
 .feedback {
   margin-top: 0.75rem;
   color: #334155;
+}
+
+.progress-section {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.progress-label {
+  margin: 0;
+  color: #475569;
 }
 </style>
