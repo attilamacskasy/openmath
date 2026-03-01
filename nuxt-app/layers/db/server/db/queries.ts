@@ -158,6 +158,8 @@ export async function insertQuestions(sessionId: string, quizTypeId: string, gen
       quizTypeId,
       a: item.a,
       b: item.b,
+      c: item.c,
+      d: item.d,
       correct: item.correct,
       position: item.position,
     }))
@@ -170,6 +172,8 @@ export async function insertQuestions(sessionId: string, quizTypeId: string, gen
       id: true,
       a: true,
       b: true,
+      c: true,
+      d: true,
       position: true,
     },
   })

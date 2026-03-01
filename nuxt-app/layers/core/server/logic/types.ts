@@ -4,6 +4,8 @@ export type QuestionPayload = {
   id: string
   a: number
   b: number
+  c?: number | null
+  d?: number | null
   position: number
 }
 

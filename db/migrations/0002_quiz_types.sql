@@ -9,6 +9,10 @@ INSERT INTO quiz_types (code, description)
 VALUES ('multiplication_1_10', 'Multiplication quiz with factors between 1 and 10')
 ON CONFLICT (code) DO NOTHING;
 
+INSERT INTO quiz_types (code, description)
+VALUES ('sum_products_1_10', 'Sum of products quiz: (a × b) + (c × d) with factors 1..10')
+ON CONFLICT (code) DO NOTHING;
+
 ALTER TABLE quiz_sessions
   ADD COLUMN IF NOT EXISTS quiz_type_id UUID;
 

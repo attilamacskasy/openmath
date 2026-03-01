@@ -12,6 +12,8 @@
       v-if="currentQuestion"
       :a="currentQuestion.a"
       :b="currentQuestion.b"
+      :c="currentQuestion.c"
+      :d="currentQuestion.d"
       :position="currentIndex + 1"
       :total="questions.length"
     >
@@ -38,10 +40,10 @@ const api = useApi()
 const activeQuiz = useState<{
   sessionId: string
   quizTypeCode: string
-  questions: Array<{ id: string; a: number; b: number; position: number }>
+  questions: Array<{ id: string; a: number; b: number; c: number | null; d: number | null; position: number }>
 } | null>("activeQuiz", () => null)
 
-const questions = ref<Array<{ id: string; a: number; b: number; position: number }>>([])
+const questions = ref<Array<{ id: string; a: number; b: number; c: number | null; d: number | null; position: number }>>([])
 const quizTypeCode = ref("")
 const answerInputRef = ref<{ focus: () => void; select: () => void } | null>(null)
 const currentIndex = ref(0)
@@ -75,6 +77,8 @@ onMounted(async () => {
     id: row.id,
     a: row.a,
     b: row.b,
+    c: row.c ?? null,
+    d: row.d ?? null,
     position: row.position,
   }))
 

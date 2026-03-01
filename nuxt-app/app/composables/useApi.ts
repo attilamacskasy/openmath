@@ -11,7 +11,7 @@ export function useApi() {
     return $fetch<{
       sessionId: string
       quizTypeCode: string
-      questions: Array<{ id: string; a: number; b: number; position: number }>
+      questions: Array<{ id: string; a: number; b: number; c: number | null; d: number | null; position: number }>
     }>("/api/sessions", {
       method: "POST",
       body: payload,

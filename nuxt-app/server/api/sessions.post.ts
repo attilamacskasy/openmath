@@ -26,20 +26,22 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: "Invalid difficulty" })
   }
 
+  const effectiveQuizTypeCode = quizTypeCode ?? DEFAULT_QUIZ_TYPE_CODE
+
   const session = await createSession({
     difficulty,
     totalQuestions,
     studentId,
     studentName,
-    quizTypeCode,
+    quizTypeCode: effectiveQuizTypeCode,
   })
 
-  const generated = generateQuestions(difficulty, totalQuestions)
+  const generated = generateQuestions(difficulty, totalQuestions, effectiveQuizTypeCode)
   const questions = await insertQuestions(session.id, session.quizTypeId, generated)
 
   return {
     sessionId: session.id,
-    quizTypeCode: quizTypeCode ?? DEFAULT_QUIZ_TYPE_CODE,
+    quizTypeCode: effectiveQuizTypeCode,
     questions,
   }
 })

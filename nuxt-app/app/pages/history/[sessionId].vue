@@ -21,7 +21,7 @@
       <tbody>
         <tr v-for="row in sessionDetail.questions" :key="row.id">
           <td>{{ row.position }}</td>
-          <td>{{ row.a }} x {{ row.b }}</td>
+          <td>{{ row.c !== null && row.d !== null ? `(${row.a} x ${row.b}) + (${row.c} x ${row.d})` : `${row.a} x ${row.b}` }}</td>
           <td>{{ row.correct }}</td>
           <td>{{ row.answer?.value ?? "—" }}</td>
           <td>{{ row.answer?.isCorrect ? "Correct" : row.answer ? "Wrong" : "Pending" }}</td>

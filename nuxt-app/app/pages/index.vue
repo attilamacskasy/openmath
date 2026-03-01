@@ -57,7 +57,7 @@ const errorMessage = ref("")
 const activeQuiz = useState<{
   sessionId: string
   quizTypeCode: string
-  questions: Array<{ id: string; a: number; b: number; position: number }>
+  questions: Array<{ id: string; a: number; b: number; c: number | null; d: number | null; position: number }>
 } | null>("activeQuiz", () => null)
 
 async function startQuiz() {

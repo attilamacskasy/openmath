@@ -1,18 +1,30 @@
 <template>
   <section class="question-card">
     <p class="position">Question {{ position }} / {{ total }}</p>
-    <h2>What is {{ a }} x {{ b }}?</h2>
+    <h2>{{ prompt }}</h2>
     <slot />
   </section>
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { computed } from "vue"
+
+const props = defineProps<{
   a: number
   b: number
+  c?: number | null
+  d?: number | null
   position: number
   total: number
 }>()
+
+const prompt = computed(() => {
+  if (props.c !== null && props.c !== undefined && props.d !== null && props.d !== undefined) {
+    return `What is (${props.a} x ${props.b}) + (${props.c} x ${props.d})?`
+  }
+
+  return `What is ${props.a} x ${props.b}?`
+})
 </script>
 
 <style scoped>
