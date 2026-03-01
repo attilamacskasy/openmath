@@ -100,6 +100,62 @@ This section summarizes everything added after `v1.0`.
 - Fixed assistant menu exit behavior and script robustness issues.
 - Hardened SQL migrations for safer reruns and PostgreSQL compatibility.
 
+## v1.5 Screenshots
+
+### Start page
+
+![OpenMath Start page showing quiz setup with quiz type, difficulty, student selection, and start button.](assets/images/v1.5/main.JPG)
+
+*OpenMath Start page showing quiz setup with quiz type, difficulty, student selection, and start button.*
+
+### Nuxt / Nitro / Vite / Vue runtime
+
+![Terminal or app runtime view showing Nuxt, Nitro, Vite, and Vue development execution details.](assets/images/v1.5/nuxt_nitro_vite_vue.JPG)
+
+*Terminal or app runtime view showing Nuxt, Nitro, Vite, and Vue development execution details.*
+
+### Session Summary detail
+
+![Session detail page showing question-by-question results, correctness status, and session summary metrics.](assets/images/v1.5/history_session.JPG)
+
+*Session detail page showing question-by-question results, correctness status, and session summary metrics.*
+
+### Quiz History
+
+![Quiz History page grouped by quiz type with session rows, time spent, average time per question, and status links.](assets/images/v1.5/history.JPG)
+
+*Quiz History page grouped by quiz type with session rows, time spent, average time per question, and status links.*
+
+### Profile page
+
+![Profile page showing active student preferences such as name, age, gender, learned timetables, and performance statistics.](assets/images/v1.5/profile.JPG)
+
+*Profile page showing active student preferences such as name, age, gender, learned timetables, and performance statistics.*
+
+### Database Statistics
+
+![Database Statistics page showing table record counts, row viewer, refresh controls, and admin data tools.](assets/images/v1.5/dbstats.JPG)
+
+*Database Statistics page showing table record counts, row viewer, refresh controls, and admin data tools.*
+
+### pgAdmin database view
+
+![pgAdmin interface showing OpenMath PostgreSQL schema, tables, and stored quiz data.](assets/images/v1.5/pgadmin.JPG)
+
+*pgAdmin interface showing OpenMath PostgreSQL schema, tables, and stored quiz data.*
+
+### Docker stack
+
+![Docker environment view showing running services used by OpenMath development stack.](assets/images/v1.5/docker.JPG)
+
+*Docker environment view showing running services used by OpenMath development stack.*
+
+### Dev assistant script
+
+![PowerShell dev assistant output showing guided commands for Nuxt workflow, validation, build, and migrations.](assets/images/v1.5/dev.JPG)
+
+*PowerShell dev assistant output showing guided commands for Nuxt workflow, validation, build, and migrations.*
+
 ## Current Scope (Implemented)
 
 This repository contains two working implementations:
