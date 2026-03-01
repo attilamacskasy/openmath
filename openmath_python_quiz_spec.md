@@ -1,7 +1,7 @@
-# Multiplication Practice (Grade 2) — SPEC (Spec-Driven Development)
+# OpenMath — Python Quiz SPEC (multiplication-first)
 
 ## 1) Goal
-Build a **Python console** app that quizzes 2nd graders on the multiplication table, counts **correct/incorrect** answers, and shows a **percentage** result at the end.
+Build a **Python console** quiz app for OpenMath where **multiplication is the first quiz type**. The app quizzes 2nd graders on multiplication, counts **correct/incorrect** answers, and shows a **percentage** result at the end.
 
 ## 2) Users & Context
 - **User:** a 2nd grade student (guided by a teacher/parent if needed).

@@ -1,4 +1,4 @@
-# Multiplication Practice — Monorepo SPEC (Python console + Nuxt 4 + React/Laravel) 
+# OpenMath — Monorepo SPEC (Python console + Nuxt 4 + React/Laravel) 
 
 ## Goal (monorepo)
 Keep **three implementations** in a single repository so you can compare and run:

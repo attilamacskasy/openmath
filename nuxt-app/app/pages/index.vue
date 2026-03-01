@@ -1,6 +1,7 @@
 <template>
   <main class="page">
-    <h1>Multiplication Practice</h1>
+    <h1>OpenMath</h1>
+    <p>Multiplication is the first quiz type students can run.</p>
     <form class="card" @submit.prevent="startQuiz">
       <DifficultySelect v-model="difficulty" />
 

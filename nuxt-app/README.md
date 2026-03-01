@@ -1,8 +1,13 @@
 # Nuxt App (Nuxt 4 + Nitro + Drizzle + Reka UI)
 
-This app implements the web full-stack multiplication practice flow defined in:
+This app implements the OpenMath web full-stack flow.
 
-- `../multiplication_practice_nuxt4_drizzle_reka_spec.md`
+Current quiz type:
+- Multiplication (first released quiz type)
+
+Specifications:
+
+- `../openmath_nuxt4_drizzle_reka_spec.md`
 - `../multiproject_repo_spec.md`
 
 ## Prerequisites

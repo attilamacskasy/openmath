@@ -4,7 +4,8 @@
 
 ## Purpose
 
-- Build a simple, child-friendly multiplication practice experience.
+- Build a broader, child-friendly **OpenMath** quiz platform.
+- Start with a strong multiplication quiz as the first released quiz type.
 - Use spec-driven development to keep implementation clear and repeatable.
 - Compare modern full-stack approaches on the same product idea over time.
 
@@ -19,7 +20,7 @@
 This repository now contains two working implementations:
 
 - `python-app/` — multiplication quiz for grade 2 practice (console)
-- `nuxt-app/` — full-stack multiplication practice app with PostgreSQL persistence
+- `nuxt-app/` — full-stack OpenMath app with PostgreSQL persistence
 
 ### Python app supports
 
@@ -30,6 +31,7 @@ This repository now contains two working implementations:
 
 ### Nuxt app supports
 
+- OpenMath platform entry flow (currently multiplication-first)
 - Start quiz with difficulty and question count
 - Student handling:
 	- select an **existing student** from dropdown
@@ -88,9 +90,9 @@ Based on recent product updates, the Nuxt app now includes:
 
 ### Cross-project specs
 
-- `multiplication_practice_spec.md` — Python console app spec
-- `multiplication_practice_nuxt4_drizzle_reka_spec.md` — Nuxt full-stack spec + Reka UI spec
-- `multiplication_practice_react_laravel_chakra_spec.md` — React + Laravel + Chakra UI spec
+- `openmath_python_quiz_spec.md` — OpenMath Python console quiz spec (multiplication-first)
+- `openmath_nuxt4_drizzle_reka_spec.md` — OpenMath Nuxt full-stack spec + Reka UI spec
+- `openmath_react_laravel_chakra_spec.md` — OpenMath React + Laravel + Chakra UI spec
 - `multiproject_repo_spec.md` — monorepo strategy and shared DB guidance
 - `win11_dev_assistant_nuxt4_spec.md` — Win11 visibility-first assistant spec for Nuxt workflows
 
@@ -147,10 +149,11 @@ python src/main.py
 
 ## Why this structure?
 
-The goal is to keep one educational domain (multiplication practice) while comparing developer experience and architecture trade-offs across:
+The goal is to keep one educational domain (OpenMath quizzes) while comparing developer experience and architecture trade-offs across:
 
 - simple local console app (Python)
 - Vue-oriented full-stack (Nuxt)
 - React + Laravel split-stack full-stack
 
+Multiplication is intentionally the first quiz experience students can run, with room to add more quiz types over time.
 This keeps product behavior comparable while letting us evaluate implementation speed, maintainability, and stack fit.

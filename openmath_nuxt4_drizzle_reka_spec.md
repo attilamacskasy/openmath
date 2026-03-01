@@ -1,4 +1,4 @@
-# Multiplication Practice — Full-Stack Web App SPEC (Nuxt 4 Layers + Nitro + Drizzle ORM + PostgreSQL + Reka UI)
+# OpenMath — Full-Stack Web App SPEC (Nuxt 4 Layers + Nitro + Drizzle ORM + PostgreSQL + Reka UI)
 
 ## 0) Stack (updated)
 - **Nuxt 4** app with **Nitro** server routes (single full-stack app)
@@ -27,7 +27,7 @@ Implementation expectation:
 ---
 
 ## 1) Goal
-A modern web app for Grade 2 multiplication practice with:
+A modern OpenMath web app where **multiplication is the first quiz type students can run**, with:
 - Difficulty selection (`low`, `medium`, `hard`)
 - Quiz sessions that store **generated questions**, **submitted answers**, and **scoring**
 - History view + session detail view (full audit/replay)

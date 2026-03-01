@@ -1,7 +1,7 @@
-# Multiplication Practice — Full-Stack Web App SPEC (React + Laravel + PostgreSQL + Chakra UI)
+# OpenMath — Full-Stack Web App SPEC (React + Laravel + PostgreSQL + Chakra UI)
 
 ## 1) Goal (v3)
-Create a modern web app for Grade 2 multiplication practice with:
+Create a modern OpenMath web app where **multiplication is the first quiz type students can run**, with:
 - Difficulty selection (`low`, `medium`, `hard`)
 - Quiz sessions with stored questions + answers + scoring
 - History and session detail views (audit trail)
