@@ -1,137 +1,165 @@
-# Multiplication Practice — Full-Stack Web App SPEC (Nuxt 4 + Nitro + PostgreSQL)
+# Multiplication Practice — Full-Stack Web App SPEC (Nuxt 4 Layers + Nitro + Drizzle ORM + PostgreSQL + Reka UI)
 
-## 1) Goal (v2)
-Create a **modern web app** that provides multiplication practice (Grade 2) with:
+## 0) Stack (updated)
+- **Nuxt 4** app with **Nitro** server routes (single full-stack app)
+- **Nuxt Layers** (`layers/`) to split concerns (auto-registered local layers) citeturn0search0turn0search13
+- **PostgreSQL** database
+- **Drizzle ORM + drizzle-kit** for typed schema + migrations and PG access citeturn0search2turn0search5turn0search15
+- **Reka UI** for unstyled, fully accessible headless components (Vue port of Radix primitives) citeturn0search1turn0search10turn0search4
+
+Dev workflow (recommended):
+- Run Nuxt with **Vite dev server** (`pnpm dev`)
+- Run PostgreSQL via **Docker** (single DB container)
+
+---
+
+## 1) Goal
+A modern web app for Grade 2 multiplication practice with:
 - Difficulty selection (`low`, `medium`, `hard`)
-- Persistent storage of **attempts, answers, scoring, and history**
-- Teacher/parent can review results over time
+- Quiz sessions that store **generated questions**, **submitted answers**, and **scoring**
+- History view + session detail view (full audit/replay)
 
-Tech stack:
-- **Nuxt 4** (Vue)
-- **Nitro** (server routes / API)
-- **PostgreSQL** as the database
+---
 
-## 2) Core Features
-### Student
-- Start a quiz (choose difficulty + number of questions)
-- Answer questions one-by-one
-- See final results (correct/wrong + %)
+## 2) Nuxt Layers Plan
+Nuxt auto-registers local layers inside `layers/`, and each layer must contain a `nuxt.config.ts` (can be empty) to be recognized. citeturn0search0turn0search13
 
-### History / Review
-- See previous quiz sessions with score and details
-- Drill down into a session to see each question + student answer + correctness
+### Layer breakdown
+- `layers/core` — domain logic (difficulty sets, generator, scoring), shared types
+- `layers/db` — Drizzle schema, migrations config, DB client helpers
+- `layers/ui` — Reka UI wrappers + app UI components (unstyled primitives + your design)
 
-### Admin/Parent (optional v2)
-- View aggregated stats (by difficulty, by table, by time)
+This keeps:
+- API routes thin and stable (`server/api/*` at app root)
+- business logic testable and reusable (`layers/core`)
+- DB access isolated (`layers/db`)
+- UI primitives consistent (`layers/ui`)
 
-## 3) Key Decisions
-- **Server generates questions** and stores them in DB for replay/auditability.
-- Each quiz is a **session** with many **questions** and **answers** (1 per question).
-- Difficulty is enforced by how questions are generated (tables/operands).
+---
 
-## 4) Directory Structure (Nuxt 4 + Nitro)
+## 3) Project Structure (Nuxt 4 + Layers)
 ```
 .
 ├─ app/
 │  ├─ pages/
-│  │  ├─ index.vue                # start screen (difficulty + quiz length)
-│  │  ├─ quiz/[sessionId].vue      # quiz runner UI
+│  │  ├─ index.vue                 # Start screen (difficulty + length)
+│  │  ├─ quiz/[sessionId].vue      # Quiz runner
 │  │  └─ history/
-│  │     ├─ index.vue             # sessions list
-│  │     └─ [sessionId].vue       # session details
+│  │     ├─ index.vue              # Sessions list
+│  │     └─ [sessionId].vue        # Session details
 │  ├─ components/
-│  │  ├─ DifficultySelect.vue
-│  │  ├─ QuestionCard.vue
-│  │  └─ ResultSummary.vue
 │  └─ composables/
-│     ├─ useApi.ts                # tiny API wrapper (fetch)
-│     └─ useSession.ts            # client session helpers
+│     └─ useApi.ts                 # tiny fetch wrapper
+│
+├─ layers/
+│  ├─ core/
+│  │  ├─ nuxt.config.ts
+│  │  └─ server/logic/
+│  │     ├─ difficulty.ts
+│  │     ├─ generator.ts
+│  │     ├─ scoring.ts
+│  │     └─ types.ts
+│  │
+│  ├─ db/
+│  │  ├─ nuxt.config.ts
+│  │  ├─ drizzle.config.ts
+│  │  └─ server/db/
+│  │     ├─ schema.ts              # Drizzle schema (tables + relations)
+│  │     ├─ client.ts              # pg driver + drizzle() instance
+│  │     └─ queries.ts
+│  │
+│  └─ ui/
+│     ├─ nuxt.config.ts
+│     ├─ components/
+│     │  ├─ DifficultySelect.vue
+│     │  ├─ QuestionCard.vue
+│     │  ├─ ResultSummary.vue
+│     │  └─ SessionTable.vue
+│     └─ reka/
+│        ├─ BaseButton.vue
+│        ├─ BaseInput.vue
+│        └─ BaseDialog.vue
 │
 ├─ server/
-│  ├─ api/
-│  │  ├─ sessions.post.ts         # create quiz session + generated questions
-│  │  ├─ sessions.get.ts          # list sessions (history)
-│  │  ├─ sessions/[id].get.ts     # session details (questions+answers)
-│  │  └─ answers.post.ts          # submit an answer for a question
-│  ├─ db/
-│  │  ├─ index.ts                 # db client (pool)
-│  │  ├─ schema.sql               # SQL schema (or migrations)
-│  │  └─ queries.ts               # small query helpers
-│  └─ logic/
-│     ├─ difficulty.ts            # defines difficulty sets
-│     ├─ generator.ts             # question generation
-│     └─ scoring.ts               # scoring % + summary
+│  └─ api/
+│     ├─ sessions.post.ts
+│     ├─ sessions.get.ts
+│     ├─ sessions/[id].get.ts
+│     └─ answers.post.ts
 │
-├─ .env                           # DATABASE_URL=postgres://...
+├─ drizzle/                        # migrations output folder (drizzle-kit)
+│  └─ 0001_*.sql
+├─ .env                            # DATABASE_URL=postgres://...
 └─ package.json
 ```
 
-## 5) Database Model (PostgreSQL)
+---
+
+## 4) UI Controls (Reka UI) — Suggested Building Blocks
+Reka UI provides unstyled, accessible primitives meant to be styled by you. citeturn0search1turn0search10turn0search4
+
+Suggested primitives for this app:
+- **Start screen**
+  - Radio/Toggle group (difficulty)
+  - Select or Slider (question count)
+  - Text input (optional name)
+  - Primary button (Start)
+- **Quiz**
+  - Card-like container
+  - Text input (numeric answer)
+  - Button (Submit)
+  - Progress indicator (answered / total)
+  - Toast / Alert (optional feedback)
+- **History**
+  - Table (sessions)
+  - Badges/Chips (difficulty)
+  - Dialog (optional confirmations)
+
+Implementation approach:
+- Wrap Reka primitives into `layers/ui/reka/Base*.vue` so styling is centralized.
+
+---
+
+## 5) Database (PostgreSQL) — Traceable & Replayable
 ### Entities
-- **students** (optional; allow anonymous sessions by keeping nullable `student_id`)
-- **quiz_sessions** (one quiz run)
-- **questions** (generated question per session)
-- **answers** (student answer per question)
+- `students` (optional)
+- `quiz_sessions`
+- `questions`
+- `answers`
 
-### SQL Schema (traceable + replayable)
-```sql
--- Enable gen_random_uuid() (one-time):
--- CREATE EXTENSION IF NOT EXISTS pgcrypto;
+### Relational Rules
+- `quiz_sessions (1) -> (N) questions`
+- `questions (1) -> (0/1) answers`
+- `students (1) -> (N) quiz_sessions` (optional)
 
-CREATE TABLE students (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name         TEXT NOT NULL,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+---
 
-CREATE TABLE quiz_sessions (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id      UUID NULL REFERENCES students(id) ON DELETE SET NULL,
-  difficulty      TEXT NOT NULL CHECK (difficulty IN ('low','medium','hard')),
-  total_questions INT NOT NULL CHECK (total_questions > 0),
-  correct_count   INT NOT NULL DEFAULT 0,
-  wrong_count     INT NOT NULL DEFAULT 0,
-  score_percent   NUMERIC(5,2) NOT NULL DEFAULT 0,
-  started_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  finished_at     TIMESTAMPTZ NULL
-);
+## 6) Drizzle ORM (schema + migrations)
+Drizzle supports PostgreSQL via `node-postgres` (pg) or `postgres.js`. citeturn0search2turn0search5  
+Drizzle-kit uses a `drizzle.config.ts` to define connection + folders. citeturn0search15
 
-CREATE TABLE questions (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  session_id UUID NOT NULL REFERENCES quiz_sessions(id) ON DELETE CASCADE,
-  a          INT NOT NULL CHECK (a BETWEEN 1 AND 10),
-  b          INT NOT NULL CHECK (b BETWEEN 1 AND 10),
-  correct    INT NOT NULL,                 -- store a*b for audit
-  position   INT NOT NULL CHECK (position >= 1),
-  UNIQUE (session_id, position)
-);
+### Minimal Drizzle setup (spec-level)
+- `layers/db/server/db/schema.ts` defines the tables + relations + indexes
+- `layers/db/server/db/client.ts` reads `DATABASE_URL` and exports `db`
 
-CREATE TABLE answers (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  question_id UUID NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
-  value       INT NOT NULL,
-  is_correct  BOOLEAN NOT NULL,
-  answered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (question_id)                     -- one answer per question (v2)
-);
+### Migration workflow
+- Generate migrations into `/drizzle`
+- Apply migrations to local DB
 
-CREATE INDEX idx_questions_session ON questions(session_id);
-CREATE INDEX idx_answers_question ON answers(question_id);
-CREATE INDEX idx_sessions_started ON quiz_sessions(started_at DESC);
-```
+---
 
-## 6) Difficulty Logic (Server-side)
-Table sets:
-- `low` => `{1, 5, 10}`
-- `medium` => `{2, 3, 4, 6}` (may mix in some low)
-- `hard` => `{7, 8, 9}` (may mix in all)
+## 7) Difficulty Rules (server-side)
+- `low` => mostly `{1, 5, 10}`
+- `medium` => include `{2, 3, 4, 6}` + some easy
+- `hard` => include `{7, 8, 9}` + all others
 
-Generation rule (simple):
-- pick `a` from the selected set (or weighted mix)
-- pick `b` uniformly from `1..10`
-- save `(a, b, correct=a*b, position)` into `questions`
+Constraints:
+- `a` and `b` in `[1..10]`
+- ensure at least one factor from the selected set
 
-## 7) API Contract (Nitro)
+---
+
+## 8) Nitro API Contract
 ### Create session + questions
 `POST /api/sessions`
 ```json
@@ -139,38 +167,50 @@ Generation rule (simple):
 ```
 Returns:
 ```json
-{ "sessionId": "...", "questions": [{ "id": "...", "a": 5, "b": 7, "position": 1 }] }
+{
+  "sessionId": "uuid",
+  "questions": [{ "id": "uuid", "a": 5, "b": 7, "position": 1 }]
+}
 ```
 
 ### Submit answer
 `POST /api/answers`
 ```json
-{ "questionId": "...", "value": 35 }
+{ "questionId": "uuid", "value": 35 }
 ```
 Returns:
 ```json
-{ "isCorrect": true, "correctValue": 35, "session": { "correct": 3, "wrong": 1, "percent": 75 } }
+{
+  "isCorrect": true,
+  "correctValue": 35,
+  "session": { "correct": 3, "wrong": 1, "percent": 75 }
+}
 ```
 
 ### History + details
-- `GET /api/sessions` -> list sessions (id, difficulty, score_percent, started_at)
-- `GET /api/sessions/:id` -> session + questions + answers
+- `GET /api/sessions`
+- `GET /api/sessions/:id`
 
-## 8) Scoring & Finalization
-- On each submitted answer:
-  - compute `is_correct` using stored `questions.correct`
-  - update `quiz_sessions.correct_count/wrong_count`
-  - recompute `score_percent = correct_count / total_questions * 100`
-- When answered count == total_questions → set `finished_at`.
+---
 
-## 9) UI Pages
-- `/` start: difficulty + question count + optional name
-- `/quiz/:sessionId`: show questions in order, submit answers
-- `/history`: list past sessions
-- `/history/:sessionId`: audit view of Q/A per question
+## 9) Scoring & Finalization
+On each answer:
+- compute correctness using stored `questions.correct`
+- update session counters
+- `score_percent = correct_count / total_questions * 100`
+Finalize when answered == total_questions (`finished_at`).
 
-## 10) Acceptance Criteria (v2)
-- All sessions, questions, answers are stored and retrievable (full audit trail).
-- Difficulty selection changes the generated questions.
-- Score percent is correct and consistent with stored answers.
-- History screens match DB records.
+---
+
+## 10) Dev Run (recommended workflow)
+- Postgres: Docker compose (single container)
+- App: `pnpm dev` (Vite HMR)
+- DB: run drizzle migrations before first use
+
+---
+
+## 11) Acceptance Criteria (updated)
+- Layers are in `layers/*` and recognized via `nuxt.config.ts`. citeturn0search0turn0search13
+- Drizzle schema + migrations exist; DB is reproducible.
+- Questions are generated server-side per difficulty and persisted.
+- Answers persist; correctness and history replay match DB records.
