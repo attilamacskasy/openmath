@@ -26,6 +26,7 @@
 
 <script setup lang="ts">
 const route = useRoute()
+const router = useRouter()
 const api = useApi()
 
 const activeQuiz = useState<{
@@ -83,6 +84,7 @@ async function submitCurrent() {
       currentIndex.value += 1
     } else {
       activeQuiz.value = null
+      await router.push(`/history/${route.params.sessionId as string}`)
     }
   } finally {
     pending.value = false
