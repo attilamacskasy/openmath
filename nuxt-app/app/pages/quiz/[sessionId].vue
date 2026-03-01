@@ -11,7 +11,7 @@
       :total="questions.length"
     >
       <form class="answer-form" @submit.prevent="submitCurrent">
-        <BaseInput v-model.number="currentAnswer" type="number" placeholder="Your answer" required />
+        <BaseInput ref="answerInputRef" v-model.number="currentAnswer" type="number" placeholder="Your answer" required />
         <BaseButton type="submit" :disabled="pending">Submit</BaseButton>
       </form>
       <p v-if="feedbackMessage" class="feedback">{{ feedbackMessage }}</p>
@@ -38,6 +38,7 @@ const activeQuiz = useState<{
 
 const questions = ref<Array<{ id: string; a: number; b: number; position: number }>>([])
 const quizTypeCode = ref("")
+const answerInputRef = ref<{ focus: () => void; select: () => void } | null>(null)
 const currentIndex = ref(0)
 const currentAnswer = ref<number | null>(null)
 const pending = ref(false)
@@ -46,12 +47,19 @@ const result = ref<{ correct: number; wrong: number; percent: number } | null>(n
 
 const currentQuestion = computed(() => questions.value[currentIndex.value] || null)
 
+async function focusAnswerInput() {
+  await nextTick()
+  answerInputRef.value?.focus()
+  answerInputRef.value?.select()
+}
+
 onMounted(async () => {
   const sessionId = route.params.sessionId as string
 
   if (activeQuiz.value?.sessionId === sessionId) {
     questions.value = activeQuiz.value.questions
     quizTypeCode.value = activeQuiz.value.quizTypeCode
+    await focusAnswerInput()
     return
   }
 
@@ -63,6 +71,12 @@ onMounted(async () => {
     b: row.b,
     position: row.position,
   }))
+
+  await focusAnswerInput()
+})
+
+watch(currentIndex, async () => {
+  await focusAnswerInput()
 })
 
 async function submitCurrent() {

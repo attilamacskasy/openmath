@@ -1,5 +1,5 @@
 <template>
-  <input class="base-input" v-bind="$attrs" :value="modelValue" @input="onInput" />
+  <input ref="inputEl" class="base-input" v-bind="$attrs" :value="modelValue" @input="onInput" />
 </template>
 
 <script setup lang="ts">
@@ -19,6 +19,21 @@ const props = withDefaults(
 const emit = defineEmits<{
   (event: "update:modelValue", value: string | number): void
 }>()
+
+const inputEl = ref<HTMLInputElement | null>(null)
+
+function focus() {
+  inputEl.value?.focus()
+}
+
+function select() {
+  inputEl.value?.select()
+}
+
+defineExpose({
+  focus,
+  select,
+})
 
 function onInput(event: Event) {
   const inputValue = (event.target as HTMLInputElement).value
