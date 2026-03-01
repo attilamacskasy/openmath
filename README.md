@@ -1,23 +1,108 @@
 # openmath
 
-`openmath` is a learning-focused project for building fun, practical math tools for kids, starting with multiplication practice.
+<p align="center">
+  <img src="nuxt-app/public/openmath-logo.svg" alt="OpenMath logo" width="120" />
+</p>
+
+`openmath` is a learning-focused project for building fun, practical math tools for kids, starting with multiplication and expanding into a broader quiz platform.
 
 ## Purpose
 
-- Build a broader, child-friendly **OpenMath** quiz platform.
-- Start with a strong multiplication quiz as the first released quiz type.
-- Use spec-driven development to keep implementation clear and repeatable.
-- Compare modern full-stack approaches on the same product idea over time.
+- Build a child-friendly **OpenMath** quiz platform that improves both correctness and speed.
+- Start with multiplication as the first quiz type, then expand with additional quiz formats.
+- Keep development spec-driven for consistent implementation and easier iteration.
+- Compare multiple stack implementations over the same product domain.
+
+## User Guide (Start Here)
+
+### Objective
+
+The student goal is simple: **get the highest correct score in the least amount of time**.
+
+### Main workflow
+
+1. Select an active student in the top navigation (or keep `No student` to create one when starting).
+2. Open **Start**, choose quiz type, difficulty, and question count.
+3. Complete the quiz (keyboard-friendly flow with focused answer input).
+4. Review results in **History** and session detail.
+5. Improve profile and learned timetables in **Profile**, then repeat.
+
+### Menu guide
+
+- **Start** — create and launch a new quiz session.
+- **Profile** — edit student preferences and view performance stats.
+- **History** — review sessions, resume `In progress` sessions, compare speed/accuracy metrics.
+- **User Guide** — usage instructions for students and teachers.
+- **Database Statistics** — admin diagnostics: table counts, table row viewer, and danger-zone reset.
+- **Active student selector (top bar)** — sets current student context across pages.
 
 ## Release Status
 
-- **Nuxt release:** `v1.0` (working)
+- **Nuxt release:** `v1.5` (working)
 - **Current primary web app:** `nuxt-app/` (Nuxt 4 + Nitro + Drizzle + PostgreSQL)
 - **Python console app:** still available in `python-app/`
 
+## What’s New (Nuxt v1.5)
+
+This section summarizes everything added after `v1.0`.
+
+### 1) Platform and navigation improvements
+
+- Added a global **Active student** selector in the top navigation.
+- Student context now persists while navigating pages.
+- Added a dedicated **User Guide** page and menu item.
+- Rebranded content to OpenMath as a multi-quiz platform (multiplication-first).
+
+### 2) Quiz architecture and content expansion
+
+- Introduced `quiz_types` domain model and DB relationships.
+- Added quiz type selection on Start page.
+- Added quiz type visibility during quiz and grouped history by quiz type.
+- Added new quiz type: `sum_products_1_10` with question pattern `(a x b) + (c x d)`.
+- Persisted `c` and `d` terms in questions for full session replay and review.
+
+### 3) Student model and adaptive generation
+
+- Added student profile fields: `age`, `gender`, `learned_timetables` (1..10).
+- Generation now respects learned timetables for better personalization.
+- Added full profile edit page for active student preferences.
+
+### 4) Quiz UX and flow improvements
+
+- Improved keyboard-only quiz flow with answer input auto-focus between questions.
+- Added visual progress bar during quiz.
+- Added automatic redirect to session summary after quiz completion.
+- Added resume flow from History for unfinished sessions (`In progress` link).
+- Resume now starts from first unanswered question and preserves progress correctly.
+
+### 5) History and performance analytics
+
+- History now includes: `Student`, `Questions`, `Time Spent`, `Avg / Question`.
+- Added active-student-only filter in History (default ON).
+- Session summary now includes average time per question.
+- Profile includes aggregated performance metrics:
+  - all quizzes combined
+  - by quiz type
+  - total time spent (overall and by type)
+
+### 6) Database admin and safety tools
+
+- Database Statistics page now supports:
+  - per-table record counts
+  - row browsing by table
+  - refresh actions
+- Added **Danger Zone** reset with confirmation phrase `DELETE ALL DATA`.
+
+### 7) Dev tooling and migration workflow
+
+- Added PowerShell migration script and integrated DB migration into `dev.ps1`.
+- Added Nuxt start/stop modes in `dev.ps1` with visible server logs.
+- Fixed assistant menu exit behavior and script robustness issues.
+- Hardened SQL migrations for safer reruns and PostgreSQL compatibility.
+
 ## Current Scope (Implemented)
 
-This repository now contains two working implementations:
+This repository contains two working implementations:
 
 - `python-app/` — multiplication quiz for grade 2 practice (console)
 - `nuxt-app/` — full-stack OpenMath app with PostgreSQL persistence
@@ -31,52 +116,20 @@ This repository now contains two working implementations:
 
 ### Nuxt app supports
 
-- OpenMath platform entry flow (currently multiplication-first)
-- Start quiz with difficulty and question count
-- Student handling:
-	- select an **existing student** from dropdown
-	- choose **Add new student** and create a new one
-- Quiz flow with answer validation and scoring
-- History list and session detail pages
-- Database statistics admin page
+- Multi-quiz OpenMath platform (multiplication-first)
+- Active student context across pages
+- Student profile and learned timetable preferences
+- Quiz types, progress tracking, and resumable sessions
+- History analytics with speed + accuracy metrics
+- Database statistics and admin reset tools
 
 ## Planned Scope (Not Yet Implemented Here)
 
-This repo is also designed to host two web full-stack implementations of the same quiz domain:
+This repo is also designed to host additional full-stack implementations of the same domain:
 
 - `react-laravel/` — React frontend + Laravel backend + PostgreSQL
 
-These web stacks are planned to share a single PostgreSQL database and canonical SQL migrations so behavior and stored quiz data can be compared across implementations.
-
-## What’s New (Nuxt v1.0)
-
-Based on recent product updates, the Nuxt app now includes:
-
-1. **Global navigation updates**
-	- Added menu entry for **Database Statistics**.
-
-2. **Database Statistics page**
-	- Shows record counts for `students`, `quiz_sessions`, `questions`, `answers`.
-	- Each table is clickable to view table rows.
-	- Added **Refresh** button for counts and currently selected table.
-
-3. **Danger Zone (admin action)**
-	- Added reset flow to delete all data from schema tables.
-	- Requires explicit confirmation text: `DELETE ALL DATA`.
-
-4. **Student name persistence fix**
-	- Fixed input binding so `studentName` is correctly sent and saved.
-
-5. **Student selection UX on start page**
-	- Added dropdown of existing students.
-	- Added option to create and submit a new student.
-
-6. **History improvements**
-	- Added `Student` column in Quiz History.
-	- Added `Questions` column between `Difficulty` and `Score`.
-
-7. **Session detail improvements**
-	- Added student name display on history session detail page.
+Target is shared canonical SQL migrations and comparable behavior across stacks.
 
 ## Repository Documentation
 
@@ -110,7 +163,7 @@ Then open the Nuxt URL shown in terminal (typically `http://localhost:3000`).
 
 ## Dev Assistant (Win11)
 
-Use the root script `dev.ps1` to run visible, prompt-driven dev workflows.
+Use root script `dev.ps1` to run visible, prompt-driven workflows.
 
 ### Common modes
 
@@ -118,12 +171,13 @@ Use the root script `dev.ps1` to run visible, prompt-driven dev workflows.
 Set-Location "c:\Users\attila\Desktop\Code\openmath"
 .\dev.ps1
 .\dev.ps1 doctor
+.\dev.ps1 migrate-db
 .\dev.ps1 validate-nuxt
 .\dev.ps1 build-nuxt
 .\dev.ps1 up-nuxt
 ```
 
-For non-interactive diagnostics (auto-run confirmations):
+For non-interactive diagnostics:
 
 ```powershell
 Set-Location "c:\Users\attila\Desktop\Code\openmath"
@@ -140,20 +194,13 @@ Each run writes to:
 
 ## Quick Start (Python App)
 
-Use Python 3 from the repository root:
+Use Python 3 from repository root:
 
 ```powershell
 Set-Location "c:\Users\attila\Desktop\Code\openmath\python-app"
 python src/main.py
 ```
 
-## Why this structure?
+## License
 
-The goal is to keep one educational domain (OpenMath quizzes) while comparing developer experience and architecture trade-offs across:
-
-- simple local console app (Python)
-- Vue-oriented full-stack (Nuxt)
-- React + Laravel split-stack full-stack
-
-Multiplication is intentionally the first quiz experience students can run, with room to add more quiz types over time.
-This keeps product behavior comparable while letting us evaluate implementation speed, maintainability, and stack fit.
+This project is licensed under the **MIT License**. See `LICENSE`.
