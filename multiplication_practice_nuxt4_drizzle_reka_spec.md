@@ -11,6 +11,19 @@ Dev workflow (recommended):
 - Run Nuxt with **Vite dev server** (`pnpm dev`)
 - Run PostgreSQL via **Docker** (single DB container)
 
+### Required implementation skills (skills.sh)
+Use these skills as the implementation playbook for this stack:
+
+- Nuxt skill: https://skills.sh/antfu/skills/nuxt
+- Drizzle ORM skill: https://skills.sh/bobmatnyc/claude-mpm-skills/drizzle-orm
+- Reka UI skill: https://skills.sh/onmax/nuxt-skills/reka-ui
+
+Implementation expectation:
+- Follow the Nuxt skill for project/layer structure, server route patterns, and composable conventions.
+- Follow the Drizzle ORM skill for schema modeling, migration generation, and query organization.
+- Follow the Reka UI skill for accessible primitive composition and wrapper component design.
+- When guidance conflicts, prioritize repository requirements in this spec, then apply skill patterns in a way that preserves the same API contract and data model.
+
 ---
 
 ## 1) Goal
@@ -206,6 +219,7 @@ Finalize when answered == total_questions (`finished_at`).
 - Postgres: Docker compose (single container)
 - App: `pnpm dev` (Vite HMR)
 - DB: run drizzle migrations before first use
+- During implementation, apply the three required skills above as coding standards for Nuxt, Drizzle, and Reka UI decisions.
 
 ---
 
@@ -214,3 +228,4 @@ Finalize when answered == total_questions (`finished_at`).
 - Drizzle schema + migrations exist; DB is reproducible.
 - Questions are generated server-side per difficulty and persisted.
 - Answers persist; correctness and history replay match DB records.
+- Implementation decisions and resulting code organization are consistent with the required skills references for Nuxt, Drizzle ORM, and Reka UI.
