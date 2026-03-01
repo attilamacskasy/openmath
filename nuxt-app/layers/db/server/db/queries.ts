@@ -258,6 +258,7 @@ export async function listSessions() {
   return db
     .select({
       id: quizSessions.id,
+      studentId: quizSessions.studentId,
       difficulty: quizSessions.difficulty,
       totalQuestions: quizSessions.totalQuestions,
       scorePercent: quizSessions.scorePercent,

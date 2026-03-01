@@ -2,6 +2,11 @@
   <main class="page">
     <h1>Quiz History</h1>
 
+    <label class="filter-toggle">
+      <input v-model="filterToActiveStudent" type="checkbox" />
+      <span>Show only active student results</span>
+    </label>
+
     <section v-if="historyGroups.length > 0" v-for="group in historyGroups" :key="group.code" class="group-card">
       <h2>{{ group.description }}</h2>
       <p class="muted">Quiz type: {{ group.code }}</p>
@@ -19,6 +24,7 @@
 const api = useApi()
 type SessionItem = {
   id: string
+  student_id: string | null
   difficulty: string
   total_questions: number
   score_percent: number
@@ -30,12 +36,22 @@ type SessionItem = {
 
 const sessions = ref<SessionItem[]>([])
 const quizTypes = ref<Array<{ id: string; code: string; description: string }>>([])
+const currentStudentId = useState<string>("currentStudentId", () => "")
+const filterToActiveStudent = ref(true)
+
+const visibleSessions = computed(() => {
+  if (filterToActiveStudent.value && currentStudentId.value) {
+    return sessions.value.filter((session) => session.student_id === currentStudentId.value)
+  }
+
+  return sessions.value
+})
 
 const historyGroups = computed(() => {
   return quizTypes.value.map((quizType) => ({
     code: quizType.code,
     description: quizType.description,
-    sessions: sessions.value.filter((session) => session.quiz_type_code === quizType.code),
+    sessions: visibleSessions.value.filter((session) => session.quiz_type_code === quizType.code),
   }))
 })
 
@@ -65,5 +81,11 @@ onMounted(async () => {
 
 .muted {
   color: #64748b;
+}
+
+.filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 </style>

@@ -74,6 +74,7 @@ export function useApi() {
     return $fetch<
       Array<{
         id: string
+        student_id: string | null
         difficulty: string
         total_questions: number
         score_percent: number
