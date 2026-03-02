@@ -1,46 +1,56 @@
-# Multiplication Practice App
+# OpenMath Python CLI App
 
-This is a Python console app for grade 2 multiplication practice. The app lets the student choose a difficulty (`low`, `medium`, or `hard`), asks 10 multiplication questions, and shows a summary with correct answers, wrong answers, and percentage score.
+Menu-driven interactive console application that targets feature parity with the currently implemented Nuxt web app, using PostgreSQL as the single source of truth.
 
-## Features
+## Scope
 
-- Difficulty menu: `low`, `medium`, `hard`.
-- 10-question quiz with random factors in the range `1..10`.
-- Difficulty-aware question generation where at least one factor comes from the selected difficulty set.
-- Input validation that re-asks the same prompt if the user does not enter an integer.
-- Final score summary with `Correct`, `Wrong`, and `Score`.
+The CLI target includes:
+- Start quiz (multi-quiz-type, difficulty-based generation)
+- Resume in-progress sessions
+- History grouped by quiz type
+- Session detail review (question + answer audit)
+- Active student selection
+- Student profile editing and performance statistics
+- Database statistics and row browsing
+- Danger zone reset with explicit typed confirmation
 
-## Getting Started
+Reference source-of-truth spec:
+- `../openmath_python_quiz_spec.md`
 
-### Prerequisites
+## Data and Runtime Model
 
-Make sure you have Python installed on your machine. You can download it from [python.org](https://www.python.org/downloads/).
+- PostgreSQL is authoritative for persisted state.
+- The app should not use local files for domain persistence.
+- Global in-process context keeps only interactive state such as active student selection.
 
-### Installation
+## Tech Expectations
 
-1. Clone the repository:
-   ```
-   git clone <repository-url>
-   ```
-2. Navigate to the project directory:
-   ```
-   cd python-app
-   ```
-3. (Optional) Create a virtual environment:
-   ```
-   python -m venv venv
-   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-   ```
+- Python 3.11+
+- PostgreSQL reachable through `DATABASE_URL`
+- Suggested DB driver: `psycopg` (or equivalent)
 
-### Running the Application
+## Environment
 
-To run the application, execute:
-```
-python src/main.py
-```
+Set at least:
 
-Then choose a difficulty and answer the quiz questions.
+- `DATABASE_URL=postgres://quiz:quiz@localhost:5432/quiz`
 
-## License
+If you use the repository-level Docker Compose, PostgreSQL defaults are compatible with the example URL above.
 
-This project is open-source and available under the MIT License.
+## Run
+
+From the `python-app` directory:
+
+1. Create/activate virtual environment (recommended)
+2. Install dependencies from `requirements.txt`
+3. Start application:
+
+   `python src/main.py`
+
+## Documentation
+
+- Requirements: `docs/requirements.md`
+- Design: `docs/design.md`
+- Tasks: `docs/tasks.md`
+
+All three docs are aligned to the CLI parity target and should be kept in sync with `openmath_python_quiz_spec.md`.

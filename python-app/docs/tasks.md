@@ -1,13 +1,29 @@
 # Task Backlog
 
 ## Ready
-- [ ] Add unit tests for difficulty selection, input validation, and score calculation.
-- [ ] Add optional command-line argument to set question count.
+- [ ] Implement PostgreSQL connection and transaction helpers.
+- [ ] Add repository layer for students, quiz types, sessions, questions, answers.
+- [ ] Implement main menu loop with all parity menu items.
+- [ ] Implement Active student selection/clear flow.
+- [ ] Implement Start quiz flow with:
+	- [ ] quiz type selection
+	- [ ] difficulty selection
+	- [ ] question count input
+	- [ ] new student profile capture when no active student
+- [ ] Implement question generator parity for both quiz types.
+- [ ] Implement answer submit flow with idempotent insert and session recompute.
+- [ ] Implement Resume in-progress sessions flow.
+- [ ] Implement History grouped by quiz type with active-student filter toggle.
+- [ ] Implement Session detail view with per-question status.
+- [ ] Implement Profile edit flow and performance stats rendering.
+- [ ] Implement Database statistics and table row browsing.
+- [ ] Implement Danger zone reset with exact `DELETE ALL DATA` confirmation.
+- [ ] Add duration formatting helpers (`0s`, `Ns`, `mm:ss`, `hh:mm:ss`).
+- [ ] Add robust input validation and safe re-prompt loops.
+- [ ] Add logging/error display strategy for DB failures.
 
 ## In Progress
-- [ ] Collect sample runs for each difficulty level.
+- [ ] Keep CLI outputs and behaviors aligned with `openmath_python_quiz_spec.md` as source-of-truth spec.
 
 ## Done
-- [x] Implement 10-question console quiz with difficulty menu.
-- [x] Validate integer input and re-prompt on invalid answers.
-- [x] Calculate and print correct, wrong, and percentage score.
+- [x] Define implementation-faithful Python CLI parity spec for current Nuxt app behavior.
