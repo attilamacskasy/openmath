@@ -40,14 +40,18 @@ def ensure_quiz_type_integrity(interactive: bool = True) -> None:
         print(f"- {row['code']} ({row['description']})")
 
 
-def ensure_active_student_exists(state: AppState) -> None:
+def get_active_student_display(state: AppState) -> str:
     if not state.active_student_id:
-        return
+        return "No student"
 
     with get_connection() as conn:
         student = repo.get_student_profile(conn, state.active_student_id)
-        if not student:
-            state.active_student_id = None
+
+    if not student:
+        state.active_student_id = None
+        return "No student"
+
+    return student["name"]
 
 
 def prompt_difficulty() -> str:
@@ -427,9 +431,9 @@ def main() -> None:
 
     while True:
         try:
-            ensure_active_student_exists(state)
+            active_student_display = get_active_student_display(state)
             views.print_header("OpenMath CLI")
-            print(f"Active student: {state.active_student_id or 'No student'}")
+            print(f"Active student: {active_student_display}")
             print("1. Start quiz")
             print("2. Resume in-progress quiz")
             print("3. History")
@@ -441,6 +445,7 @@ def main() -> None:
             print("9. Danger zone")
             print("10. Ensure quiz types")
             print("0. Exit")
+            views.print_start_footer()
 
             choice = views.ask_int("Select option: ", minimum=0, maximum=10)
             if choice == 0:

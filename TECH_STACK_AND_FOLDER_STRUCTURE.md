@@ -281,7 +281,95 @@ This unlocked profile-driven question generation and richer analytics.
 
 ---
 
-## 10) Practical Commands
+## 10) Python CLI Stack (Implemented)
+
+The repository now includes a functional Python console implementation in `python-app` that mirrors the Nuxt app's core product behavior in a menu-driven terminal flow.
+
+### 10.1 Runtime stack
+
+- **Python 3.11+** runtime
+- **psycopg (v3)** PostgreSQL driver (`psycopg[binary]`)
+- **PostgreSQL** as the only persistent source of truth
+- **No ORM in Python CLI** (SQL handled through repository functions)
+
+### 10.2 CLI architecture and modules
+
+The Python app is split by responsibility under `python-app/src`:
+
+- `main.py`
+  - interactive menu loop and navigation
+  - user-facing workflows (start, resume, history, profile, stats, reset)
+  - startup quiz-type integrity check
+- `db.py`
+  - DB connection lifecycle + commit/rollback handling
+  - `DATABASE_URL` resolution (env var first, then `.env` fallbacks)
+- `repositories.py`
+  - SQL query layer for CRUD/list/reporting
+  - table statistics, session rows, student profiles, answer writes
+- `services.py`
+  - domain/business logic parity with Nuxt implementation:
+    - difficulty sets
+    - learned timetable sanitization
+    - question generation (including sum-products)
+    - scoring recomputation
+    - profile performance aggregation
+    - required quiz-type integrity helpers
+- `views.py`
+  - input validation helpers and terminal rendering utilities
+  - duration formatting and menu/footer output
+- `app_types.py`
+  - shared dataclass/type definitions for app state
+
+### 10.3 Database access model (Python CLI)
+
+At runtime, the CLI follows this flow:
+
+1. Menu action selected in `main.py`
+2. `main.py` opens a connection via `db.get_connection()`
+3. Repository functions execute SQL queries against PostgreSQL
+4. Service functions apply business rules and shape responses
+5. CLI prints results and asks for next action
+
+`db.get_connection()` handles transaction boundaries:
+
+- successful workflow => commit
+- raised exception => rollback
+- connection always closed in finally
+
+This keeps DB writes deterministic and consistent with the web app data model.
+
+### 10.4 Parity scope vs Nuxt web app
+
+Implemented parity areas in CLI:
+
+- start quiz (quiz type + difficulty + profile-aware generation)
+- resume unfinished sessions
+- history grouped by quiz type
+- session detail audit view
+- active student context
+- profile edit + performance stats
+- DB table statistics/browser
+- destructive reset with confirmation phrase
+
+CLI simplification:
+
+- no browser UI or HTTP API boundary
+- direct SQL-backed command flow in one process
+
+### 10.5 Launching the Python CLI
+
+From repo root you can use:
+
+- `scripts/start-python-cli.ps1` (new PowerShell window)
+- `scripts/start-python-cli.cmd` (new cmd window)
+
+Or run directly:
+
+- `python-app/src/main.py` through the venv Python executable.
+
+---
+
+## 11) Practical Commands
 
 From repo root:
 

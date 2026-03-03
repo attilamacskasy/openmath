@@ -100,6 +100,81 @@ This section summarizes everything added after `v1.0`.
 - Fixed assistant menu exit behavior and script robustness issues.
 - Hardened SQL migrations for safer reruns and PostgreSQL compatibility.
 
+## What’s New (Python CLI v1.5)
+
+This section summarizes the Python console app improvements aligned with the v1.5 OpenMath domain model.
+
+### 1) Full menu-driven CLI application
+
+- Replaced the minimal quiz script with a complete interactive menu system.
+- Added top-level workflows: Start, Resume, History, Session Detail, Active Student, Profile, User Guide, DB Statistics, Danger Zone.
+- Added startup integrity checks for required quiz types.
+
+### 2) Multi-quiz parity with Nuxt app
+
+- Added support for both quiz types:
+  - `multiplication_1_10`
+  - `sum_products_1_10`
+- CLI generation logic now follows the same difficulty and learned-timetable-aware behavior.
+
+### 3) PostgreSQL-first persistence model
+
+- CLI now uses PostgreSQL as the single source of truth.
+- Added repository/service layers for sessions, questions, answers, students, and stats.
+- Implemented transactional write flows for session creation, answer submission, and resets.
+
+### 4) Student context and profile support
+
+- Added active student selection in CLI.
+- Main menu now shows active student **name** (not UUID).
+- Added profile editing (name, age, gender, learned timetables) and performance stats output.
+
+### 5) Session continuity and review
+
+- Added resume support for unfinished sessions.
+- Added detailed session audit output with question-by-question correctness.
+- Added grouped history output with score/time/avg-per-question metrics.
+
+### 6) Admin and quality-of-life tools
+
+- Added DB statistics view and row browser.
+- Added confirmation-gated Danger Zone reset (`DELETE ALL DATA`).
+- Added launcher scripts for clean Windows terminal startup:
+  - `scripts/start-python-cli.ps1`
+  - `scripts/start-python-cli.cmd`
+
+## v1.5 Screenshots CLI
+
+### Main menu
+
+![OpenMath CLI main menu showing all v1.5 menu options and footer.](assets/images/v1.5_CLI/main_menu.JPG)
+
+*OpenMath CLI main menu showing all v1.5 menu options and footer.*
+
+### Start quiz flow
+
+![CLI start quiz flow showing quiz type, difficulty, and setup prompts.](assets/images/v1.5_CLI/start_quiz.JPG)
+
+*CLI start quiz flow showing quiz type, difficulty, and setup prompts.*
+
+### Active student selection
+
+![CLI active student menu showing student list and selection options.](assets/images/v1.5_CLI/active_student.JPG)
+
+*CLI active student menu showing student list and selection options.*
+
+### History view
+
+![CLI history output grouped by quiz type with session metrics.](assets/images/v1.5_CLI/history.JPG)
+
+*CLI history output grouped by quiz type with session metrics.*
+
+### Profile view
+
+![CLI profile view showing student fields and performance statistics.](assets/images/v1.5_CLI/profile.JPG)
+
+*CLI profile view showing student fields and performance statistics.*
+
 ## v1.5 Screenshots
 
 ### Start page

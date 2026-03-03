@@ -119,6 +119,15 @@ def print_rows(rows: list[dict], limit: int = 100) -> None:
         print(f"... truncated to first {limit} rows.")
 
 
+def print_start_footer() -> None:
+    print("\n" + "-" * 72)
+    print("OpenMath v1.5 CLI")
+    print("GitHub Source: https://github.com/attilamacskasy/openmath")
+    print("Attila Macskasy · March 2026")
+    print("Python CLI + PostgreSQL  |  Mirrors Nuxt web app core flows")
+    print("-" * 72)
+
+
 def _jsonify(value):
     if isinstance(value, Decimal):
         return float(value)
