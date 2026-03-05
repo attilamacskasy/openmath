@@ -13,6 +13,23 @@
 - Keep development spec-driven for consistent implementation and easier iteration.
 - Compare multiple stack implementations over the same product domain.
 
+## Project Update (March 2026)
+
+### Architecture decision
+
+- I made a strategic tech decision to replace the planned `React + Laravel` stack with `Angular + Python FastAPI`, while keeping **PostgreSQL** as the shared database foundation.
+- The project keeps a **shared PostgreSQL DB model** across implementations for consistent data behavior and cross-stack parity.
+
+### Team and collaboration note
+
+- I officially welcome my pro developer peer **Hajnalka**, who has strong Angular expertise, to support this new stack direction.
+
+### Maintenance strategy going forward
+
+- Keep `nuxt-app/` (`Nuxt + Nitro`) as a working and supported implementation.
+- Keep `python-app/` as a lightweight CLI application for quick testing, learning flows, and DB-driven diagnostics.
+- Introduce `Angular + FastAPI` as the new **primary maintained feature stack** for upcoming product enhancements.
+
 ## User Guide (Start Here)
 
 ### Objective
@@ -39,8 +56,9 @@ The student goal is simple: **get the highest correct score in the least amount 
 ## Release Status
 
 - **Nuxt release:** `v1.5` (working)
-- **Current primary web app:** `nuxt-app/` (Nuxt 4 + Nitro + Drizzle + PostgreSQL)
-- **Python console app:** still available in `python-app/`
+- **Current working web app:** `nuxt-app/` (Nuxt 4 + Nitro + Drizzle + PostgreSQL)
+- **Python console app:** available in `python-app/` (lightweight CLI)
+- **Primary maintained next stack:** `Angular + Python FastAPI + PostgreSQL` (new feature direction)
 
 ## What’s New (Nuxt v1.5)
 
@@ -258,7 +276,7 @@ This repository contains two working implementations:
 
 This repo is also designed to host additional full-stack implementations of the same domain:
 
-- `react-laravel/` — React frontend + Laravel backend + PostgreSQL
+- `angular-fastapi/` — Angular frontend + Python FastAPI backend + PostgreSQL
 
 Target is shared canonical SQL migrations and comparable behavior across stacks.
 
@@ -276,7 +294,7 @@ Target is shared canonical SQL migrations and comparable behavior across stacks.
 
 - `openmath_python_quiz_spec.md` — OpenMath Python console quiz spec (multiplication-first)
 - `openmath_nuxt4_drizzle_reka_spec.md` — OpenMath Nuxt full-stack spec + Reka UI spec
-- `openmath_react_laravel_chakra_spec.md` — OpenMath React + Laravel + Chakra UI spec
+- `openmath_react_laravel_chakra_spec.md` — legacy React + Laravel spec (replaced by Angular + FastAPI direction)
 - `multiproject_repo_spec.md` — monorepo strategy and shared DB guidance
 - `win11_dev_assistant_nuxt4_spec.md` — Win11 visibility-first assistant spec for Nuxt workflows
 
