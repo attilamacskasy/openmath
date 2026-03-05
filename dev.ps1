@@ -15,6 +15,8 @@ $script:ErrorLogPath = Join-Path $script:RunLogDir "errors.log"
 $script:SummaryPath = Join-Path $script:RunLogDir "summary.json"
 $script:StateDir = Join-Path $script:RepoRoot ".dev-assistant\state"
 $script:NuxtPidPath = Join-Path $script:StateDir "nuxt-dev.pid"
+$script:FastApiPidPath = Join-Path $script:StateDir "fastapi-dev.pid"
+$script:AngularPidPath = Join-Path $script:StateDir "angular-dev.pid"
 $script:CompactLogMode = $false
 $script:StepResults = New-Object System.Collections.Generic.List[object]
 $script:DetectedSignatures = New-Object System.Collections.Generic.List[string]
@@ -684,6 +686,203 @@ function Invoke-ReactPlanned {
     }) | Out-Null
 }
 
+# ═══════════════════════════════════════════════════════════
+# FastAPI Backend (python-api)
+# ═══════════════════════════════════════════════════════════
+
+function Get-FastApiDevProcess {
+    if (-not (Test-Path $script:FastApiPidPath)) { return $null }
+    try {
+        $pidValue = Get-Content -Path $script:FastApiPidPath -ErrorAction Stop | Select-Object -First 1
+        if ([string]::IsNullOrWhiteSpace($pidValue)) { return $null }
+        $id = [int]$pidValue
+        return Get-Process -Id $id -ErrorAction SilentlyContinue
+    } catch { return $null }
+}
+
+function Start-FastApiServer {
+    $existing = Get-FastApiDevProcess
+    if ($existing) {
+        Write-Log -Level "WARN" -StepLabel "FASTAPI-START" -Message "FastAPI dev server appears to be already running (PID $($existing.Id))."
+        return
+    }
+
+    $apiDir = Join-Path $script:RepoRoot "python-api"
+    $venvPython = Join-Path $script:RepoRoot ".venv\Scripts\python.exe"
+
+    if (-not (Test-Path $venvPython)) {
+        Write-Log -Level "ERROR" -StepLabel "FASTAPI-START" -Message "Python venv not found at $venvPython. Create it first: python -m venv .venv"
+        return
+    }
+
+    $command = "Set-Location '$apiDir'; & '$venvPython' -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    $proc = Start-Process -FilePath $script:ShellExe -ArgumentList @("-NoExit", "-Command", $command) -PassThru
+    Set-Content -Path $script:FastApiPidPath -Value $proc.Id -Encoding ASCII
+
+    Write-Log -Level "SUCCESS" -StepLabel "FASTAPI-START" -Message "FastAPI dev server started (PID $($proc.Id)) at http://localhost:8000"
+    Write-Log -Level "INFO" -StepLabel "FASTAPI-START" -Message "Uvicorn logs are shown in the opened PowerShell window."
+
+    $script:StepResults.Add([ordered]@{
+        label = "FASTAPI-START"
+        name = "FastAPI Start Dev Server"
+        command = "uvicorn app.main:app --reload --port 8000"
+        cwd = $apiDir
+        status = "passed"
+        durationSeconds = 0
+        exitCode = 0
+    }) | Out-Null
+}
+
+function Stop-FastApiServer {
+    $proc = Get-FastApiDevProcess
+    if (-not $proc) {
+        if (Test-Path $script:FastApiPidPath) {
+            Remove-Item -Path $script:FastApiPidPath -Force -ErrorAction SilentlyContinue
+        }
+        Write-Log -Level "WARN" -StepLabel "FASTAPI-STOP" -Message "FastAPI dev PID not found or process already stopped."
+        return
+    }
+
+    Stop-Process -Id $proc.Id -Force
+    Remove-Item -Path $script:FastApiPidPath -Force -ErrorAction SilentlyContinue
+
+    Write-Log -Level "SUCCESS" -StepLabel "FASTAPI-STOP" -Message "FastAPI dev server stopped (PID $($proc.Id))."
+
+    $script:StepResults.Add([ordered]@{
+        label = "FASTAPI-STOP"
+        name = "FastAPI Stop Dev Server"
+        command = "Stop-Process -Id $($proc.Id) -Force"
+        cwd = $script:RepoRoot
+        status = "passed"
+        durationSeconds = 0
+        exitCode = 0
+    }) | Out-Null
+}
+
+function Invoke-FastApiInstall {
+    $venvPython = Join-Path $script:RepoRoot ".venv\Scripts\python.exe"
+    $reqFile = Join-Path $script:RepoRoot "python-api\requirements.txt"
+
+    $steps = @(
+        @{ name = "FastAPI Install"; command = "$venvPython -m pip install -r `"$reqFile`""; cwd = $script:RepoRoot; reason = "Install FastAPI + asyncpg dependencies into venv."; expected = "All packages installed."; required = $true }
+    )
+
+    Invoke-Flow -FlowLabel "FASTAPI-INSTALL" -Steps $steps
+}
+
+# ═══════════════════════════════════════════════════════════
+# Angular Frontend (angular-app)
+# ═══════════════════════════════════════════════════════════
+
+function Get-AngularDevProcess {
+    if (-not (Test-Path $script:AngularPidPath)) { return $null }
+    try {
+        $pidValue = Get-Content -Path $script:AngularPidPath -ErrorAction Stop | Select-Object -First 1
+        if ([string]::IsNullOrWhiteSpace($pidValue)) { return $null }
+        $id = [int]$pidValue
+        return Get-Process -Id $id -ErrorAction SilentlyContinue
+    } catch { return $null }
+}
+
+function Start-AngularDevServer {
+    $existing = Get-AngularDevProcess
+    if ($existing) {
+        Write-Log -Level "WARN" -StepLabel "ANGULAR-START" -Message "Angular dev server appears to be already running (PID $($existing.Id))."
+        return
+    }
+
+    $pm = Get-PackageManager
+    $angularDir = Join-Path $script:RepoRoot "angular-app"
+    $command = "Set-Location '$angularDir'; $pm start"
+
+    $proc = Start-Process -FilePath $script:ShellExe -ArgumentList @("-NoExit", "-Command", $command) -PassThru
+    Set-Content -Path $script:AngularPidPath -Value $proc.Id -Encoding ASCII
+
+    Write-Log -Level "SUCCESS" -StepLabel "ANGULAR-START" -Message "Angular dev server started (PID $($proc.Id)) at http://localhost:4200"
+    Write-Log -Level "INFO" -StepLabel "ANGULAR-START" -Message "Angular/Vite logs are shown in the opened PowerShell window."
+
+    $script:StepResults.Add([ordered]@{
+        label = "ANGULAR-START"
+        name = "Angular Start Dev Server"
+        command = "$pm start"
+        cwd = $angularDir
+        status = "passed"
+        durationSeconds = 0
+        exitCode = 0
+    }) | Out-Null
+}
+
+function Stop-AngularDevServer {
+    $proc = Get-AngularDevProcess
+    if (-not $proc) {
+        if (Test-Path $script:AngularPidPath) {
+            Remove-Item -Path $script:AngularPidPath -Force -ErrorAction SilentlyContinue
+        }
+        Write-Log -Level "WARN" -StepLabel "ANGULAR-STOP" -Message "Angular dev PID not found or process already stopped."
+        return
+    }
+
+    Stop-Process -Id $proc.Id -Force
+    Remove-Item -Path $script:AngularPidPath -Force -ErrorAction SilentlyContinue
+
+    Write-Log -Level "SUCCESS" -StepLabel "ANGULAR-STOP" -Message "Angular dev server stopped (PID $($proc.Id))."
+
+    $script:StepResults.Add([ordered]@{
+        label = "ANGULAR-STOP"
+        name = "Angular Stop Dev Server"
+        command = "Stop-Process -Id $($proc.Id) -Force"
+        cwd = $script:RepoRoot
+        status = "passed"
+        durationSeconds = 0
+        exitCode = 0
+    }) | Out-Null
+}
+
+function Invoke-AngularInstall {
+    $pm = Get-PackageManager
+    $angularDir = Join-Path $script:RepoRoot "angular-app"
+
+    $steps = @(
+        @{ name = "Angular Install"; command = "$pm install"; cwd = $angularDir; reason = "Install Angular + PrimeNG dependencies."; expected = "Dependencies installed."; required = $true }
+    )
+
+    Invoke-Flow -FlowLabel "ANGULAR-INSTALL" -Steps $steps
+}
+
+function Invoke-AngularBuild {
+    $pm = Get-PackageManager
+    $angularDir = Join-Path $script:RepoRoot "angular-app"
+
+    $steps = @(
+        @{ name = "Angular Install"; command = "$pm install"; cwd = $angularDir; reason = "Install dependencies."; expected = "Dependencies installed."; required = $false },
+        @{ name = "Angular Build"; command = "$pm run build"; cwd = $angularDir; reason = "Build production assets."; expected = "Build completes."; required = $true }
+    )
+
+    Invoke-Flow -FlowLabel "ANGULAR-BUILD" -Steps $steps
+}
+
+function Invoke-V2FullUp {
+    Write-Log -Level "STEP" -StepLabel "V2-UP" -Message "Starting OpenMath v2.0 full dev stack"
+
+    $pm = Get-PackageManager
+    $angularDir = Join-Path $script:RepoRoot "angular-app"
+    $venvPython = Join-Path $script:RepoRoot ".venv\Scripts\python.exe"
+    $reqFile = Join-Path $script:RepoRoot "python-api\requirements.txt"
+
+    $steps = @(
+        @{ name = "DB Start"; command = "docker compose up -d"; cwd = $script:RepoRoot; reason = "Start shared postgres."; expected = "Database is running."; required = $true },
+        @{ name = "FastAPI Install"; command = "$venvPython -m pip install -r `"$reqFile`""; cwd = $script:RepoRoot; reason = "Install FastAPI dependencies."; expected = "Packages installed."; required = $true },
+        @{ name = "Angular Install"; command = "$pm install"; cwd = $angularDir; reason = "Install Angular dependencies."; expected = "Dependencies installed."; required = $false }
+    )
+
+    Invoke-Flow -FlowLabel "V2-UP-DEPS" -Steps $steps
+
+    Start-FastApiServer
+    Start-AngularDevServer
+
+    Write-Log -Level "SUCCESS" -StepLabel "V2-UP" -Message "OpenMath v2.0 stack is running: Angular http://localhost:4200, FastAPI http://localhost:8000"
+}
+
 function Open-LatestLog {
     $base = Join-Path $script:RepoRoot ".dev-assistant\logs"
     if (-not (Test-Path $base)) {
@@ -721,11 +920,17 @@ function Show-Menu {
         Write-Host "11. Nuxt: Start Dev Server (Vite)"
         Write-Host "12. Nuxt: Stop Dev Server"
         Write-Host "13. Nuxt: Full Dev Up"
-        Write-Host "14. React/Laravel: Doctor (planned)"
-        Write-Host "15. React frontend: Install/Validate/Build (planned)"
-        Write-Host "16. Laravel backend: Install/Test/Serve (planned)"
-        Write-Host "17. React/Laravel: Full Dev Up (planned)"
-        Write-Host "18. Open latest log file"
+        Write-Host "--- Angular + FastAPI (v2.0) ---" -ForegroundColor Magenta
+        Write-Host "14. FastAPI: Install dependencies"
+        Write-Host "15. FastAPI: Start Dev Server (uvicorn)"
+        Write-Host "16. FastAPI: Stop Dev Server"
+        Write-Host "17. Angular: Install dependencies"
+        Write-Host "18. Angular: Start Dev Server (ng serve)"
+        Write-Host "19. Angular: Stop Dev Server"
+        Write-Host "20. Angular: Build"
+        Write-Host "21. v2.0: Full Dev Up (DB + FastAPI + Angular)"
+        Write-Host "--- Utilities ---" -ForegroundColor DarkGray
+        Write-Host "22. Open latest log file"
         Write-Host "0. Exit"
 
         $choice = Read-Host "Choose"
@@ -761,11 +966,15 @@ function Show-Menu {
             "11" { Start-NuxtDevServer }
             "12" { Stop-NuxtDevServer }
             "13" { Invoke-NuxtUp }
-            "14" { Invoke-ReactPlanned -Message "React/Laravel Doctor" }
-            "15" { Invoke-ReactPlanned -Message "React frontend Install/Validate/Build" }
-            "16" { Invoke-ReactPlanned -Message "Laravel backend Install/Test/Serve" }
-            "17" { Invoke-ReactPlanned -Message "React/Laravel Full Dev Up" }
-            "18" { Open-LatestLog }
+            "14" { Invoke-FastApiInstall }
+            "15" { Start-FastApiServer }
+            "16" { Stop-FastApiServer }
+            "17" { Invoke-AngularInstall }
+            "18" { Start-AngularDevServer }
+            "19" { Stop-AngularDevServer }
+            "20" { Invoke-AngularBuild }
+            "21" { Invoke-V2FullUp }
+            "22" { Open-LatestLog }
             "0" { return }
             default { Write-Host "Invalid choice" -ForegroundColor Yellow }
         }
@@ -786,6 +995,14 @@ try {
         "up-nuxt" { Invoke-NuxtUp }
         "up-react" { Invoke-ReactPlanned -Message "React/Laravel Full Dev Up" }
         "doctor-react" { Invoke-ReactPlanned -Message "React/Laravel Doctor" }
+        "install-fastapi" { Invoke-FastApiInstall }
+        "start-fastapi" { Start-FastApiServer }
+        "stop-fastapi" { Stop-FastApiServer }
+        "install-angular" { Invoke-AngularInstall }
+        "start-angular" { Start-AngularDevServer }
+        "stop-angular" { Stop-AngularDevServer }
+        "build-angular" { Invoke-AngularBuild }
+        "up-v2" { Invoke-V2FullUp }
         default {
             Write-Log -Level "ERROR" -StepLabel "BOOT" -Message "Unknown mode: $Mode"
             throw "Unknown mode: $Mode"
