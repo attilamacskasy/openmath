@@ -17,6 +17,7 @@ async def get_pool() -> asyncpg.Pool:
             dsn=settings.database_url,
             min_size=2,
             max_size=10,
+            statement_cache_size=0,  # Avoid stale plan cache during schema changes
         )
     return _pool
 
