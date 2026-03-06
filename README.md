@@ -249,6 +249,104 @@ This section summarizes the Python console app improvements aligned with the v1.
 
 *PowerShell dev assistant output showing guided commands for Nuxt workflow, validation, build, and migrations.*
 
+## v2.0 Screenshots — Angular + FastAPI + PrimeNG + PostgreSQL
+
+Of all the implementations in this repository, **v2.0 is by far the most polished**. The Angular + PrimeNG combination produces a clean, professional UI that feels fast and intentional — the Lara Light Blue theme, fluid PrimeFlex layouts, and reactive signal-based state give it a coherence the other stacks simply don't match visually. On the backend side, FastAPI with asyncpg is rock solid: clean structured logs, near-instant responses, and a fully auto-generated Swagger UI that makes the API a pleasure to work with and inspect. This stack is the one I'd confidently put in front of a real user.
+
+### Frontend — Angular 18 + PrimeNG 17
+
+#### Start page
+
+![OpenMath v2.0 Start page with quiz type selector, difficulty radio group, learned timetables checkboxes, and question count input built with PrimeNG components.](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_start.JPG)
+
+*Start page — quiz type selector, difficulty radio group, timetables checkboxes, and question count. PrimeNG Lara Light Blue theme throughout.*
+
+#### Quiz page
+
+![OpenMath v2.0 Quiz page showing a multiplication question with progress bar, answer input auto-focused, and PrimeNG card layout.](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_quiz.JPG)
+
+*Quiz page — progress bar, question card, auto-focused answer input. Keyboard-first flow.*
+
+#### Session detail
+
+![OpenMath v2.0 Session detail page showing question-by-question results with correct/wrong status badges and session summary metrics.](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_session.JPG)
+
+*Session detail — per-question status badges, score summary, and session metadata in a clean PrimeNG table.*
+
+#### History
+
+![OpenMath v2.0 History page showing quiz sessions grouped by quiz type with student name, score badge, time and avg per question columns.](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_history.JPG)
+
+*History — sessions grouped by quiz type, color-coded score tags, time spent and avg/question columns.*
+
+#### Profile page
+
+![OpenMath v2.0 Profile page showing editable student fields, learned timetables checkboxes, and aggregated performance statistics by quiz type.](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_profile.JPG)
+
+*Profile — editable student fields, timetable selection, and aggregated performance stats per quiz type.*
+
+#### User Guide
+
+![OpenMath v2.0 User Guide page with instructional content in a PrimeNG card layout.](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_guide.JPG)
+
+*User Guide — clean card-based instructional layout.*
+
+#### Admin page
+
+![OpenMath v2.0 Admin page showing database row count stats cards, table row browser dropdown, and danger zone reset with confirmation dialog.](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_admin.JPG)
+
+*Admin — stats cards, table row browser, and confirmation-gated danger zone reset.*
+
+---
+
+### Backend — FastAPI + asyncpg
+
+#### Swagger UI (auto-generated docs)
+
+![FastAPI Swagger UI at /docs showing all OpenMath API endpoints: quiz-types, students, sessions, answers, stats with request/response schemas.](assets/images/v2.0_Angular_FastAPI_PrimeNG/be_api_swagger.JPG)
+
+*FastAPI auto-generated Swagger UI — all endpoints documented with live request/response testing. The backend is clean, well-typed, and immediately inspectable.*
+
+---
+
+### Database — PostgreSQL 16 + JSONB
+
+#### Questions table with JSONB prompt column
+
+![PostgreSQL questions table row showing JSONB prompt payload with template kind, render string, and answer type fields stored alongside legacy columns.](assets/images/v2.0_Angular_FastAPI_PrimeNG/db_question.JPG)
+
+*Questions table — JSONB `prompt` column stores template kind, render string, and answer type. Legacy columns maintained for backwards compatibility.*
+
+#### Answers table with JSONB response column
+
+![PostgreSQL answers table row showing JSONB response payload with raw input, parsed answer type and value stored alongside legacy value column.](assets/images/v2.0_Angular_FastAPI_PrimeNG/db_answer.JPG)
+
+*Answers table — JSONB `response` stores raw input and parsed answer. GIN indexes enable fast JSONB queries at scale.*
+
+---
+
+### Dev tooling
+
+#### dev.ps1 — Win11 dev assistant
+
+![PowerShell dev.ps1 assistant menu showing Angular and FastAPI menu options alongside existing Nuxt entries for parallel stack management.](assets/images/v2.0_Angular_FastAPI_PrimeNG/dev_ps1.JPG)
+
+*dev.ps1 updated with Angular + FastAPI menu items — both stacks managed side by side from a single assistant.*
+
+#### Angular dev server (ng serve)
+
+![Angular ng serve terminal output showing Vite-based build completing and dev server running on localhost:4200.](assets/images/v2.0_Angular_FastAPI_PrimeNG/dev_ng_serve.JPG)
+
+*Angular dev server — Vite-based build, hot reload, running on port 4200.*
+
+#### FastAPI uvicorn logs
+
+![FastAPI uvicorn dev server logs showing startup and clean HTTP request log lines with 200 OK responses.](assets/images/v2.0_Angular_FastAPI_PrimeNG/dev_api_logs.JPG)
+
+*FastAPI uvicorn with `--reload` — clean structured logs, instant restarts on code changes, port 8000.*
+
+---
+
 ## Current Scope (Implemented)
 
 This repository contains two working implementations:
@@ -272,13 +370,15 @@ This repository contains two working implementations:
 - History analytics with speed + accuracy metrics
 - Database statistics and admin reset tools
 
-## Planned Scope (Not Yet Implemented Here)
+## Planned Scope
 
-This repo is also designed to host additional full-stack implementations of the same domain:
+This repo hosts multiple full-stack implementations of the same domain:
 
-- `angular-fastapi/` — Angular frontend + Python FastAPI backend + PostgreSQL
+- `angular-app/` + `python-api/` — **Angular + FastAPI (v2.0, primary maintained stack)** ✅
+- `nuxt-app/` — Nuxt 4 + Drizzle ORM (v1.5, maintained) ✅
+- `python-app/` — Python CLI (v1.5, maintained) ✅
 
-Target is shared canonical SQL migrations and comparable behavior across stacks.
+All implementations share the same PostgreSQL database schema via canonical SQL migrations in `db/migrations/`.
 
 ## Repository Documentation
 
