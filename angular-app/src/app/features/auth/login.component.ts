@@ -129,7 +129,7 @@ export class LoginComponent {
   }
 
   loginWithGoogle() {
-    const clientId = (environment as any).googleClientId;
+    const clientId = environment.googleClientId;
     if (!clientId) {
       this.errorMessage.set('Google SSO is not configured');
       return;
@@ -149,8 +149,8 @@ export class LoginComponent {
     window.location.href = url;
   }
 
-  onPasswordKeyup(event: KeyboardEvent) {
-    if (event.key === 'Enter') {
+  onPasswordKeyup(event: Event) {
+    if ((event as KeyboardEvent).key === 'Enter') {
       this.login();
     }
   }

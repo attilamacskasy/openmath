@@ -6,22 +6,20 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 import httpx
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from app.config import settings
 
 # ── Password hashing ──────────────────────────────────────
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
 
 
 # ── Age calculation ────────────────────────────────────────
@@ -120,23 +118,42 @@ async def exchange_google_code(code: str, redirect_uri: str) -> dict[str, Any]:
         return resp.json()
 
 
-async def verify_google_id_token(id_token: str) -> dict[str, Any] | None:
+async def verify_google_id_token(id_token: str, access_token: str | None = None) -> dict[str, Any] | None:
     """Verify and decode a Google id_token using Google's public JWKs."""
+    import logging
+    log = logging.getLogger("openmath.auth")
+
     try:
         # Fetch Google's public keys
         async with httpx.AsyncClient() as client:
             resp = await client.get(GOOGLE_JWKS_URL)
             resp.raise_for_status()
             jwks = resp.json()
+        log.info("Fetched %d Google JWKs", len(jwks.get("keys", [])))
 
-        # Decode the id_token
+        # Decode the id_token (verify audience, check issuer manually)
         payload = jwt.decode(
             id_token,
             jwks,
             algorithms=["RS256"],
             audience=settings.google_client_id,
-            issuer=list(GOOGLE_ISSUERS),
+            access_token=access_token,
         )
+        log.info("Decoded id_token: sub=%s, email=%s, iss=%s",
+                 payload.get("sub"), payload.get("email"), payload.get("iss"))
+
+        # Manually verify issuer
+        if payload.get("iss") not in GOOGLE_ISSUERS:
+            log.error("Invalid issuer: %s (expected one of %s)", payload.get("iss"), GOOGLE_ISSUERS)
+            return None
+
         return payload
-    except (JWTError, httpx.HTTPError):
+    except JWTError as e:
+        log.error("JWTError verifying Google id_token: %s", e)
+        return None
+    except httpx.HTTPError as e:
+        log.error("HTTP error fetching Google JWKs: %s", e)
+        return None
+    except Exception as e:
+        log.error("Unexpected error verifying Google id_token: %s", e)
         return None

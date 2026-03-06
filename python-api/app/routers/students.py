@@ -52,12 +52,20 @@ async def patch_student(
     if user.get("role") != "admin" and user["sub"] != student_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    updated = await update_student_profile(
+    birthday: date | None = None
+    if body.birthday:
+        try:
+            birthday = date.fromisoformat(body.birthday)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid birthday format (use YYYY-MM-DD)")
+
+    updated = await update_student_profile_v2(
         student_id,
         name=body.name,
         age=body.age,
         gender=body.gender,
         learned_timetables=body.learned_timetables,
+        birthday=birthday,
     )
     if not updated:
         raise HTTPException(status_code=404, detail="Student not found")

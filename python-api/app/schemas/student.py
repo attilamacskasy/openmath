@@ -43,6 +43,7 @@ class UpdateStudentRequest(BaseModel):
     age: int | None = Field(default=None, ge=4, le=120)
     gender: str | None = Field(default=None, pattern=r"^(female|male|other|prefer_not_say)$")
     learned_timetables: list[int] = Field(min_length=1)
+    birthday: str | None = None  # ISO date string YYYY-MM-DD
 
 
 class StudentOut(BaseModel):

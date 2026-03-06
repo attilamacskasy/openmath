@@ -4,6 +4,7 @@ export interface AuthUser {
   email: string;
   role: 'student' | 'admin';
   age: number | null;
+  authProvider: 'local' | 'google' | 'both';
 }
 
 export interface AuthResponse {

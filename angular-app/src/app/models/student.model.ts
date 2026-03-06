@@ -35,4 +35,5 @@ export interface UpdateStudentRequest {
   age: number | null;
   gender: string | null;
   learned_timetables: number[];
+  birthday?: string | null;
 }

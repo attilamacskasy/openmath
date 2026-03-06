@@ -23,6 +23,7 @@ import { AuthService } from '../../../core/services/auth.service';
       <div class="flex align-items-center gap-2">
         @if (auth.currentUser(); as user) {
           <span class="text-sm font-semibold">{{ user.name }}</span>
+          <span class="text-xs border-round px-2 py-1" [ngClass]="providerClass(user.authProvider)">{{ providerLabel(user.authProvider) }}</span>
           <p-button
             label="Logout"
             icon="pi pi-sign-out"
@@ -38,4 +39,12 @@ import { AuthService } from '../../../core/services/auth.service';
 })
 export class HeaderComponent {
   auth = inject(AuthService);
+
+  providerLabel(p: string): string {
+    return p === 'google' ? '🔵 Google' : p === 'both' ? '🔗 Google + Local' : '🔑 Local';
+  }
+
+  providerClass(p: string): string {
+    return p === 'google' ? 'bg-blue-100 text-blue-700' : p === 'both' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700';
+  }
 }

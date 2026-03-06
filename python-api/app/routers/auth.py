@@ -46,6 +46,7 @@ def _build_auth_user(student: dict) -> AuthUser:
         email=student.get("email", ""),
         role=student.get("role", "student"),
         age=age,
+        authProvider=student.get("auth_provider", "local"),
     )
 
 
@@ -125,17 +126,27 @@ async def login(body: LoginRequest) -> AuthResponse:
 
 @router.post("/google")
 async def google_auth(body: GoogleAuthRequest) -> AuthResponse:
+    import logging
+    log = logging.getLogger("openmath.auth")
+
+    log.info("Google auth request: redirectUri=%s, code_length=%d", body.redirectUri, len(body.code))
+
     try:
         tokens = await exchange_google_code(body.code, body.redirectUri)
-    except Exception:
+        log.info("Google token exchange succeeded, keys: %s", list(tokens.keys()))
+    except Exception as e:
+        log.error("Google code exchange failed: %s", e)
         raise HTTPException(status_code=400, detail="Failed to exchange Google authorization code")
 
     id_token_str = tokens.get("id_token")
     if not id_token_str:
+        log.error("No id_token in Google response. Response keys: %s", list(tokens.keys()))
         raise HTTPException(status_code=400, detail="No id_token in Google response")
 
-    google_user = await verify_google_id_token(id_token_str)
+    access_token_str = tokens.get("access_token")
+    google_user = await verify_google_id_token(id_token_str, access_token=access_token_str)
     if not google_user:
+        log.error("verify_google_id_token returned None")
         raise HTTPException(status_code=401, detail="Invalid Google id_token")
 
     email = google_user.get("email", "")

@@ -23,3 +23,11 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Debug: log auth config presence at startup
+import logging
+_log = logging.getLogger("openmath.config")
+_log.info("JWT_SECRET_KEY set: %s (length=%d)", bool(settings.jwt_secret_key), len(settings.jwt_secret_key))
+_log.info("GOOGLE_CLIENT_ID set: %s (%s...)", bool(settings.google_client_id), settings.google_client_id[:20] if settings.google_client_id else 'EMPTY')
+_log.info("GOOGLE_CLIENT_SECRET set: %s", bool(settings.google_client_secret))
+_log.info("GOOGLE_REDIRECT_URI: %s", settings.google_redirect_uri)

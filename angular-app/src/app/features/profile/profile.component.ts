@@ -52,6 +52,12 @@ import { MeResponse } from '../../models/auth.model';
                 <input pInputText [value]="meData()?.email || ''" class="w-full" [disabled]="true" />
               </div>
               <div class="flex flex-column gap-1">
+                <label class="font-semibold">Auth Provider</label>
+                <div class="flex align-items-center gap-2 py-2">
+                  <span class="border-round px-2 py-1 text-sm" [ngClass]="providerClass">{{ providerLabel }}</span>
+                </div>
+              </div>
+              <div class="flex flex-column gap-1">
                 <label class="font-semibold">Name</label>
                 <input pInputText [(ngModel)]="name" class="w-full" />
               </div>
@@ -173,6 +179,16 @@ export class ProfileComponent implements OnInit {
     return String(age);
   }
 
+  get providerLabel(): string {
+    const p = this.auth.currentUser()?.authProvider || 'local';
+    return p === 'google' ? '🔵 Google' : p === 'both' ? '🔗 Google + Local' : '🔑 Local';
+  }
+
+  get providerClass(): string {
+    const p = this.auth.currentUser()?.authProvider || 'local';
+    return p === 'google' ? 'bg-blue-100 text-blue-700' : p === 'both' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700';
+  }
+
   ngOnInit() {
     this.loadProfile();
   }
@@ -212,12 +228,19 @@ export class ProfileComponent implements OnInit {
 
     const age = this.birthday ? Number(this.computedAge) : null;
 
+    let birthdayStr: string | null = null;
+    if (this.birthday) {
+      const d = this.birthday;
+      birthdayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
     this.api
       .updateStudent(user.id, {
         name: this.name.trim(),
         age,
         gender: this.gender,
         learned_timetables: this.learnedTimetables,
+        birthday: birthdayStr,
       })
       .subscribe({
         next: () => {

@@ -38,6 +38,9 @@ class AuthUser(BaseModel):
     email: str
     role: str
     age: int | None = None
+    authProvider: str = Field(default="local", alias="authProvider")
+
+    model_config = {"populate_by_name": True}
 
 
 class AuthResponse(BaseModel):

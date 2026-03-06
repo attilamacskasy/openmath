@@ -37,12 +37,14 @@ This guide walks through every post-deployment step required to enable Google Si
 | User support email | Your email address |
 | Developer contact email | Your email address |
 
-4. Under **Scopes**, click **Add or Remove Scopes** and add:
-   - `openid`
-   - `email`
-   - `profile`
+4. Under **Scopes**, click **Add or Remove Scopes** and add the three required scopes — `openid`, `email`, and `profile`:
+
+![OAuth consent screen — scopes configuration](assets/images/v2.1_auth_rbac/gcp_auth_scope.JPG)
+
 5. Click **Save and Continue** through the remaining steps.
-6. If in **Testing** mode, add your test accounts under **Test users** (external apps in testing only allow listed email addresses).
+6. If in **Testing** mode, add your test accounts under **Test users**. External apps in testing only allow email addresses explicitly listed here:
+
+![Test users configuration](assets/images/v2.1_auth_rbac/gcp_test_users.JPG)
 
 > **Note:** To allow any Google user to sign in, you must submit the app for **verification** or switch to a Google Workspace internal app. During development, testing mode is fine.
 
@@ -54,22 +56,19 @@ This guide walks through every post-deployment step required to enable Google Si
 2. Click **+ CREATE CREDENTIALS → OAuth client ID**.
 3. Set Application type to **Web application**.
 4. Give it a name (e.g. `OpenMath Web Client`).
-5. Under **Authorized JavaScript origins**, add all frontend origins:
+5. Under **Authorized JavaScript origins** and **Authorized redirect URIs**, add your frontend origins and callback URLs. For both local development and production:
 
-| Environment | Origin |
-|---|---|
-| Local development | `http://localhost:4200` |
-| Production | `https://your-production-domain.com` |
+![Authorized origins and redirect URIs](assets/images/v2.1_auth_rbac/gcp_auth_prod.JPG)
 
-6. Under **Authorized redirect URIs**, add:
+| Environment | Origin | Redirect URI |
+|---|---|---|
+| Local development | `http://localhost:4200` | `http://localhost:4200/auth/callback` |
+| Production | `https://your-production-domain.com` | `https://your-production-domain.com/auth/callback` |
 
-| Environment | Redirect URI |
-|---|---|
-| Local development | `http://localhost:4200/auth/callback` |
-| Production | `https://your-production-domain.com/auth/callback` |
+6. Click **Create**.
+7. A dialog will display your **Client ID** and **Client Secret**. Copy both values — you will need them in the next step:
 
-7. Click **Create**.
-8. A dialog will display your **Client ID** and **Client Secret**. Copy both values; you will need them in the next step.
+![Client ID and Client Secret](assets/images/v2.1_auth_rbac/gcp_client_ID_and_secret.JPG)
 
 ---
 
@@ -77,7 +76,7 @@ This guide walks through every post-deployment step required to enable Google Si
 
 The FastAPI backend reads Google OAuth settings from environment variables (via `python-api/app/config.py`).
 
-Create or update the `.env` file in the `python-api/` directory:
+Create or update the `.env` file in the project root directory:
 
 ```dotenv
 # --- JWT ---
@@ -108,7 +107,7 @@ python -c "import secrets; print(secrets.token_urlsafe(64))"
 
 ## Step 5 — Set the Client ID (Frontend)
 
-Open `angular-app/src/environments/environment.ts` and set the `googleClientId` property:
+Open `angular-app/src/environments/environment.ts` and set the `googleClientId` property to the same Client ID from Step 3:
 
 ```typescript
 export const environment = {
@@ -143,6 +142,10 @@ This migration:
 - Backfills `birthday` from existing `age` values
 - Creates unique indexes on `email` and `google_sub`
 
+After migration, the students table will include the new auth columns. Here is an example with both local and Google users:
+
+![Students table with auth columns](assets/images/v2.1_auth_rbac/db_students_admin.JPG)
+
 ---
 
 ## Step 7 — Create the First Admin User
@@ -168,13 +171,17 @@ INSERT INTO students (name, email, password_hash, role, auth_provider, learned_t
 VALUES (
   'Admin',
   'admin@example.com',
-  -- bcrypt hash of your chosen password (generate with: python -c "from passlib.hash import bcrypt; print(bcrypt.hash('YourPassword'))")
+  -- bcrypt hash of your chosen password (generate with: python -c "import bcrypt; print(bcrypt.hashpw(b'YourPassword', bcrypt.gensalt(12)).decode())")
   '$2b$12$...',
   'admin',
   'local',
   ARRAY[1,2,3,4,5,6,7,8,9,10]
 );
 ```
+
+Once logged in as admin, you can manage all students from the Student Admin panel:
+
+![Student admin panel](assets/images/v2.1_auth_rbac/fe_student_admin.JPG)
 
 ---
 
@@ -188,15 +195,41 @@ VALUES (
 4. Log in at `http://localhost:4200/login`.
 5. Confirm you can start a quiz and view your profile.
 
+The new auth endpoints should be visible in the Swagger UI at `http://localhost:8000/docs`:
+
+![Auth API endpoints in Swagger](assets/images/v2.1_auth_rbac/be_api_new_auth.JPG)
+
 ### 8.2 — Google SSO
 
-1. On the login page, click **Sign in with Google**.
-2. You should be redirected to Google's consent screen.
-3. After granting consent, Google redirects back to `http://localhost:4200/auth/callback?code=...`.
-4. The callback component exchanges the code with the backend and logs you in.
+1. On the login page, click **Sign in with Google**:
+
+![Login page with Google SSO button](assets/images/v2.1_auth_rbac/fe_sing_in_with_Google.JPG)
+
+2. You should be redirected to Google's consent screen where you authorize OpenMath to access your name and email:
+
+![Google consent screen](assets/images/v2.1_auth_rbac/fe_sing_in_with_Google2.JPG)
+
+3. After granting consent, Google redirects back to `http://localhost:4200/auth/callback?code=...`. The callback component exchanges the code with the backend:
+
+![Callback processing](assets/images/v2.1_auth_rbac/fe_sing_in_with_Google3.JPG)
+
+4. You are now logged in. The header shows your name, auth provider badge, and the full menu is available:
+
+![Logged in via Google SSO](assets/images/v2.1_auth_rbac/fe_sing_in_with_Google4.JPG)
+
 5. Verify the user appears in the `students` table with `auth_provider = 'google'` and the correct `google_sub`.
 
-### 8.3 — Token refresh
+### 8.3 — Admin features
+
+Admin users see additional navigation links (Students, Admin) and can delete sessions from the History page:
+
+![Admin delete session](assets/images/v2.1_auth_rbac/fe_delete_session.JPG)
+
+The User Guide also shows admin-specific sections when logged in as an admin:
+
+![User guide with admin sections](assets/images/v2.1_auth_rbac/fe_user_guide_for_admins.JPG)
+
+### 8.4 — Token refresh
 
 - Access tokens expire after 30 minutes by default.
 - The Angular HTTP interceptor automatically refreshes the token on 401 responses.

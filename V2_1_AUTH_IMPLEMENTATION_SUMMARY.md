@@ -36,6 +36,24 @@ This implementation adds JWT-based authentication with Google SSO and role-based
 
 **Auth flow:** Email/password login or Google Authorization Code → backend issues HS256 JWT access token (30 min) + refresh token (7 days) → Angular interceptor attaches Bearer token to all API requests → backend dependency extracts and validates JWT on every protected route.
 
+### Google SSO Flow in Action
+
+The login page provides both local and Google sign-in options:
+
+![Login page with Google SSO button](assets/images/v2.1_auth_rbac/fe_sing_in_with_Google.JPG)
+
+Clicking "Sign in with Google" redirects to Google's consent screen where the user authorizes OpenMath:
+
+![Google consent screen](assets/images/v2.1_auth_rbac/fe_sing_in_with_Google2.JPG)
+
+After consent, Google redirects back with an authorization code. The callback component exchanges it with the backend:
+
+![Google SSO callback processing](assets/images/v2.1_auth_rbac/fe_sing_in_with_Google3.JPG)
+
+Once authenticated, the user lands on the app with their Google identity displayed in the header (including the auth provider badge):
+
+![Logged in via Google SSO](assets/images/v2.1_auth_rbac/fe_sing_in_with_Google4.JPG)
+
 ---
 
 ## Database Changes
@@ -55,15 +73,25 @@ This implementation adds JWT-based authentication with Google SSO and role-based
 
 The migration backfills `birthday` from existing `age` values for backwards compatibility.
 
+Here is the students table after migration with auth columns populated for both local and Google users, including an admin account:
+
+![Students table with auth columns](assets/images/v2.1_auth_rbac/db_students_admin.JPG)
+
 ---
 
 ## Backend Changes (python-api)
+
+### New Auth API Endpoints
+
+The new `/api/auth` router provides register, login, Google SSO, token refresh, and user profile endpoints — all visible in the Swagger UI:
+
+![Auth API endpoints in Swagger](assets/images/v2.1_auth_rbac/be_api_new_auth.JPG)
 
 ### New Files
 
 | File | Purpose |
 |---|---|
-| `app/auth.py` | JWT creation/decode (python-jose HS256), bcrypt password hashing (passlib), Google code exchange + id_token verification (httpx) |
+| `app/auth.py` | JWT creation/decode (python-jose HS256), bcrypt password hashing, Google code exchange + id_token verification (httpx) |
 | `app/dependencies.py` | FastAPI dependencies: `get_current_user` (Bearer → JWT payload), `require_admin` (role check → 403) |
 | `app/schemas/auth.py` | Pydantic v2 models: RegisterRequest, LoginRequest, GoogleAuthRequest, RefreshRequest, AuthUser, AuthResponse, AdminCreateStudentRequest |
 | `app/routers/auth.py` | 5 endpoints: POST register, POST login, POST google, POST refresh, GET me |
@@ -72,7 +100,7 @@ The migration backfills `birthday` from existing `age` values for backwards comp
 
 | File | Changes |
 |---|---|
-| `requirements.txt` | Added `python-jose[cryptography]>=3.3.0`, `passlib[bcrypt]>=1.7.0`, `httpx>=0.27.0` |
+| `requirements.txt` | Added `python-jose[cryptography]>=3.3.0`, `bcrypt>=4.0.0`, `httpx>=0.27.0` |
 | `app/config.py` | Added `jwt_secret_key`, `jwt_algorithm`, `jwt_access_token_expire_minutes`, `jwt_refresh_token_expire_days`, `google_client_id`, `google_client_secret`, `google_redirect_uri` |
 | `app/main.py` | Version bumped to 2.1.0; imports and mounts `auth_router` at `/api/auth` |
 | `app/queries.py` | Added ~10 auth queries: find/create student by email/google_sub, update password, update google link, admin student list, filtered sessions, delete session, v2 profile update |
@@ -123,6 +151,24 @@ The migration backfills `birthday` from existing `age` values for backwards comp
 | `src/app/features/auth/callback.component.ts` | Handles Google OAuth redirect, exchanges code, routes user |
 | `src/app/features/student-admin/student-admin.component.ts` | Admin panel: PrimeNG table of all students, create/edit dialog, reset password dialog |
 
+### Student Admin Panel
+
+Admin users can manage all students from a dedicated panel — view all accounts, create new students, and reset passwords:
+
+![Student admin panel](assets/images/v2.1_auth_rbac/fe_student_admin.JPG)
+
+### Admin Session Delete
+
+Admins can delete individual quiz sessions from the History page using the trash icon button with a confirmation dialog:
+
+![Delete session button](assets/images/v2.1_auth_rbac/fe_delete_session.JPG)
+
+### Role-Aware User Guide
+
+The User Guide page adapts to the current user's role — admin users see additional sections about student management and database administration:
+
+![User guide with admin sections](assets/images/v2.1_auth_rbac/fe_user_guide_for_admins.JPG)
+
 ### Modified Files
 
 | File | Changes |
@@ -132,11 +178,13 @@ The migration backfills `birthday` from existing `age` values for backwards comp
 | `src/app/app.routes.ts` | Added auth routes (login, register, auth/callback); applied `authGuard` to all app routes; applied `adminGuard` to /students and /admin |
 | `src/app/app.config.ts` | Added `withInterceptors([authInterceptor])` to `provideHttpClient()` |
 | `src/app/app.component.ts` | Conditional header/footer rendering — hidden on login/register/callback pages |
-| `src/app/shared/components/header/header.component.ts` | Removed student dropdown; shows logged-in user name + Logout button; admin-only nav links (Students, Admin) |
+| `src/app/shared/components/header/header.component.ts` | Removed student dropdown; shows logged-in user name + auth provider badge + Logout button; admin-only nav links (Students, Admin) |
 | `src/app/core/services/api.service.ts` | Added `createStudent()`, `resetStudentPassword()`, `deleteSession()` methods |
 | `src/app/features/start/start.component.ts` | Removed student creation fields; auto-uses logged-in user from AuthService |
 | `src/app/features/history/history-list.component.ts` | Removed client-side filter checkbox; API enforces student filtering; admin delete button per session |
-| `src/app/features/profile/profile.component.ts` | Uses AuthService instead of QuizService; added birthday date picker + computed age display; shows email as read-only |
+| `src/app/features/profile/profile.component.ts` | Uses AuthService instead of QuizService; added birthday date picker + computed age display; shows email and auth provider as read-only |
+| `src/app/features/user-guide/user-guide.component.ts` | Role-aware content; admin-only sections conditionally displayed |
+| `src/app/shared/components/footer/footer.component.ts` | Version updated to v2.1 |
 
 ---
 
@@ -174,7 +222,7 @@ export const environment = {
 
 | Concern | Implementation |
 |---|---|
-| Password storage | bcrypt 12 rounds via passlib |
+| Password storage | bcrypt 12 rounds via bcrypt library |
 | Token signing | HS256 via python-jose |
 | Token transport | `Authorization: Bearer <token>` header |
 | Token refresh | Interceptor catches 401 → calls `/api/auth/refresh` → retries original request |
