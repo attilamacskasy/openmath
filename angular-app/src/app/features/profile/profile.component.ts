@@ -7,15 +7,17 @@ import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { DropdownModule } from 'primeng/dropdown';
 import { CheckboxModule } from 'primeng/checkbox';
+import { CalendarModule } from 'primeng/calendar';
 import { TableModule } from 'primeng/table';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { ApiService } from '../../core/services/api.service';
-import { QuizService } from '../../core/services/quiz.service';
+import { AuthService } from '../../core/services/auth.service';
 import {
   StudentProfile,
   PerformanceBucket,
 } from '../../models/student.model';
+import { MeResponse } from '../../models/auth.model';
 
 @Component({
   selector: 'app-profile',
@@ -29,6 +31,7 @@ import {
     InputNumberModule,
     DropdownModule,
     CheckboxModule,
+    CalendarModule,
     TableModule,
     ToastModule,
   ],
@@ -36,11 +39,7 @@ import {
   template: `
     <p-toast></p-toast>
 
-    @if (!quiz.currentStudent()) {
-      <p-card header="Profile">
-        <p class="text-500">Select a student from the header dropdown to view their profile.</p>
-      </p-card>
-    } @else if (loading()) {
+    @if (loading()) {
       <p class="text-500">Loading profile...</p>
     } @else if (profile()) {
       <div class="grid">
@@ -49,31 +48,40 @@ import {
           <p-card header="Edit Profile">
             <div class="flex flex-column gap-3">
               <div class="flex flex-column gap-1">
+                <label class="font-semibold">Email</label>
+                <input pInputText [value]="meData()?.email || ''" class="w-full" [disabled]="true" />
+              </div>
+              <div class="flex flex-column gap-1">
                 <label class="font-semibold">Name</label>
                 <input pInputText [(ngModel)]="name" class="w-full" />
               </div>
               <div class="flex gap-3">
                 <div class="flex flex-column gap-1 flex-1">
-                  <label class="font-semibold">Age</label>
-                  <p-inputNumber
-                    [(ngModel)]="age"
-                    [min]="4"
-                    [max]="120"
-                    [showButtons]="true"
-                    [useGrouping]="false"
-                  ></p-inputNumber>
+                  <label class="font-semibold">Birthday</label>
+                  <p-calendar
+                    [(ngModel)]="birthday"
+                    [showIcon]="true"
+                    dateFormat="yy-mm-dd"
+                    [maxDate]="maxDate"
+                    placeholder="Select date"
+                    styleClass="w-full"
+                  ></p-calendar>
                 </div>
                 <div class="flex flex-column gap-1 flex-1">
-                  <label class="font-semibold">Gender</label>
-                  <p-dropdown
-                    [options]="genderOptions"
-                    [(ngModel)]="gender"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="—"
-                    [showClear]="true"
-                  ></p-dropdown>
+                  <label class="font-semibold">Age</label>
+                  <input pInputText [value]="computedAge" class="w-full" [disabled]="true" />
                 </div>
+              </div>
+              <div class="flex flex-column gap-1">
+                <label class="font-semibold">Gender</label>
+                <p-dropdown
+                  [options]="genderOptions"
+                  [(ngModel)]="gender"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="—"
+                  [showClear]="true"
+                ></p-dropdown>
               </div>
               <div class="flex flex-column gap-1">
                 <label class="font-semibold">Learned Timetables</label>
@@ -132,17 +140,19 @@ import {
 })
 export class ProfileComponent implements OnInit {
   private api = inject(ApiService);
-  protected quiz = inject(QuizService);
+  private auth = inject(AuthService);
   private messageService = inject(MessageService);
 
   loading = signal(true);
   saving = signal(false);
   profile = signal<StudentProfile | null>(null);
+  meData = signal<MeResponse | null>(null);
 
   name = '';
-  age: number | null = null;
+  birthday: Date | null = null;
   gender: string | null = null;
   learnedTimetables: number[] = [];
+  maxDate = new Date();
 
   timetableRange = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   genderOptions = [
@@ -152,45 +162,66 @@ export class ProfileComponent implements OnInit {
     { label: 'Prefer not to say', value: 'prefer_not_say' },
   ];
 
+  get computedAge(): string {
+    if (!this.birthday) return '—';
+    const today = new Date();
+    let age = today.getFullYear() - this.birthday.getFullYear();
+    const m = today.getMonth() - this.birthday.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < this.birthday.getDate())) {
+      age--;
+    }
+    return String(age);
+  }
+
   ngOnInit() {
     this.loadProfile();
   }
 
   loadProfile() {
-    const id = this.quiz.currentStudentId();
-    if (!id) {
+    const user = this.auth.currentUser();
+    if (!user) {
       this.loading.set(false);
       return;
     }
-    this.api.getStudent(id).subscribe({
-      next: (p) => {
-        this.profile.set(p);
-        this.name = p.name;
-        this.age = p.age;
-        this.gender = p.gender;
-        this.learnedTimetables = [...p.learned_timetables];
-        this.loading.set(false);
+
+    // Load /auth/me for email/birthday, then /students/:id for profile+stats
+    this.auth.getMe().subscribe({
+      next: (me) => {
+        this.meData.set(me);
+        this.birthday = me.birthday ? new Date(me.birthday) : null;
+
+        this.api.getStudent(user.id).subscribe({
+          next: (p) => {
+            this.profile.set(p);
+            this.name = p.name;
+            this.gender = p.gender;
+            this.learnedTimetables = [...p.learned_timetables];
+            this.loading.set(false);
+          },
+          error: () => this.loading.set(false),
+        });
       },
       error: () => this.loading.set(false),
     });
   }
 
   save() {
-    const id = this.quiz.currentStudentId();
-    if (!id) return;
+    const user = this.auth.currentUser();
+    if (!user) return;
     this.saving.set(true);
 
+    const age = this.birthday ? Number(this.computedAge) : null;
+
     this.api
-      .updateStudent(id, {
+      .updateStudent(user.id, {
         name: this.name.trim(),
-        age: this.age,
+        age,
         gender: this.gender,
         learned_timetables: this.learnedTimetables,
       })
       .subscribe({
         next: () => {
           this.saving.set(false);
-          this.quiz.refreshStudents();
           this.messageService.add({
             severity: 'success',
             summary: 'Saved',

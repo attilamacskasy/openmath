@@ -19,6 +19,7 @@ import {
   SubmitAnswerResponse,
 } from '../../models/answer.model';
 import { DatabaseStats } from '../../models/stats.model';
+import { AdminCreateStudentRequest } from '../../models/auth.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -46,6 +47,14 @@ export class ApiService {
     return this.http.patch(`${this.baseUrl}/students/${id}`, payload);
   }
 
+  createStudent(payload: AdminCreateStudentRequest): Observable<any> {
+    return this.http.post(`${this.baseUrl}/students`, payload);
+  }
+
+  resetStudentPassword(studentId: string, password: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/students/${studentId}/reset-password`, { password });
+  }
+
   // ── Sessions ────────────────────────────────────────────
   createSession(
     payload: CreateSessionRequest
@@ -62,6 +71,10 @@ export class ApiService {
 
   getSession(id: string): Observable<SessionDetail> {
     return this.http.get<SessionDetail>(`${this.baseUrl}/sessions/${id}`);
+  }
+
+  deleteSession(id: string): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/sessions/${id}`);
   }
 
   // ── Answers ─────────────────────────────────────────────

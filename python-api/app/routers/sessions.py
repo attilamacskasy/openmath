@@ -1,13 +1,18 @@
 """Sessions router."""
 
-from fastapi import APIRouter, HTTPException
+from typing import Any
 
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.dependencies import get_current_user, require_admin
 from app.queries import (
     create_session,
+    delete_session,
     get_quiz_type_by_code,
     get_session_by_id,
     insert_questions,
     list_sessions,
+    list_sessions_for_student,
 )
 from app.schemas.session import CreateSessionRequest
 from app.services.difficulty import is_difficulty
@@ -19,21 +24,37 @@ DEFAULT_QUIZ_TYPE_CODE = "multiplication_1_10"
 
 
 @router.get("/sessions")
-async def get_sessions():
-    sessions = await list_sessions()
-    return sessions
+async def get_sessions(user: dict[str, Any] = Depends(get_current_user)):
+    # Students see only own sessions; admins see all
+    if user.get("role") == "admin":
+        return await list_sessions()
+    return await list_sessions_for_student(user["sub"])
 
 
 @router.get("/sessions/{session_id}")
-async def get_session(session_id: str):
+async def get_session(session_id: str, user: dict[str, Any] = Depends(get_current_user)):
     result = await get_session_by_id(session_id)
     if not result:
         raise HTTPException(status_code=404, detail="Session not found")
+    # Students can only access own sessions
+    if user.get("role") != "admin":
+        s = result.get("session", {})
+        if str(s.get("student_id", "")) != user["sub"]:
+            raise HTTPException(status_code=403, detail="Access denied")
     return result
 
 
+@router.delete("/sessions/{session_id}")
+async def remove_session(session_id: str, user: dict[str, Any] = Depends(require_admin)):
+    """Admin deletes a session with cascade."""
+    deleted = await delete_session(session_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"deleted": True, "sessionId": session_id}
+
+
 @router.post("/sessions")
-async def post_session(body: CreateSessionRequest):
+async def post_session(body: CreateSessionRequest, user: dict[str, Any] = Depends(get_current_user)):
     if not is_difficulty(body.difficulty):
         raise HTTPException(status_code=400, detail="Invalid difficulty")
 

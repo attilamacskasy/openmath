@@ -4,10 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { TableModule } from 'primeng/table';
 import { CardModule } from 'primeng/card';
-import { CheckboxModule } from 'primeng/checkbox';
 import { TagModule } from 'primeng/tag';
+import { ButtonModule } from 'primeng/button';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ToastModule } from 'primeng/toast';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { ApiService } from '../../core/services/api.service';
-import { QuizService } from '../../core/services/quiz.service';
+import { AuthService } from '../../core/services/auth.service';
 import { SessionListItem } from '../../models/session.model';
 import { QuizType } from '../../models/quiz-type.model';
 import { DurationPipe } from '../../shared/pipes/duration.pipe';
@@ -27,22 +30,18 @@ interface GroupedSessions {
     RouterLink,
     TableModule,
     CardModule,
-    CheckboxModule,
     TagModule,
+    ButtonModule,
+    ConfirmDialogModule,
+    ToastModule,
     DurationPipe,
   ],
+  providers: [ConfirmationService, MessageService],
   template: `
-    <h2>Session History</h2>
+    <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
 
-    <div class="flex align-items-center gap-2 mb-3">
-      <p-checkbox
-        [(ngModel)]="myResultsOnly"
-        [binary]="true"
-        inputId="myResults"
-        (onChange)="filterSessions()"
-      ></p-checkbox>
-      <label for="myResults">Show only my results</label>
-    </div>
+    <h2>Session History</h2>
 
     @if (loading()) {
       <p class="text-500">Loading...</p>
@@ -62,6 +61,9 @@ interface GroupedSessions {
                 <th>Score</th>
                 <th>Started</th>
                 <th>Finished</th>
+                @if (auth.isAdmin()) {
+                  <th></th>
+                }
               </tr>
             </ng-template>
             <ng-template pTemplate="body" let-s>
@@ -91,6 +93,18 @@ interface GroupedSessions {
                     </a>
                   }
                 </td>
+                @if (auth.isAdmin()) {
+                  <td>
+                    <p-button
+                      icon="pi pi-trash"
+                      severity="danger"
+                      [text]="true"
+                      [rounded]="true"
+                      size="small"
+                      (onClick)="confirmDelete(s)"
+                    ></p-button>
+                  </td>
+                }
               </tr>
             </ng-template>
           </p-table>
@@ -101,32 +115,32 @@ interface GroupedSessions {
 })
 export class HistoryListComponent implements OnInit {
   private api = inject(ApiService);
-  private quiz = inject(QuizService);
+  protected auth = inject(AuthService);
+  private confirm = inject(ConfirmationService);
+  private messageService = inject(MessageService);
 
   loading = signal(true);
   allSessions = signal<SessionListItem[]>([]);
   quizTypes = signal<QuizType[]>([]);
   grouped = signal<GroupedSessions[]>([]);
-  myResultsOnly = true;
 
   ngOnInit() {
     this.api.getQuizTypes().subscribe((types) => {
       this.quizTypes.set(types);
-      this.api.getSessions().subscribe((sessions) => {
-        this.allSessions.set(sessions);
-        this.filterSessions();
-        this.loading.set(false);
-      });
+      this.loadSessions();
     });
   }
 
-  filterSessions() {
-    const studentId = this.quiz.currentStudentId();
-    let sessions = this.allSessions();
-    if (this.myResultsOnly && studentId) {
-      sessions = sessions.filter((s) => s.student_id === studentId);
-    }
+  loadSessions() {
+    // API already filters: students see own, admins see all
+    this.api.getSessions().subscribe((sessions) => {
+      this.allSessions.set(sessions);
+      this.buildGroups(sessions);
+      this.loading.set(false);
+    });
+  }
 
+  private buildGroups(sessions: SessionListItem[]) {
     const types = this.quizTypes();
     const map = new Map<string, GroupedSessions>();
 
@@ -144,6 +158,26 @@ export class HistoryListComponent implements OnInit {
     }
 
     this.grouped.set(Array.from(map.values()).sort((a, b) => a.description.localeCompare(b.description)));
+  }
+
+  confirmDelete(s: SessionListItem) {
+    this.confirm.confirm({
+      message: 'Delete this session? This will permanently remove the session, all its questions, and all answers.',
+      header: 'Confirm Delete',
+      icon: 'pi pi-exclamation-triangle',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        this.api.deleteSession(s.id).subscribe({
+          next: () => {
+            this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Session deleted' });
+            this.loadSessions();
+          },
+          error: () => {
+            this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete session' });
+          },
+        });
+      },
+    });
   }
 
   avgPerQuestion(s: SessionListItem): string {

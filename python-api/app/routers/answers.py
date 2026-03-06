@@ -1,7 +1,10 @@
 """Answers router."""
 
-from fastapi import APIRouter, HTTPException
+from typing import Any
 
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.dependencies import get_current_user
 from app.queries import submit_answer
 from app.schemas.answer import SubmitAnswerRequest
 
@@ -9,7 +12,7 @@ router = APIRouter(tags=["answers"])
 
 
 @router.post("/answers")
-async def post_answer(body: SubmitAnswerRequest):
+async def post_answer(body: SubmitAnswerRequest, user: dict[str, Any] = Depends(get_current_user)):
     # Support both JSONB response format and legacy int value
     value = body.value
     response = body.response

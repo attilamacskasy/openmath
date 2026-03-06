@@ -6,11 +6,10 @@ import { DropdownModule } from 'primeng/dropdown';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { ButtonModule } from 'primeng/button';
 import { RadioButtonModule } from 'primeng/radiobutton';
-import { CheckboxModule } from 'primeng/checkbox';
-import { InputTextModule } from 'primeng/inputtext';
 import { CardModule } from 'primeng/card';
 import { ApiService } from '../../core/services/api.service';
 import { QuizService } from '../../core/services/quiz.service';
+import { AuthService } from '../../core/services/auth.service';
 import { QuizType } from '../../models/quiz-type.model';
 
 @Component({
@@ -23,14 +22,19 @@ import { QuizType } from '../../models/quiz-type.model';
     InputNumberModule,
     ButtonModule,
     RadioButtonModule,
-    CheckboxModule,
-    InputTextModule,
     CardModule,
   ],
   template: `
     <div class="flex justify-content-center">
       <p-card header="Start a Quiz" [style]="{ 'max-width': '600px', width: '100%' }">
         <div class="flex flex-column gap-3">
+
+          <!-- Logged-in student info -->
+          @if (auth.currentUser(); as user) {
+            <div class="surface-50 p-3 border-round text-sm">
+              Playing as <strong>{{ user.name }}</strong> ({{ user.email }})
+            </div>
+          }
 
           <!-- Quiz Type -->
           <div class="flex flex-column gap-1">
@@ -62,62 +66,6 @@ import { QuizType } from '../../models/quiz-type.model';
             </div>
           </div>
 
-          <!-- Student info (show if no current student) -->
-          @if (!quiz.currentStudent()) {
-            <div class="flex flex-column gap-2 surface-50 p-3 border-round">
-              <label class="font-semibold">New Student</label>
-              <span class="p-input-icon-left w-full">
-                <input
-                  type="text"
-                  pInputText
-                  placeholder="Student name (required)"
-                  [(ngModel)]="studentName"
-                  class="w-full"
-                />
-              </span>
-              <div class="flex gap-3">
-                <div class="flex flex-column gap-1 flex-1">
-                  <label class="text-sm">Age (optional)</label>
-                  <p-inputNumber
-                    [(ngModel)]="studentAge"
-                    [min]="4"
-                    [max]="120"
-                    [showButtons]="true"
-                    [useGrouping]="false"
-                  ></p-inputNumber>
-                </div>
-                <div class="flex flex-column gap-1 flex-1">
-                  <label class="text-sm">Gender (optional)</label>
-                  <p-dropdown
-                    [options]="genderOptions"
-                    [(ngModel)]="studentGender"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="—"
-                    [showClear]="true"
-                  ></p-dropdown>
-                </div>
-              </div>
-
-              <!-- Learned Timetables -->
-              <div class="flex flex-column gap-1">
-                <label class="text-sm">Learned Timetables</label>
-                <div class="flex flex-wrap gap-2">
-                  @for (n of timetableRange; track n) {
-                    <div class="flex align-items-center gap-1">
-                      <p-checkbox
-                        [inputId]="'tt-' + n"
-                        [value]="n"
-                        [(ngModel)]="learnedTimetables"
-                      ></p-checkbox>
-                      <label [for]="'tt-' + n" class="text-sm">{{ n }}</label>
-                    </div>
-                  }
-                </div>
-              </div>
-            </div>
-          }
-
           <!-- Total Questions -->
           <div class="flex flex-column gap-1">
             <label class="font-semibold">Number of Questions</label>
@@ -134,7 +82,7 @@ import { QuizType } from '../../models/quiz-type.model';
             label="Start Quiz"
             icon="pi pi-play"
             (onClick)="startQuiz()"
-            [disabled]="!canStart()"
+            [disabled]="submitting()"
             [loading]="submitting()"
           ></p-button>
         </div>
@@ -144,27 +92,17 @@ import { QuizType } from '../../models/quiz-type.model';
 })
 export class StartComponent implements OnInit {
   private api = inject(ApiService);
-  protected quiz = inject(QuizService);
+  private quiz = inject(QuizService);
   private router = inject(Router);
+  protected auth = inject(AuthService);
 
   quizTypes = signal<QuizType[]>([]);
   quizTypeCode = 'multiplication_1_10';
   difficulty = 'medium';
   totalQuestions = 10;
-  studentName = '';
-  studentAge: number | null = null;
-  studentGender: string | null = null;
-  learnedTimetables: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   submitting = signal(false);
 
   difficulties = ['low', 'medium', 'hard'];
-  timetableRange = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-  genderOptions = [
-    { label: 'Female', value: 'female' },
-    { label: 'Male', value: 'male' },
-    { label: 'Other', value: 'other' },
-    { label: 'Prefer not to say', value: 'prefer_not_say' },
-  ];
 
   quizTypeOptions = () =>
     this.quizTypes().map((qt) => ({ label: qt.description, value: qt.code }));
@@ -173,31 +111,16 @@ export class StartComponent implements OnInit {
     this.api.getQuizTypes().subscribe((types) => this.quizTypes.set(types));
   }
 
-  canStart(): boolean {
-    if (this.submitting()) return false;
-    if (!this.quiz.currentStudent() && !this.studentName.trim()) return false;
-    if (
-      !this.quiz.currentStudent() &&
-      this.learnedTimetables.length === 0
-    )
-      return false;
-    return true;
-  }
-
   startQuiz() {
     this.submitting.set(true);
-    const current = this.quiz.currentStudent();
+    const user = this.auth.currentUser();
 
     this.api
       .createSession({
         difficulty: this.difficulty,
         totalQuestions: this.totalQuestions,
         quizTypeCode: this.quizTypeCode,
-        studentId: current?.id || undefined,
-        studentName: current ? undefined : this.studentName,
-        studentAge: current ? undefined : this.studentAge,
-        studentGender: current ? undefined : this.studentGender,
-        learnedTimetables: current ? undefined : this.learnedTimetables,
+        studentId: user?.id || undefined,
       })
       .subscribe({
         next: (res) => {
@@ -206,9 +129,6 @@ export class StartComponent implements OnInit {
             quizTypeCode: res.quizTypeCode,
             questions: res.questions,
           });
-          if (!current) {
-            this.quiz.refreshStudents();
-          }
           this.submitting.set(false);
           this.router.navigate(['/quiz', res.sessionId]);
         },

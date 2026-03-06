@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -442,3 +442,164 @@ async def delete_all_schema_data() -> None:
             await conn.execute("DELETE FROM questions")
             await conn.execute("DELETE FROM quiz_sessions")
             await conn.execute("DELETE FROM students")
+
+
+# ── Auth / Students (v2.1) ────────────────────────────────
+
+async def find_student_by_email(email: str) -> dict[str, Any] | None:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """SELECT id, name, email, password_hash, role, auth_provider,
+                  google_sub, birthday, age, gender, learned_timetables
+           FROM students WHERE email = $1""",
+        email,
+    )
+    return _row_to_dict(row) if row else None
+
+
+async def find_student_by_google_sub(google_sub: str) -> dict[str, Any] | None:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """SELECT id, name, email, password_hash, role, auth_provider,
+                  google_sub, birthday, age, gender, learned_timetables
+           FROM students WHERE google_sub = $1""",
+        google_sub,
+    )
+    return _row_to_dict(row) if row else None
+
+
+async def find_student_by_id(student_id: str) -> dict[str, Any] | None:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """SELECT id, name, email, password_hash, role, auth_provider,
+                  google_sub, birthday, age, gender, learned_timetables
+           FROM students WHERE id = $1""",
+        UUID(student_id),
+    )
+    return _row_to_dict(row) if row else None
+
+
+async def create_student_with_auth(
+    name: str,
+    email: str,
+    password_hash: str | None,
+    role: str = "student",
+    auth_provider: str = "local",
+    google_sub: str | None = None,
+    birthday: date | None = None,
+    gender: str | None = None,
+    learned_timetables: list[int] | None = None,
+) -> dict[str, Any]:
+    pool = await get_pool()
+    sanitized = _sanitize_learned_timetables(learned_timetables)
+    row = await pool.fetchrow(
+        """INSERT INTO students (name, email, password_hash, role, auth_provider,
+                                 google_sub, birthday, gender, learned_timetables)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           RETURNING id, name, email, role, auth_provider, google_sub,
+                     birthday, age, gender, learned_timetables, created_at""",
+        name.strip(),
+        email.lower().strip(),
+        password_hash,
+        role,
+        auth_provider,
+        google_sub,
+        birthday,
+        gender,
+        sanitized,
+    )
+    return _row_to_dict(row)
+
+
+async def update_student_google_link(
+    student_id: str, google_sub: str, auth_provider: str = "both"
+) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE students SET google_sub = $2, auth_provider = $3 WHERE id = $1",
+        UUID(student_id),
+        google_sub,
+        auth_provider,
+    )
+
+
+async def update_student_password(student_id: str, password_hash: str) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE students SET password_hash = $2 WHERE id = $1",
+        UUID(student_id),
+        password_hash,
+    )
+
+
+async def list_students_admin() -> list[dict[str, Any]]:
+    """List all students with auth columns (admin view)."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT id, name, email, role, auth_provider, birthday, age,
+                  gender, learned_timetables, created_at
+           FROM students ORDER BY name, created_at DESC"""
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+async def update_student_profile_v2(
+    student_id: str,
+    name: str,
+    age: int | None,
+    gender: str | None,
+    learned_timetables: list[int],
+    birthday: date | None = None,
+    email: str | None = None,
+    role: str | None = None,
+) -> dict[str, Any] | None:
+    """V2.1 profile update with optional birthday, email, and role."""
+    pool = await get_pool()
+    sanitized = _sanitize_learned_timetables(learned_timetables)
+    row = await pool.fetchrow(
+        """UPDATE students
+           SET name = $2, age = $3, gender = $4, learned_timetables = $5,
+               birthday = $6,
+               email = COALESCE($7, email),
+               role = COALESCE($8, role)
+           WHERE id = $1
+           RETURNING id, name, email, role, auth_provider, birthday, age,
+                     gender, learned_timetables""",
+        UUID(student_id),
+        name.strip(),
+        age,
+        gender,
+        sanitized,
+        birthday,
+        email,
+        role,
+    )
+    return _row_to_dict(row) if row else None
+
+
+async def delete_session(session_id: str) -> bool:
+    """Delete a session and cascade to questions/answers."""
+    pool = await get_pool()
+    result = await pool.execute(
+        "DELETE FROM quiz_sessions WHERE id = $1", UUID(session_id)
+    )
+    return result == "DELETE 1"
+
+
+async def list_sessions_for_student(student_id: str) -> list[dict[str, Any]]:
+    """List sessions filtered by student_id."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT qs.id, qs.student_id, qs.difficulty,
+                  qs.total_questions, qs.score_percent,
+                  qs.started_at, qs.finished_at,
+                  s.name AS student_name,
+                  qt.code AS quiz_type_code
+           FROM quiz_sessions qs
+           LEFT JOIN students s ON qs.student_id = s.id
+           LEFT JOIN quiz_types qt ON qs.quiz_type_id = qt.id
+           WHERE qs.student_id = $1
+           ORDER BY qs.started_at DESC""",
+        UUID(student_id),
+    )
+    return [_row_to_dict(r) for r in rows]

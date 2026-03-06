@@ -1,7 +1,10 @@
 """Stats router."""
 
-from fastapi import APIRouter, HTTPException
+from typing import Any
 
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.dependencies import require_admin
 from app.queries import (
     STATS_TABLE_NAMES,
     delete_all_schema_data,
@@ -14,12 +17,12 @@ router = APIRouter(tags=["stats"])
 
 
 @router.get("/stats")
-async def get_stats():
+async def get_stats(user: dict[str, Any] = Depends(require_admin)):
     return await get_database_statistics()
 
 
 @router.get("/stats/{table}")
-async def get_table_rows(table: str):
+async def get_table_rows(table: str, user: dict[str, Any] = Depends(require_admin)):
     if table not in STATS_TABLE_NAMES:
         raise HTTPException(status_code=400, detail=f"Invalid table: {table}")
 
@@ -28,7 +31,7 @@ async def get_table_rows(table: str):
 
 
 @router.post("/stats/reset")
-async def reset_data(body: ResetRequest):
+async def reset_data(body: ResetRequest, user: dict[str, Any] = Depends(require_admin)):
     if body.confirmation != "DELETE ALL DATA":
         raise HTTPException(status_code=400, detail="Invalid confirmation")
 
