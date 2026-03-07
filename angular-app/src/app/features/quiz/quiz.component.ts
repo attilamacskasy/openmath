@@ -23,9 +23,6 @@ interface FeedbackState {
   show: boolean;
   isCorrect: boolean;
   correctValue: number;
-  sessionCorrect: number;
-  sessionWrong: number;
-  sessionPercent: number;
 }
 
 @Component({
@@ -65,6 +62,23 @@ interface FeedbackState {
             ></p-progressBar>
           </div>
 
+          <!-- Feedback from previous question -->
+          @if (feedback().show) {
+            <div
+              class="mb-3 p-3 border-round text-center text-lg font-semibold"
+              [class.bg-green-100]="feedback().isCorrect"
+              [class.text-green-800]="feedback().isCorrect"
+              [class.bg-red-100]="!feedback().isCorrect"
+              [class.text-red-800]="!feedback().isCorrect"
+            >
+              @if (feedback().isCorrect) {
+                Correct! &#10003;
+              } @else {
+                Wrong — correct answer is {{ feedback().correctValue }}
+              }
+            </div>
+          }
+
           <!-- Question card -->
           <p-card>
             <ng-template pTemplate="header">
@@ -82,6 +96,7 @@ interface FeedbackState {
                       [(ngModel)]="intAnswer"
                       [showButtons]="false"
                       [useGrouping]="false"
+                      [autofocus]="true"
                       (keydown.enter)="submitAnswer()"
                       placeholder="Your answer"
                       [style]="{ 'font-size': '1.5rem', width: '200px' }"
@@ -98,41 +113,16 @@ interface FeedbackState {
                   </div>
                 }
               }
-
-              <!-- Feedback -->
-              @if (feedback().show) {
-                <div
-                  class="mt-3 p-3 border-round text-center text-lg font-semibold"
-                  [class.bg-green-100]="feedback().isCorrect"
-                  [class.text-green-800]="feedback().isCorrect"
-                  [class.bg-red-100]="!feedback().isCorrect"
-                  [class.text-red-800]="!feedback().isCorrect"
-                >
-                  @if (feedback().isCorrect) {
-                    Correct! &#10003;
-                  } @else {
-                    Wrong — correct answer is {{ feedback().correctValue }}
-                  }
-                </div>
-              }
             </ng-template>
 
             <ng-template pTemplate="footer">
               <div class="flex justify-content-center">
-                @if (!feedback().show) {
-                  <p-button
-                    label="Submit"
-                    icon="pi pi-check"
-                    (onClick)="submitAnswer()"
-                    [disabled]="!hasAnswer() || submitting()"
-                  ></p-button>
-                } @else {
-                  <p-button
-                    label="Next"
-                    icon="pi pi-arrow-right"
-                    (onClick)="nextQuestion()"
-                  ></p-button>
-                }
+                <p-button
+                  label="Submit"
+                  icon="pi pi-check"
+                  (onClick)="submitAnswer()"
+                  [disabled]="!hasAnswer() || submitting()"
+                ></p-button>
               </div>
             </ng-template>
           </p-card>
@@ -162,14 +152,7 @@ export class QuizComponent implements OnInit, AfterViewChecked {
   intAnswer: number | null = null;
   choiceAnswer = '';
 
-  feedback = signal<FeedbackState>({
-    show: false,
-    isCorrect: false,
-    correctValue: 0,
-    sessionCorrect: 0,
-    sessionWrong: 0,
-    sessionPercent: 0,
-  });
+  feedback = signal<FeedbackState>({ show: false, isCorrect: false, correctValue: 0 });
 
   currentQuestion = () => {
     const qs = this.questions();
@@ -268,17 +251,10 @@ export class QuizComponent implements OnInit, AfterViewChecked {
       .subscribe({
         next: (res) => {
           this.submitting.set(false);
-          this.feedback.set({
-            show: true,
-            isCorrect: res.isCorrect,
-            correctValue: res.correctValue,
-            sessionCorrect: res.session.correct,
-            sessionWrong: res.session.wrong,
-            sessionPercent: res.session.percent,
-          });
           this.sessionCorrect.set(res.session.correct);
           this.sessionWrong.set(res.session.wrong);
           this.answeredCount.set(res.session.correct + res.session.wrong);
+          this.advanceWithFeedback(res.isCorrect, res.correctValue);
         },
         error: () => {
           this.submitting.set(false);
@@ -286,15 +262,7 @@ export class QuizComponent implements OnInit, AfterViewChecked {
       });
   }
 
-  nextQuestion() {
-    this.feedback.set({
-      show: false,
-      isCorrect: false,
-      correctValue: 0,
-      sessionCorrect: 0,
-      sessionWrong: 0,
-      sessionPercent: 0,
-    });
+  private advanceWithFeedback(isCorrect: boolean, correctValue: number) {
     this.intAnswer = null;
     this.choiceAnswer = '';
 
@@ -304,17 +272,23 @@ export class QuizComponent implements OnInit, AfterViewChecked {
       this.router.navigate(['/history', this.sessionId]);
       return;
     }
+
+    this.feedback.set({ show: true, isCorrect, correctValue });
     this.currentIndex.set(nextIdx);
     this.needsFocus = true;
   }
 
   private focusInput() {
     setTimeout(() => {
-      const el = this.answerInputRef?.nativeElement;
+      const ref = this.answerInputRef as any;
+      const el = ref?.nativeElement ?? ref?.el?.nativeElement;
       if (el) {
         const input = el.querySelector?.('input') || el;
         input?.focus?.();
+        return;
       }
-    }, 50);
+      const fallback = document.querySelector<HTMLInputElement>('p-inputNumber input');
+      fallback?.focus();
+    }, 100);
   }
 }
