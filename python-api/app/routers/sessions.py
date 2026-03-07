@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.dependencies import get_current_user, require_admin
 from app.queries import (
@@ -24,11 +24,14 @@ DEFAULT_QUIZ_TYPE_CODE = "multiplication_1_10"
 
 
 @router.get("/sessions")
-async def get_sessions(user: dict[str, Any] = Depends(get_current_user)):
+async def get_sessions(
+    user: dict[str, Any] = Depends(get_current_user),
+    quiz_type_code: str | None = Query(default=None),
+):
     # Students see only own sessions; admins see all
     if user.get("role") == "admin":
-        return await list_sessions()
-    return await list_sessions_for_student(user["sub"])
+        return await list_sessions(quiz_type_code=quiz_type_code)
+    return await list_sessions_for_student(user["sub"], quiz_type_code=quiz_type_code)
 
 
 @router.get("/sessions/{session_id}")
@@ -93,6 +96,8 @@ async def post_session(body: CreateSessionRequest, user: dict[str, Any] = Depend
     return {
         "sessionId": session["id"],
         "quizTypeCode": quiz_type_code,
+        "quizTypeDescription": quiz_type.get("description", ""),
+        "quizTypeCategory": quiz_type.get("category", ""),
         "questions": [
             {
                 "id": q["id"],

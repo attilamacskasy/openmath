@@ -4,12 +4,12 @@ export interface SubmitAnswerRequest {
     raw: string;
     parsed: Record<string, any>;
   };
-  value?: number;
+  value?: number | string;
 }
 
 export interface SubmitAnswerResponse {
   isCorrect: boolean;
-  correctValue: number;
+  correctValue: number | string;
   session: {
     correct: number;
     wrong: number;

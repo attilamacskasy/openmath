@@ -13,8 +13,10 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
 import { InputNumberModule } from 'primeng/inputnumber';
+import { InputTextModule } from 'primeng/inputtext';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { SelectButtonModule } from 'primeng/selectbutton';
+import { TagModule } from 'primeng/tag';
 import { ApiService } from '../../core/services/api.service';
 import { QuizService } from '../../core/services/quiz.service';
 import { QuestionOut } from '../../models/session.model';
@@ -22,7 +24,7 @@ import { QuestionOut } from '../../models/session.model';
 interface FeedbackState {
   show: boolean;
   isCorrect: boolean;
-  correctValue: number;
+  correctValue: number | string;
 }
 
 @Component({
@@ -34,8 +36,10 @@ interface FeedbackState {
     CardModule,
     ButtonModule,
     InputNumberModule,
+    InputTextModule,
     ProgressBarModule,
     SelectButtonModule,
+    TagModule,
   ],
   template: `
     <div class="flex justify-content-center">
@@ -45,6 +49,17 @@ interface FeedbackState {
         } @else if (!currentQuestion()) {
           <p class="text-center text-500">No questions available.</p>
         } @else {
+          <!-- Quiz type banner -->
+          @if (quizTypeDescription) {
+            <div class="surface-100 p-2 border-round text-center mb-2 flex align-items-center justify-content-center gap-2">
+              <i class="pi pi-book"></i>
+              <span class="font-semibold">{{ quizTypeDescription }}</span>
+              @if (quizTypeCategory) {
+                <p-tag [value]="quizTypeCategory" [rounded]="true" severity="info"></p-tag>
+              }
+            </div>
+          }
+
           <!-- Progress -->
           <div class="mb-3">
             <div class="flex justify-content-between mb-1">
@@ -88,7 +103,7 @@ interface FeedbackState {
             </ng-template>
 
             <ng-template pTemplate="content">
-              @switch (currentQuestion()!.prompt.answer.type) {
+              @switch (currentAnswerType()) {
                 @case ('int') {
                   <div class="flex justify-content-center">
                     <p-inputNumber
@@ -100,6 +115,43 @@ interface FeedbackState {
                       (keydown.enter)="submitAnswer()"
                       placeholder="Your answer"
                       [style]="{ 'font-size': '1.5rem', width: '200px' }"
+                      [inputStyle]="{ 'text-align': 'center', 'font-size': '1.5rem' }"
+                    ></p-inputNumber>
+                  </div>
+                }
+                @case ('text') {
+                  <div class="flex justify-content-center">
+                    <input
+                      pInputText
+                      #textInput
+                      [(ngModel)]="textAnswer"
+                      (keydown.enter)="submitAnswer()"
+                      placeholder="Your answer"
+                      [style]="{ 'font-size': '1.5rem', width: '250px', 'text-align': 'center' }"
+                    />
+                  </div>
+                }
+                @case ('tuple') {
+                  <div class="flex justify-content-center gap-2 align-items-center">
+                    <p-inputNumber
+                      #tupleInput1
+                      [(ngModel)]="tupleAnswer1"
+                      [showButtons]="false"
+                      [useGrouping]="false"
+                      [autofocus]="true"
+                      placeholder="?"
+                      [style]="{ 'font-size': '1.5rem', width: '100px' }"
+                      [inputStyle]="{ 'text-align': 'center', 'font-size': '1.5rem' }"
+                    ></p-inputNumber>
+                    <span class="text-xl">,</span>
+                    <p-inputNumber
+                      #tupleInput2
+                      [(ngModel)]="tupleAnswer2"
+                      [showButtons]="false"
+                      [useGrouping]="false"
+                      (keydown.enter)="submitAnswer()"
+                      placeholder="?"
+                      [style]="{ 'font-size': '1.5rem', width: '100px' }"
                       [inputStyle]="{ 'text-align': 'center', 'font-size': '1.5rem' }"
                     ></p-inputNumber>
                   </div>
@@ -138,6 +190,8 @@ export class QuizComponent implements OnInit, AfterViewChecked {
   private router = inject(Router);
 
   @ViewChild('answerInput') answerInputRef?: ElementRef;
+  @ViewChild('textInput') textInputRef?: ElementRef;
+  @ViewChild('tupleInput1') tupleInput1Ref?: ElementRef;
 
   loading = signal(true);
   submitting = signal(false);
@@ -148,8 +202,13 @@ export class QuizComponent implements OnInit, AfterViewChecked {
   sessionWrong = signal(0);
   sessionId = '';
   needsFocus = false;
+  quizTypeDescription = '';
+  quizTypeCategory = '';
 
   intAnswer: number | null = null;
+  textAnswer = '';
+  tupleAnswer1: number | null = null;
+  tupleAnswer2: number | null = null;
   choiceAnswer = '';
 
   feedback = signal<FeedbackState>({ show: false, isCorrect: false, correctValue: 0 });
@@ -158,6 +217,11 @@ export class QuizComponent implements OnInit, AfterViewChecked {
     const qs = this.questions();
     const idx = this.currentIndex();
     return idx < qs.length ? qs[idx] : null;
+  };
+
+  currentAnswerType = () => {
+    const q = this.currentQuestion();
+    return q?.prompt?.answer?.type || 'int';
   };
 
   totalQuestions = () => this.questions().length;
@@ -172,6 +236,8 @@ export class QuizComponent implements OnInit, AfterViewChecked {
 
     if (active && active.sessionId === this.sessionId) {
       this.questions.set(active.questions);
+      this.quizTypeDescription = active.quizTypeDescription || '';
+      this.quizTypeCategory = active.quizTypeCategory || '';
       this.loading.set(false);
       this.needsFocus = true;
     } else {
@@ -217,10 +283,11 @@ export class QuizComponent implements OnInit, AfterViewChecked {
   }
 
   hasAnswer(): boolean {
-    const q = this.currentQuestion();
-    if (!q) return false;
-    if (q.prompt.answer.type === 'int') return this.intAnswer !== null;
-    if (q.prompt.answer.type === 'choice') return this.choiceAnswer !== '';
+    const ansType = this.currentAnswerType();
+    if (ansType === 'int') return this.intAnswer !== null;
+    if (ansType === 'text') return this.textAnswer.trim() !== '';
+    if (ansType === 'tuple') return this.tupleAnswer1 !== null && this.tupleAnswer2 !== null;
+    if (ansType === 'choice') return this.choiceAnswer !== '';
     return false;
   }
 
@@ -230,23 +297,34 @@ export class QuizComponent implements OnInit, AfterViewChecked {
     if (!q) return;
 
     this.submitting.set(true);
-    const answerType = q.prompt.answer.type;
+    const answerType = this.currentAnswerType();
     let rawValue: string;
     let parsed: Record<string, any>;
+    let submitValue: number | string | undefined;
 
     if (answerType === 'int') {
       rawValue = String(this.intAnswer);
       parsed = { type: 'int', value: this.intAnswer };
+      submitValue = this.intAnswer!;
+    } else if (answerType === 'text') {
+      rawValue = this.textAnswer.trim();
+      parsed = { type: 'text', value: rawValue };
+      submitValue = rawValue;
+    } else if (answerType === 'tuple') {
+      rawValue = `${this.tupleAnswer1}, ${this.tupleAnswer2}`;
+      parsed = { type: 'tuple', value: rawValue };
+      submitValue = rawValue;
     } else {
       rawValue = this.choiceAnswer;
       parsed = { type: 'choice', value: this.choiceAnswer };
+      submitValue = undefined;
     }
 
     this.api
       .submitAnswer({
         questionId: q.id,
         response: { raw: rawValue, parsed },
-        value: answerType === 'int' ? this.intAnswer! : undefined,
+        value: submitValue,
       })
       .subscribe({
         next: (res) => {
@@ -262,8 +340,11 @@ export class QuizComponent implements OnInit, AfterViewChecked {
       });
   }
 
-  private advanceWithFeedback(isCorrect: boolean, correctValue: number) {
+  private advanceWithFeedback(isCorrect: boolean, correctValue: number | string) {
     this.intAnswer = null;
+    this.textAnswer = '';
+    this.tupleAnswer1 = null;
+    this.tupleAnswer2 = null;
     this.choiceAnswer = '';
 
     const nextIdx = this.currentIndex() + 1;
@@ -280,14 +361,27 @@ export class QuizComponent implements OnInit, AfterViewChecked {
 
   private focusInput() {
     setTimeout(() => {
-      const ref = this.answerInputRef as any;
+      const ansType = this.currentAnswerType();
+      let ref: any;
+
+      if (ansType === 'text') {
+        ref = this.textInputRef;
+      } else if (ansType === 'tuple') {
+        ref = this.tupleInput1Ref;
+      } else {
+        ref = this.answerInputRef;
+      }
+
       const el = ref?.nativeElement ?? ref?.el?.nativeElement;
       if (el) {
         const input = el.querySelector?.('input') || el;
         input?.focus?.();
         return;
       }
-      const fallback = document.querySelector<HTMLInputElement>('p-inputNumber input');
+      // DOM fallback
+      const fallback = document.querySelector<HTMLInputElement>(
+        ansType === 'text' ? 'input[pinputtext]' : 'p-inputNumber input'
+      );
       fallback?.focus();
     }, 100);
   }

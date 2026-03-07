@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -6,20 +6,15 @@ import { TableModule } from 'primeng/table';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
+import { DropdownModule } from 'primeng/dropdown';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmationService, MessageService } from 'primeng/api';
-import { ApiService } from '../../core/services/api.service';
+import { ApiService, QuizTypesResponse } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { SessionListItem } from '../../models/session.model';
 import { QuizType } from '../../models/quiz-type.model';
 import { DurationPipe } from '../../shared/pipes/duration.pipe';
-
-interface GroupedSessions {
-  code: string;
-  description: string;
-  sessions: SessionListItem[];
-}
 
 @Component({
   selector: 'app-history-list',
@@ -32,6 +27,7 @@ interface GroupedSessions {
     CardModule,
     TagModule,
     ButtonModule,
+    DropdownModule,
     ConfirmDialogModule,
     ToastModule,
     DurationPipe,
@@ -43,73 +39,89 @@ interface GroupedSessions {
 
     <h2>Session History</h2>
 
+    <!-- Quiz Type Filter -->
+    <div class="mb-3">
+      <p-dropdown
+        [options]="quizTypeFilterOptions()"
+        [(ngModel)]="selectedQuizTypeCode"
+        optionLabel="label"
+        optionValue="value"
+        [style]="{ 'min-width': '300px' }"
+      ></p-dropdown>
+    </div>
+
     @if (loading()) {
       <p class="text-500">Loading...</p>
-    } @else if (grouped().length === 0) {
+    } @else if (filteredSessions().length === 0) {
       <p class="text-500">No sessions found.</p>
     } @else {
-      @for (group of grouped(); track group.code) {
-        <p-card [header]="group.description" styleClass="mb-3">
-          <p-table [value]="group.sessions" [rows]="20" [paginator]="group.sessions.length > 20" styleClass="p-datatable-sm">
-            <ng-template pTemplate="header">
-              <tr>
-                <th>Student</th>
-                <th>Difficulty</th>
-                <th>Questions</th>
-                <th>Time</th>
-                <th>Avg/Q</th>
-                <th>Score</th>
-                <th>Started</th>
-                <th>Finished</th>
-                @if (auth.isAdmin()) {
-                  <th></th>
-                }
-              </tr>
-            </ng-template>
-            <ng-template pTemplate="body" let-s>
-              <tr>
-                <td>{{ s.student_name || '—' }}</td>
-                <td>
-                  <a [routerLink]="['/history', s.id]" class="text-primary no-underline">
-                    {{ s.difficulty }}
-                  </a>
-                </td>
-                <td>{{ s.total_questions }}</td>
-                <td>{{ s.started_at | duration : s.finished_at }}</td>
-                <td>{{ avgPerQuestion(s) }}</td>
-                <td>
-                  <p-tag
-                    [value]="s.score_percent + '%'"
-                    [severity]="scoreSeverity(s.score_percent)"
-                  ></p-tag>
-                </td>
-                <td>{{ s.started_at | date : 'short' }}</td>
-                <td>
-                  @if (s.finished_at) {
-                    {{ s.finished_at | date : 'short' }}
-                  } @else {
-                    <a [routerLink]="['/quiz', s.id]" class="text-orange-500 no-underline font-semibold">
-                      In progress
-                    </a>
-                  }
-                </td>
-                @if (auth.isAdmin()) {
-                  <td>
-                    <p-button
-                      icon="pi pi-trash"
-                      severity="danger"
-                      [text]="true"
-                      [rounded]="true"
-                      size="small"
-                      (onClick)="confirmDelete(s)"
-                    ></p-button>
-                  </td>
-                }
-              </tr>
-            </ng-template>
-          </p-table>
-        </p-card>
-      }
+      <p-table
+        [value]="filteredSessions()"
+        [rows]="20"
+        [paginator]="filteredSessions().length > 20"
+        [sortField]="'started_at'"
+        [sortOrder]="-1"
+        styleClass="p-datatable-sm p-datatable-striped"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th pSortableColumn="quiz_type_description">Quiz Type <p-sortIcon field="quiz_type_description"></p-sortIcon></th>
+            <th>Student</th>
+            <th>Difficulty</th>
+            <th>Questions</th>
+            <th>Time</th>
+            <th>Avg/Q</th>
+            <th pSortableColumn="score_percent">Score <p-sortIcon field="score_percent"></p-sortIcon></th>
+            <th pSortableColumn="started_at">Started <p-sortIcon field="started_at"></p-sortIcon></th>
+            <th>Finished</th>
+            @if (auth.isAdmin()) {
+              <th></th>
+            }
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-s>
+          <tr>
+            <td>{{ s.quiz_type_description || s.quiz_type_code || '—' }}</td>
+            <td>{{ s.student_name || '—' }}</td>
+            <td>
+              <a [routerLink]="['/history', s.id]" class="text-primary no-underline">
+                {{ s.difficulty }}
+              </a>
+            </td>
+            <td>{{ s.total_questions }}</td>
+            <td>{{ s.started_at | duration : s.finished_at }}</td>
+            <td>{{ avgPerQuestion(s) }}</td>
+            <td>
+              <p-tag
+                [value]="s.score_percent + '%'"
+                [severity]="scoreSeverity(s.score_percent)"
+              ></p-tag>
+            </td>
+            <td>{{ s.started_at | date : 'short' }}</td>
+            <td>
+              @if (s.finished_at) {
+                {{ s.finished_at | date : 'short' }}
+              } @else {
+                <a [routerLink]="['/quiz', s.id]" class="text-orange-500 no-underline font-semibold">
+                  In progress
+                </a>
+              }
+            </td>
+            @if (auth.isAdmin()) {
+              <td>
+                <p-button
+                  icon="pi pi-trash"
+                  severity="danger"
+                  [text]="true"
+                  [rounded]="true"
+                  size="small"
+                  (onClick)="confirmDelete(s)"
+                ></p-button>
+              </td>
+            }
+          </tr>
+        </ng-template>
+      </p-table>
     }
   `,
 })
@@ -122,42 +134,35 @@ export class HistoryListComponent implements OnInit {
   loading = signal(true);
   allSessions = signal<SessionListItem[]>([]);
   quizTypes = signal<QuizType[]>([]);
-  grouped = signal<GroupedSessions[]>([]);
+  selectedQuizTypeCode = '';
+
+  filteredSessions = computed(() => {
+    const sessions = this.allSessions();
+    if (!this.selectedQuizTypeCode) return sessions;
+    return sessions.filter((s) => s.quiz_type_code === this.selectedQuizTypeCode);
+  });
+
+  quizTypeFilterOptions = computed(() => {
+    const types = this.quizTypes();
+    const options = [{ label: 'All Quiz Types', value: '' }];
+    for (const qt of types) {
+      options.push({ label: qt.description, value: qt.code });
+    }
+    return options;
+  });
 
   ngOnInit() {
-    this.api.getQuizTypes().subscribe((types) => {
-      this.quizTypes.set(types);
+    this.api.getQuizTypes().subscribe((resp: QuizTypesResponse) => {
+      this.quizTypes.set(resp.types);
       this.loadSessions();
     });
   }
 
   loadSessions() {
-    // API already filters: students see own, admins see all
     this.api.getSessions().subscribe((sessions) => {
       this.allSessions.set(sessions);
-      this.buildGroups(sessions);
       this.loading.set(false);
     });
-  }
-
-  private buildGroups(sessions: SessionListItem[]) {
-    const types = this.quizTypes();
-    const map = new Map<string, GroupedSessions>();
-
-    for (const s of sessions) {
-      const code = s.quiz_type_code || 'unknown';
-      if (!map.has(code)) {
-        const qt = types.find((t) => t.code === code);
-        map.set(code, {
-          code,
-          description: qt?.description || code,
-          sessions: [],
-        });
-      }
-      map.get(code)!.sessions.push(s);
-    }
-
-    this.grouped.set(Array.from(map.values()).sort((a, b) => a.description.localeCompare(b.description)));
   }
 
   confirmDelete(s: SessionListItem) {

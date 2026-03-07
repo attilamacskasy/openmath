@@ -45,10 +45,62 @@ async def list_quiz_types() -> list[dict[str, Any]]:
     rows = await pool.fetch(
         """SELECT id, code, description,
                   COALESCE(answer_type, 'int') AS answer_type,
-                  template_kind
-           FROM quiz_types ORDER BY code"""
+                  template_kind, category,
+                  recommended_age_min, recommended_age_max,
+                  is_active, sort_order
+           FROM quiz_types ORDER BY sort_order, code"""
     )
     return [_row_to_dict(r) for r in rows]
+
+
+async def list_active_quiz_types(
+    age: int | None = None, category: str | None = None
+) -> list[dict[str, Any]]:
+    """List active quiz types, optionally filtered by age and category."""
+    pool = await get_pool()
+    conditions = ["is_active = true"]
+    params: list[Any] = []
+    idx = 1
+
+    if age is not None:
+        conditions.append(f"(recommended_age_min IS NULL OR recommended_age_min <= ${idx})")
+        params.append(age)
+        idx += 1
+        conditions.append(f"(recommended_age_max IS NULL OR recommended_age_max >= ${idx})")
+        params.append(age)
+        idx += 1
+
+    if category is not None:
+        conditions.append(f"category = ${idx}")
+        params.append(category)
+        idx += 1
+
+    where = " AND ".join(conditions)
+    rows = await pool.fetch(
+        f"""SELECT id, code, description,
+                   COALESCE(answer_type, 'int') AS answer_type,
+                   template_kind, category,
+                   recommended_age_min, recommended_age_max,
+                   is_active, sort_order
+            FROM quiz_types WHERE {where}
+            ORDER BY sort_order, code""",
+        *params,
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+async def get_quiz_type_by_id(qt_id: str) -> dict[str, Any] | None:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """SELECT id, code, description,
+                  COALESCE(answer_type, 'int') AS answer_type,
+                  template_kind, category,
+                  recommended_age_min, recommended_age_max,
+                  is_active, sort_order, created_at
+           FROM quiz_types WHERE id = $1""",
+        UUID(qt_id),
+    )
+    return _row_to_dict(row) if row else None
 
 
 async def get_quiz_type_id_by_code(code: str) -> str:
@@ -64,11 +116,99 @@ async def get_quiz_type_by_code(code: str) -> dict[str, Any] | None:
     row = await pool.fetchrow(
         """SELECT id, code, description,
                   COALESCE(answer_type, 'int') AS answer_type,
-                  template_kind
+                  template_kind, category,
+                  recommended_age_min, recommended_age_max,
+                  is_active, sort_order
            FROM quiz_types WHERE code = $1""",
         code,
     )
     return _row_to_dict(row) if row else None
+
+
+async def create_quiz_type(data: dict[str, Any]) -> dict[str, Any]:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """INSERT INTO quiz_types (code, description, template_kind, answer_type,
+                                    category, recommended_age_min, recommended_age_max,
+                                    is_active, sort_order)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           RETURNING id, code, description, answer_type, template_kind,
+                     category, recommended_age_min, recommended_age_max,
+                     is_active, sort_order, created_at""",
+        data["code"],
+        data["description"],
+        data["template_kind"],
+        data.get("answer_type", "int"),
+        data.get("category"),
+        data.get("recommended_age_min"),
+        data.get("recommended_age_max"),
+        data.get("is_active", True),
+        data.get("sort_order", 0),
+    )
+    return _row_to_dict(row)
+
+
+async def update_quiz_type(qt_id: str, data: dict[str, Any]) -> dict[str, Any] | None:
+    pool = await get_pool()
+    # Build dynamic SET clause
+    fields = []
+    params: list[Any] = [UUID(qt_id)]
+    idx = 2
+    allowed = [
+        "description", "template_kind", "answer_type", "category",
+        "recommended_age_min", "recommended_age_max", "is_active", "sort_order",
+    ]
+    for key in allowed:
+        if key in data:
+            fields.append(f"{key} = ${idx}")
+            params.append(data[key])
+            idx += 1
+
+    if not fields:
+        return await get_quiz_type_by_id(qt_id)
+
+    set_clause = ", ".join(fields)
+    row = await pool.fetchrow(
+        f"""UPDATE quiz_types SET {set_clause} WHERE id = $1
+            RETURNING id, code, description, answer_type, template_kind,
+                      category, recommended_age_min, recommended_age_max,
+                      is_active, sort_order, created_at""",
+        *params,
+    )
+    return _row_to_dict(row) if row else None
+
+
+async def delete_quiz_type(qt_id: str) -> bool:
+    pool = await get_pool()
+    # Check for referencing sessions
+    count_row = await pool.fetchrow(
+        "SELECT count(*)::int AS cnt FROM quiz_sessions WHERE quiz_type_id = $1",
+        UUID(qt_id),
+    )
+    if count_row and count_row["cnt"] > 0:
+        raise ValueError(f"Cannot delete: {count_row['cnt']} sessions reference this quiz type")
+
+    result = await pool.execute(
+        "DELETE FROM quiz_types WHERE id = $1", UUID(qt_id)
+    )
+    return result == "DELETE 1"
+
+
+async def count_sessions_for_quiz_type(qt_id: str) -> int:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        "SELECT count(*)::int AS cnt FROM quiz_sessions WHERE quiz_type_id = $1",
+        UUID(qt_id),
+    )
+    return row["cnt"] if row else 0
+
+
+async def get_distinct_categories() -> list[str]:
+    pool = await get_pool()
+    rows = await pool.fetch(
+        "SELECT DISTINCT category FROM quiz_types WHERE category IS NOT NULL AND is_active = true ORDER BY category"
+    )
+    return [r["category"] for r in rows]
 
 
 # ── Students ───────────────────────────────────────────────
@@ -214,7 +354,7 @@ async def insert_questions(
                 q.get("b"),
                 q.get("c"),
                 q.get("d"),
-                q["correct"],
+                str(q["correct"]),
                 q["position"],
                 prompt_json,
             )
@@ -235,19 +375,24 @@ async def insert_questions(
     return result
 
 
-async def list_sessions() -> list[dict[str, Any]]:
+async def list_sessions(quiz_type_code: str | None = None) -> list[dict[str, Any]]:
     pool = await get_pool()
-    rows = await pool.fetch(
-        """SELECT qs.id, qs.student_id, qs.difficulty,
+    query = """SELECT qs.id, qs.student_id, qs.difficulty,
                   qs.total_questions, qs.score_percent,
                   qs.started_at, qs.finished_at,
                   s.name AS student_name,
-                  qt.code AS quiz_type_code
+                  qt.code AS quiz_type_code,
+                  qt.description AS quiz_type_description
            FROM quiz_sessions qs
            LEFT JOIN students s ON qs.student_id = s.id
-           LEFT JOIN quiz_types qt ON qs.quiz_type_id = qt.id
-           ORDER BY qs.started_at DESC"""
-    )
+           LEFT JOIN quiz_types qt ON qs.quiz_type_id = qt.id"""
+    if quiz_type_code:
+        query += " WHERE qt.code = $1"
+        query += " ORDER BY qs.started_at DESC"
+        rows = await pool.fetch(query, quiz_type_code)
+    else:
+        query += " ORDER BY qs.started_at DESC"
+        rows = await pool.fetch(query)
     return [_row_to_dict(r) for r in rows]
 
 
@@ -315,7 +460,7 @@ async def get_session_by_id(session_id: str) -> dict[str, Any] | None:
 # ── Answers ────────────────────────────────────────────────
 
 async def submit_answer(
-    question_id: str, value: int | None = None, response: dict | None = None
+    question_id: str, value: int | str | None = None, response: dict | None = None
 ) -> dict[str, Any] | None:
     pool = await get_pool()
     qid = UUID(question_id)
@@ -324,27 +469,47 @@ async def submit_answer(
     if not question:
         return None
 
-    # Determine the int value for grading
+    # Build response if not provided
+    if response is None:
+        response = {"raw": str(value), "parsed": {"type": "int", "value": value}}
+
+    # Use the grader for all answer types
+    from app.services.grader import grade_answer
+
+    prompt_data = question.get("prompt")
+    if isinstance(prompt_data, str):
+        import json as _json
+        try:
+            prompt_data = _json.loads(prompt_data)
+        except (ValueError, TypeError):
+            prompt_data = None
+
+    is_correct = grade_answer(prompt_data, response, question["correct"])
+
+    # Determine the int value for legacy column (or 0 for text/tuple)
     answer_value = value
     if answer_value is None and response:
         parsed = response.get("parsed", {})
         answer_value = parsed.get("value")
     if answer_value is None:
         answer_value = 0
-
-    is_correct = answer_value == question["correct"]
+    # Legacy column `value` in answers table is integer
+    try:
+        int_value = int(answer_value)
+    except (ValueError, TypeError):
+        int_value = 0
 
     # Check for existing answer (idempotent)
     existing = await pool.fetchrow("SELECT id FROM answers WHERE question_id = $1", qid)
 
     if not existing:
-        response_json = json.dumps(response or {"raw": str(answer_value), "parsed": {"type": "int", "value": answer_value}})
+        response_json = json.dumps(response)
         await pool.execute(
             """INSERT INTO answers (question_id, quiz_type_id, value, is_correct, response)
                VALUES ($1, $2, $3, $4, $5::jsonb)""",
             qid,
             question["quiz_type_id"],
-            answer_value,
+            int_value,
             is_correct,
             response_json,
         )
@@ -586,20 +751,23 @@ async def delete_session(session_id: str) -> bool:
     return result == "DELETE 1"
 
 
-async def list_sessions_for_student(student_id: str) -> list[dict[str, Any]]:
+async def list_sessions_for_student(student_id: str, quiz_type_code: str | None = None) -> list[dict[str, Any]]:
     """List sessions filtered by student_id."""
     pool = await get_pool()
-    rows = await pool.fetch(
-        """SELECT qs.id, qs.student_id, qs.difficulty,
+    query = """SELECT qs.id, qs.student_id, qs.difficulty,
                   qs.total_questions, qs.score_percent,
                   qs.started_at, qs.finished_at,
                   s.name AS student_name,
-                  qt.code AS quiz_type_code
+                  qt.code AS quiz_type_code,
+                  qt.description AS quiz_type_description
            FROM quiz_sessions qs
            LEFT JOIN students s ON qs.student_id = s.id
            LEFT JOIN quiz_types qt ON qs.quiz_type_id = qt.id
-           WHERE qs.student_id = $1
-           ORDER BY qs.started_at DESC""",
-        UUID(student_id),
-    )
+           WHERE qs.student_id = $1"""
+    params: list[Any] = [UUID(student_id)]
+    if quiz_type_code:
+        query += " AND qt.code = $2"
+        params.append(quiz_type_code)
+    query += " ORDER BY qs.started_at DESC"
+    rows = await pool.fetch(query, *params)
     return [_row_to_dict(r) for r in rows]

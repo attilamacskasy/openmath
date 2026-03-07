@@ -79,6 +79,14 @@ export const routes: Routes = [
     canActivate: [authGuard, adminGuard],
   },
   {
+    path: 'admin/quiz-types',
+    loadComponent: () =>
+      import('./features/quiz-type-editor/quiz-type-editor.component').then(
+        (m) => m.QuizTypeEditorComponent
+      ),
+    canActivate: [authGuard, adminGuard],
+  },
+  {
     path: 'admin',
     loadComponent: () =>
       import('./features/admin/admin.component').then(

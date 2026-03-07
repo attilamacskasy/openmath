@@ -6,6 +6,8 @@ import { ApiService } from './api.service';
 export interface ActiveQuiz {
   sessionId: string;
   quizTypeCode: string;
+  quizTypeDescription: string;
+  quizTypeCategory: string;
   questions: QuestionOut[];
 }
 

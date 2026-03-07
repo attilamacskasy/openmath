@@ -17,7 +17,8 @@ import { AuthService } from '../../../core/services/auth.service';
         <a routerLink="/user-guide" routerLinkActive="font-bold" class="no-underline text-primary">User Guide</a>
         @if (auth.isAdmin()) {
           <a routerLink="/students" routerLinkActive="font-bold" class="no-underline text-primary">Students</a>
-          <a routerLink="/admin" routerLinkActive="font-bold" class="no-underline text-primary">Admin</a>
+          <a routerLink="/admin/quiz-types" routerLinkActive="font-bold" class="no-underline text-primary">Quiz Types</a>
+          <a routerLink="/admin" routerLinkActive="font-bold" [routerLinkActiveOptions]="{exact: true}" class="no-underline text-primary">Admin</a>
         }
       </nav>
       <div class="flex align-items-center gap-2">

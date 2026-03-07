@@ -1,8 +1,13 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { QuizType } from '../../models/quiz-type.model';
+import {
+  QuizType,
+  QuizTypeCreate,
+  QuizTypeUpdate,
+  PreviewQuestion,
+} from '../../models/quiz-type.model';
 import {
   StudentListItem,
   StudentProfile,
@@ -21,14 +26,55 @@ import {
 import { DatabaseStats } from '../../models/stats.model';
 import { AdminCreateStudentRequest } from '../../models/auth.model';
 
+export interface QuizTypesResponse {
+  types: QuizType[];
+  categories: string[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private http = inject(HttpClient);
   private baseUrl = environment.apiUrl;
 
-  // ── Quiz Types ──────────────────────────────────────────
-  getQuizTypes(): Observable<QuizType[]> {
-    return this.http.get<QuizType[]>(`${this.baseUrl}/quiz-types`);
+  // ── Quiz Types (public) ─────────────────────────────────
+  getQuizTypes(age?: number, category?: string): Observable<QuizTypesResponse> {
+    let params = new HttpParams();
+    if (age != null) params = params.set('age', age.toString());
+    if (category) params = params.set('category', category);
+    return this.http.get<QuizTypesResponse>(`${this.baseUrl}/quiz-types`, { params });
+  }
+
+  previewByTemplate(templateKind: string, answerType: string, quizTypeCode: string = ''): Observable<PreviewQuestion[]> {
+    return this.http.post<PreviewQuestion[]>(`${this.baseUrl}/quiz-types/preview`, {
+      template_kind: templateKind,
+      answer_type: answerType,
+      quiz_type_code: quizTypeCode,
+    });
+  }
+
+  // ── Quiz Types (admin) ──────────────────────────────────
+  getAdminQuizTypes(): Observable<QuizType[]> {
+    return this.http.get<QuizType[]>(`${this.baseUrl}/admin/quiz-types`);
+  }
+
+  getAdminQuizType(id: string): Observable<QuizType> {
+    return this.http.get<QuizType>(`${this.baseUrl}/admin/quiz-types/${id}`);
+  }
+
+  createQuizType(data: QuizTypeCreate): Observable<QuizType> {
+    return this.http.post<QuizType>(`${this.baseUrl}/admin/quiz-types`, data);
+  }
+
+  updateQuizType(id: string, data: QuizTypeUpdate): Observable<QuizType> {
+    return this.http.patch<QuizType>(`${this.baseUrl}/admin/quiz-types/${id}`, data);
+  }
+
+  deleteQuizType(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/admin/quiz-types/${id}`);
+  }
+
+  previewQuizType(id: string): Observable<PreviewQuestion[]> {
+    return this.http.post<PreviewQuestion[]>(`${this.baseUrl}/admin/quiz-types/${id}/preview`, {});
   }
 
   // ── Students ────────────────────────────────────────────

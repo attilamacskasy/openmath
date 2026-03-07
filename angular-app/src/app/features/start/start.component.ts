@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -7,10 +7,18 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { ButtonModule } from 'primeng/button';
 import { RadioButtonModule } from 'primeng/radiobutton';
 import { CardModule } from 'primeng/card';
-import { ApiService } from '../../core/services/api.service';
+import { CheckboxModule } from 'primeng/checkbox';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { ApiService, QuizTypesResponse } from '../../core/services/api.service';
 import { QuizService } from '../../core/services/quiz.service';
 import { AuthService } from '../../core/services/auth.service';
-import { QuizType } from '../../models/quiz-type.model';
+import { QuizType, PreviewQuestion } from '../../models/quiz-type.model';
+
+interface DropdownGroup {
+  label: string;
+  value: string;
+  items: { label: string; value: string }[];
+}
 
 @Component({
   selector: 'app-start',
@@ -23,6 +31,8 @@ import { QuizType } from '../../models/quiz-type.model';
     ButtonModule,
     RadioButtonModule,
     CardModule,
+    CheckboxModule,
+    ProgressSpinnerModule,
   ],
   template: `
     <div class="flex justify-content-center">
@@ -36,17 +46,64 @@ import { QuizType } from '../../models/quiz-type.model';
             </div>
           }
 
+          <!-- Pre-filters -->
+          <div class="flex align-items-center gap-3 flex-wrap">
+            @if (hasAge()) {
+              <div class="flex align-items-center gap-2">
+                <p-checkbox
+                  [(ngModel)]="filterByAge"
+                  [binary]="true"
+                  inputId="age-filter"
+                  (onChange)="onFiltersChanged()"
+                ></p-checkbox>
+                <label for="age-filter" class="text-sm">Show quizzes for my age ({{ studentAge() }})</label>
+              </div>
+            }
+            <div class="flex align-items-center gap-2">
+              <label class="text-sm font-semibold">Category:</label>
+              <p-dropdown
+                [options]="categoryOptions()"
+                [(ngModel)]="selectedCategory"
+                optionLabel="label"
+                optionValue="value"
+                (onChange)="onFiltersChanged()"
+                [style]="{ 'min-width': '160px' }"
+              ></p-dropdown>
+            </div>
+          </div>
+
           <!-- Quiz Type -->
           <div class="flex flex-column gap-1">
             <label class="font-semibold">Quiz Type</label>
             <p-dropdown
-              [options]="quizTypeOptions()"
+              [options]="groupedQuizTypeOptions()"
               [(ngModel)]="quizTypeCode"
               optionLabel="label"
               optionValue="value"
+              optionGroupLabel="label"
+              optionGroupChildren="items"
+              [group]="true"
               placeholder="Select quiz type"
+              (onChange)="onQuizTypeChanged()"
             ></p-dropdown>
           </div>
+
+          <!-- Live Preview -->
+          @if (quizTypeCode && previewLoading()) {
+            <div class="surface-50 p-3 border-round text-center">
+              <i class="pi pi-spin pi-spinner"></i> Loading preview...
+            </div>
+          }
+          @if (previewQuestions().length > 0 && !previewLoading()) {
+            <div class="surface-50 p-3 border-round">
+              <div class="font-semibold mb-2 text-sm">Example questions:</div>
+              @for (p of previewQuestions(); track p.render) {
+                <div class="text-sm mb-1">
+                  • {{ p.render }} <span class="text-500">→ {{ p.correct }}</span>
+                </div>
+              }
+            </div>
+          }
 
           <!-- Difficulty -->
           <div class="flex flex-column gap-1">
@@ -96,24 +153,122 @@ export class StartComponent implements OnInit {
   private router = inject(Router);
   protected auth = inject(AuthService);
 
-  quizTypes = signal<QuizType[]>([]);
-  quizTypeCode = 'multiplication_1_10';
+  allQuizTypes = signal<QuizType[]>([]);
+  categories = signal<string[]>([]);
+  quizTypeCode = '';
   difficulty = 'medium';
   totalQuestions = 10;
   submitting = signal(false);
+  filterByAge = false;
+  selectedCategory = '';
+  previewQuestions = signal<PreviewQuestion[]>([]);
+  previewLoading = signal(false);
+  private previewTimeout: any = null;
 
   difficulties = ['low', 'medium', 'hard'];
 
-  quizTypeOptions = () =>
-    this.quizTypes().map((qt) => ({ label: qt.description, value: qt.code }));
+  studentAge = computed(() => {
+    const user = this.auth.currentUser();
+    return user?.age ?? null;
+  });
+
+  /** Only show the age-filter checkbox for school-aged children (4–18) */
+  hasAge = computed(() => {
+    const age = this.studentAge();
+    return age !== null && age >= 4 && age <= 18;
+  });
+
+  categoryOptions = computed(() => {
+    const cats = this.categories();
+    return [{ label: 'All', value: '' }, ...cats.map((c) => ({ label: this.formatCategory(c), value: c }))];
+  });
+
+  filteredQuizTypes = computed(() => {
+    let types = this.allQuizTypes();
+    if (this.selectedCategory) {
+      types = types.filter((qt) => qt.category === this.selectedCategory);
+    }
+    return types;
+  });
+
+  groupedQuizTypeOptions = computed(() => {
+    const types = this.filteredQuizTypes();
+    const groups = new Map<string, { label: string; value: string }[]>();
+
+    for (const qt of types) {
+      const cat = qt.category || 'Other';
+      if (!groups.has(cat)) groups.set(cat, []);
+      let label = qt.description;
+      if (qt.recommended_age_min != null && qt.recommended_age_max != null) {
+        label += `  [${qt.recommended_age_min}–${qt.recommended_age_max}]`;
+      }
+      groups.get(cat)!.push({ label, value: qt.code });
+    }
+
+    const result: DropdownGroup[] = [];
+    for (const [cat, items] of groups) {
+      result.push({ label: this.formatCategory(cat), value: cat, items });
+    }
+    return result;
+  });
 
   ngOnInit() {
-    this.api.getQuizTypes().subscribe((types) => this.quizTypes.set(types));
+    // Default age filter: checked only for school-age children (4–18)
+    this.filterByAge = this.hasAge();
+    this.loadQuizTypes();
+  }
+
+  loadQuizTypes() {
+    const age = this.filterByAge && this.hasAge() ? this.studentAge()! : undefined;
+    this.api.getQuizTypes(age).subscribe((resp: QuizTypesResponse) => {
+      this.allQuizTypes.set(resp.types);
+      this.categories.set(resp.categories);
+      // Auto-select first if current selection is no longer available
+      const codes = resp.types.map((t) => t.code);
+      if (!codes.includes(this.quizTypeCode) && codes.length > 0) {
+        this.quizTypeCode = codes[0];
+        this.onQuizTypeChanged();
+      }
+    });
+  }
+
+  onFiltersChanged() {
+    this.loadQuizTypes();
+  }
+
+  onQuizTypeChanged() {
+    // Debounce preview
+    if (this.previewTimeout) clearTimeout(this.previewTimeout);
+    this.previewTimeout = setTimeout(() => this.loadPreview(), 300);
+  }
+
+  private loadPreview() {
+    if (!this.quizTypeCode) {
+      this.previewQuestions.set([]);
+      return;
+    }
+    const qt = this.allQuizTypes().find((t) => t.code === this.quizTypeCode);
+    if (!qt || !qt.template_kind) {
+      this.previewQuestions.set([]);
+      return;
+    }
+    this.previewLoading.set(true);
+    this.api.previewByTemplate(qt.template_kind, qt.answer_type, qt.code).subscribe({
+      next: (questions) => {
+        this.previewQuestions.set(questions);
+        this.previewLoading.set(false);
+      },
+      error: () => {
+        this.previewQuestions.set([]);
+        this.previewLoading.set(false);
+      },
+    });
   }
 
   startQuiz() {
     this.submitting.set(true);
     const user = this.auth.currentUser();
+    const qt = this.allQuizTypes().find((t) => t.code === this.quizTypeCode);
 
     this.api
       .createSession({
@@ -127,6 +282,8 @@ export class StartComponent implements OnInit {
           this.quiz.setActiveQuiz({
             sessionId: res.sessionId,
             quizTypeCode: res.quizTypeCode,
+            quizTypeDescription: res.quizTypeDescription || qt?.description || '',
+            quizTypeCategory: res.quizTypeCategory || qt?.category || '',
             questions: res.questions,
           });
           this.submitting.set(false);
@@ -136,5 +293,16 @@ export class StartComponent implements OnInit {
           this.submitting.set(false);
         },
       });
+  }
+
+  private formatCategory(cat: string): string {
+    const map: Record<string, string> = {
+      arithmetic: 'Arithmetic',
+      multiplication: 'Multiplication & Division',
+      patterns: 'Patterns',
+      roman: 'Roman Numerals',
+      measurement: 'Measurement',
+    };
+    return map[cat] || cat.charAt(0).toUpperCase() + cat.slice(1);
   }
 }

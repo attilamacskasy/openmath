@@ -26,6 +26,8 @@ export interface CreateSessionRequest {
 export interface CreateSessionResponse {
   sessionId: string;
   quizTypeCode: string;
+  quizTypeDescription: string;
+  quizTypeCategory: string;
   questions: QuestionOut[];
 }
 
@@ -39,6 +41,7 @@ export interface SessionListItem {
   finished_at: string | null;
   student_name: string | null;
   quiz_type_code: string | null;
+  quiz_type_description: string | null;
 }
 
 export interface SessionDetailQuestion {
