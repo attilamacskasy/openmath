@@ -244,6 +244,7 @@ class QuizTypeUpdate(BaseModel):
 | `PATCH` | `/admin/quiz-types/{id}` | admin | Update quiz type |
 | `DELETE` | `/admin/quiz-types/{id}` | admin | Delete quiz type (blocked if sessions reference it) |
 | `POST` | `/admin/quiz-types/{id}/preview` | admin | Generate 3 sample questions (no DB write) for preview |
+| `POST` | `/quiz-types/preview` | any user | Generate 3 sample questions by `template_kind` + `answer_type` (no DB write) — for Start page preview |
 
 **Delete protection:** If any `quiz_sessions` rows reference the quiz type, return `409 Conflict` with a count of affected sessions. Admin must reassign or delete sessions first.
 
@@ -288,9 +289,19 @@ Extend grading to handle:
 
 Update `GET /quiz-types` (non-admin listing):
 - Only return `WHERE is_active = true`
-- Accept optional query param `?age=8`
+- Accept optional query params `?age=8&category=arithmetic`
 - When `age` is provided, additionally filter: `recommended_age_min IS NULL OR recommended_age_min <= $age` AND `recommended_age_max IS NULL OR recommended_age_max >= $age`
+- When `category` is provided, filter: `category = $category`
 - Order by `sort_order`
+- Return distinct `category` values as a separate field in the response (or as a dedicated `GET /quiz-types/categories` endpoint) so the frontend can populate the category filter dropdown
+
+### 4.7 Session history filtering
+
+Update `GET /sessions` endpoint:
+- Accept optional query param `?quiz_type_code=multiplication_1_10`
+- When provided, filter: `qt.code = $quiz_type_code`
+- Continue to return all sessions if param is omitted
+- Always return `quiz_type_code` and quiz type `description` per session row
 
 ---
 
@@ -407,15 +418,101 @@ updateQuizType(id: string, data: QuizTypeUpdate): Observable<QuizType>
 deleteQuizType(id: string): Observable<void>
 previewQuizType(id: string): Observable<PreviewQuestion[]>
 
-// Updated public endpoint
-getQuizTypes(age?: number): Observable<QuizType[]>
+// Updated public endpoints
+getQuizTypes(age?: number, category?: string): Observable<QuizType[]>
+previewByTemplate(templateKind: string, answerType: string): Observable<PreviewQuestion[]>
+
+// Updated sessions endpoint
+getSessions(quizTypeCode?: string): Observable<SessionListItem[]>
 ```
 
-### 5.5 Start Page Update
+```typescript
+// PreviewQuestion model
+export interface PreviewQuestion {
+  render: string;        // e.g. "3 × 7"
+  correct: string;       // e.g. "21"
+  answer_type: string;   // e.g. "int"
+}
+```
 
-- Call `getQuizTypes(studentAge)` when student has a birthday/age set
-- Group quiz types by `category` in the dropdown (PrimeNG `p-dropdown` with `[group]="true"`)
-- Show category headers: **Arithmetic**, **Multiplication**, **Patterns**, **Roman**, **Measurement**
+### 5.5 Start Page Redesign
+
+The Start page gets significant UX improvements: pre‑filters, enriched dropdown labels, and a live preview panel.
+
+#### 5.5.1 Pre‑filters (above Quiz Type dropdown)
+
+Two filter controls appear **above** the Quiz Type dropdown inside the existing `p-card`:
+
+| Control | Widget | Behavior |
+|---|---|---|
+| **"Show my age only"** checkbox | `p-checkbox` | When checked, calls `getQuizTypes(age)` using the logged‑in student's age (computed from `birthday`). When unchecked, calls `getQuizTypes()` without age filter. Disabled + hidden if no birthday is set on the profile. Default: **checked** when birthday exists. |
+| **Category** dropdown | `p-dropdown` | Options: `All` + distinct categories from the loaded quiz types (Arithmetic, Multiplication, Patterns, Roman, Measurement). Filters the quiz type dropdown client‑side. Default: `All`. |
+
+Both filters are applied together: the age filter is server‑side (query param), the category filter is client‑side (just filters the dropdown options).
+
+#### 5.5.2 Quiz Type Dropdown — enriched labels
+
+Each item in the Quiz Type dropdown shows:
+
+```
+  Addition within 100  [7–9]
+```
+
+Format: `{description}  [{recommended_age_min}–{recommended_age_max}]`  
+If no age range is set, omit the bracket: `{description}`
+
+Implementation: map to `{ label: enrichedLabel, value: code }` in the `quizTypeOptions` computed.
+
+Group items by `category` using PrimeNG `p-dropdown` with `[group]="true"`. Category headers: **Arithmetic**, **Multiplication & Division**, **Patterns**, **Roman Numerals**, **Measurement**.
+
+#### 5.5.3 Live Preview Panel
+
+Below the Quiz Type dropdown, a preview panel shows **3 example questions** for the currently selected quiz type.
+
+- Triggered automatically when `quizTypeCode` changes (debounced 300ms)
+- Calls `POST /quiz-types/preview` with the selected quiz type's `template_kind` and `answer_type`
+- Displayed in a light `surface-50` box with a heading "Example questions:"
+
+```
+┌──────────────────────────────────────────────┐
+│  Example questions:                          │
+│    •  34 + 18 = ?       answer: 52           │
+│    •  27 + 45 = ?       answer: 72           │
+│    •  61 + 19 = ?       answer: 80           │
+└──────────────────────────────────────────────┘
+```
+
+- Shows a subtle loading spinner while fetching
+- If no quiz type is selected, the panel is hidden
+- Helps the student understand what kind of questions they'll get before starting
+
+#### 5.5.4 Start Page Mockup
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Start a Quiz                                           │
+├─────────────────────────────────────────────────────────┤
+│  Playing as Attila Macskasy (attila@example.com)        │
+│                                                         │
+│  ☑ Show quizzes for my age (8)     Category: [All    ▾] │
+│                                                         │
+│  Quiz Type:                                             │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │  Addition within 100  [7–9]                   ▾  │   │
+│  └──────────────────────────────────────────────────┘   │
+│                                                         │
+│  ┌ Example questions: ──────────────────────────────┐   │
+│  │  •  34 + 18 = ?    → 52                          │   │
+│  │  •  61 + 23 = ?    → 84                          │   │
+│  │  •  45 + 9  = ?    → 54                          │   │
+│  └──────────────────────────────────────────────────┘   │
+│                                                         │
+│  Difficulty:  ○ Low   ● Medium   ○ Hard                 │
+│  Questions:   [10 ▲▼]                                   │
+│                                                         │
+│  [ ▶ Start Quiz ]                                       │
+└─────────────────────────────────────────────────────────┘
+```
 
 ### 5.6 Quiz Component — Answer Type Handling
 
@@ -429,11 +526,117 @@ Extend the quiz input to handle new answer types:
 
 Add `@case ('text')` and `@case ('tuple')` blocks in the quiz component template.
 
-### 5.7 Routing
+### 5.7 Quiz Banner — Current Quiz Type Display
+
+While running a quiz, a **banner** is shown **above the progress bar** on every question. It tells the student which quiz type they are currently doing.
+
+**Design:**
+- Light blue `surface-100` strip, horizontally centered, rounded corners
+- Icon: `pi pi-book` + quiz type description + category tag
+- Always visible during the entire quiz session
+
+```html
+<div class="surface-100 p-2 border-round text-center mb-2 flex align-items-center justify-content-center gap-2">
+  <i class="pi pi-book"></i>
+  <span class="font-semibold">{{ quizTypeDescription }}</span>
+  <p-tag [value]="quizTypeCategory" [rounded]="true" severity="info"></p-tag>
+</div>
+```
+
+The quiz type description and category are available from:
+- `activeQuiz.quizTypeCode` → look up from quiz types list
+- Or: extend `POST /sessions` response to include `quizTypeDescription` and `quizTypeCategory`
+- Or: add these fields to the `ActiveQuiz` interface in `QuizService`
+
+**Recommended approach:** Extend `ActiveQuiz` to store `quizTypeDescription` and `quizTypeCategory` when setting the active quiz from the Start page. The Start page already has the full quiz type list loaded.
+
+```typescript
+// Updated ActiveQuiz interface
+export interface ActiveQuiz {
+  sessionId: string;
+  quizTypeCode: string;
+  quizTypeDescription: string;   // NEW
+  quizTypeCategory: string;      // NEW
+  questions: QuestionOut[];
+}
+```
+
+**Mockup:**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│   📖  Addition within 100          [Arithmetic]         │
+├─────────────────────────────────────────────────────────┤
+│  Question 3 of 10                        Score: 2/2     │
+│  ████████████████████░░░░░░░░░░░░░░░░░░░░    30%        │
+│  ┌─────────────────────────────────────────────────┐    │
+│  │              34 + 18                            │    │
+│  │          ┌──────────────┐                       │    │
+│  │          │  Your answer │                       │    │
+│  │          └──────────────┘                       │    │
+│  │          [   Submit   ]                         │    │
+│  └─────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 5.8 Routing
 
 ```typescript
 { path: 'admin/quiz-types', component: QuizTypeEditorComponent, canActivate: [adminGuard] }
 ```
+
+### 5.9 Session History Redesign
+
+The current history page renders **one `p-card` with a `p-table` per quiz type**, which becomes unwieldy with 18+ quiz types. Replace this with a **single table** and a **quiz type filter dropdown**.
+
+#### 5.9.1 Layout
+
+- **Quiz Type filter** dropdown at the top: `All Quiz Types` + each quiz type (description). Default: `All Quiz Types`.
+- **Single `p-table`** below the dropdown — same columns as before, plus a new **Quiz Type** column.
+- When a quiz type is selected in the dropdown, filter the table to only show sessions for that type.
+- Filter is applied **client‑side** (all sessions are already loaded).
+- Remove the `GroupedSessions` interface and `buildGroups()` method.
+
+#### 5.9.2 Updated Table Columns
+
+| Column | Content |
+|---|---|
+| Quiz Type | Description of the quiz type (new column) |
+| Student | Student name |
+| Difficulty | Link to session detail |
+| Questions | Total questions count |
+| Time | Duration (existing pipe) |
+| Avg/Q | Average time per question |
+| Score | `p-tag` with color severity |
+| Started | Date |
+| Finished | Date or "In progress" link |
+| 🗑️ | Delete button (admin only) |
+
+#### 5.9.3 History Page Mockup
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Session History                                                    │
+│                                                                     │
+│  Quiz Type: [All Quiz Types                                    ▾]   │
+│                                                                     │
+│  ┌────────────────┬─────────┬──────┬─────┬──────┬───────┬─────────┐ │
+│  │ Quiz Type      │ Student │ Diff │  Qs │ Time │ Score │ Started │ │
+│  ├────────────────┼─────────┼──────┼─────┼──────┼───────┼─────────┤ │
+│  │ Addition ≤ 100 │ Attila  │ med  │  10 │ 2:30 │  80%  │ 3/7     │ │
+│  │ Times table 3  │ Attila  │ low  │   5 │ 0:45 │ 100%  │ 3/7     │ │
+│  │ Multiplication │ Guest   │ hard │  10 │ 4:12 │  60%  │ 3/6     │ │
+│  │ Roman → Arabic │ Attila  │ med  │  10 │ 3:01 │  90%  │ 3/5     │ │
+│  └────────────────┴─────────┴──────┴─────┴──────┴───────┴─────────┘ │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### 5.9.4 Implementation Notes
+
+- The dropdown options are built from the loaded quiz types list (same `getQuizTypes()` call)
+- Filtering is done via a signal: `filteredSessions = computed(() => ...)` based on `selectedQuizTypeCode` signal
+- PrimeNG `[paginator]="true"` with `[rows]="20"` on the single table
+- Sorting on Quiz Type, Score, Started columns
 
 ---
 
@@ -455,13 +658,23 @@ Add `@case ('text')` and `@case ('tuple')` blocks in the quiz component template
 ### Frontend
 
 - [ ] Update `QuizType` model with new fields
+- [ ] Add `PreviewQuestion` model
 - [ ] Add admin API methods to `ApiService`
+- [ ] Add public preview endpoint to `ApiService`
 - [ ] Create `QuizTypeEditorComponent` with PrimeNG table + dialog
-- [ ] Add preview panel in create/edit dialog
+- [ ] Add preview panel in create/edit dialog (admin editor)
 - [ ] Add route `/admin/quiz-types` with `adminGuard`
 - [ ] Add **Quiz Types** link to header (admin-only)
-- [ ] Update Start page: group by category, filter by age
+- [ ] Start page: add age checkbox pre-filter
+- [ ] Start page: add category dropdown pre-filter
+- [ ] Start page: show age range `[7-9]` in Quiz Type dropdown labels
+- [ ] Start page: group quiz types by category in dropdown
+- [ ] Start page: add live preview panel (3 example questions)
+- [ ] Quiz component: add quiz type banner above progress bar
+- [ ] Quiz component: extend `ActiveQuiz` with description + category
 - [ ] Quiz component: add `text` and `tuple` input modes
+- [ ] History page: replace grouped cards with single table + quiz type dropdown filter
+- [ ] History page: add Quiz Type column to table
 
 ### Database
 
