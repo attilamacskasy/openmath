@@ -1,15 +1,15 @@
-"""FastAPI application entry point for OpenMath API v2.1."""
+"""FastAPI application entry point for OpenMath API v2.3."""
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import lifespan
-from app.routers import answers, auth, quiz_types, sessions, stats, users
+from app.routers import answers, auth, parent, quiz_types, sessions, stats, teacher, users
 
 app = FastAPI(
     title="OpenMath API",
-    version="2.1.0",
+    version="2.3.0",
     lifespan=lifespan,
 )
 
@@ -27,3 +27,5 @@ app.include_router(users.router, prefix="/api")
 app.include_router(sessions.router, prefix="/api")
 app.include_router(answers.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
+app.include_router(teacher.router, prefix="/api")
+app.include_router(parent.router, prefix="/api")

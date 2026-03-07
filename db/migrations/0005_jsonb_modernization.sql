@@ -87,7 +87,7 @@ BEGIN
 END $$;
 
 -- ════════════════════════════════════════════════════════════
--- 7. Student session index (for performance stats queries)
+-- 7. User session index (for performance stats queries)
 -- ════════════════════════════════════════════════════════════
 
-CREATE INDEX IF NOT EXISTS idx_sessions_student ON quiz_sessions(student_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON quiz_sessions(user_id);

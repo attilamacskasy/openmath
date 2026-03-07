@@ -148,4 +148,76 @@ export class ApiService {
       { confirmation }
     );
   }
+
+  // ── Teacher ─────────────────────────────────────────────
+  getTeacherStudents(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/teacher/students`);
+  }
+
+  getTeacherStudentSessions(studentId: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/teacher/students/${studentId}/sessions`);
+  }
+
+  getTeacherSession(sessionId: string): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/teacher/sessions/${sessionId}`);
+  }
+
+  submitTeacherReview(sessionId: string, body: { comment?: string; status: string }): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/teacher/sessions/${sessionId}/review`, body);
+  }
+
+  getTeacherReviews(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/teacher/reviews`);
+  }
+
+  // ── Parent ──────────────────────────────────────────────
+  getParentChildren(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/parent/children`);
+  }
+
+  getParentChildSessions(childId: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/parent/children/${childId}/sessions`);
+  }
+
+  getParentSession(sessionId: string): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/parent/sessions/${sessionId}`);
+  }
+
+  submitParentSignoff(sessionId: string, body: { comment?: string; status: string }): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/parent/sessions/${sessionId}/signoff`, body);
+  }
+
+  // ── Role Management (admin) ─────────────────────────────
+  getUserRoles(userId: string): Observable<{ roles: string[] }> {
+    return this.http.get<{ roles: string[] }>(`${this.baseUrl}/users/${userId}/roles`);
+  }
+
+  setUserRoles(userId: string, roles: string[]): Observable<{ roles: string[] }> {
+    return this.http.put<{ roles: string[] }>(`${this.baseUrl}/users/${userId}/roles`, { roles });
+  }
+
+  // ── Relationship Management (admin) ─────────────────────
+  getTeacherStudentAssignments(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/admin/teacher-students`);
+  }
+
+  createTeacherStudentAssignment(teacherId: string, studentId: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/teacher-students`, { teacherId, studentId });
+  }
+
+  deleteTeacherStudentAssignment(id: string): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/admin/teacher-students/${id}`);
+  }
+
+  getParentStudentAssignments(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/admin/parent-students`);
+  }
+
+  createParentStudentAssignment(parentId: string, studentId: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/parent-students`, { parentId, studentId });
+  }
+
+  deleteParentStudentAssignment(id: string): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/admin/parent-students/${id}`);
+  }
 }

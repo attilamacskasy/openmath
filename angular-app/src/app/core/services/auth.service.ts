@@ -27,7 +27,10 @@ export class AuthService {
 
   readonly currentUser = this._currentUser.asReadonly();
   readonly isAuthenticated = this._isAuthenticated.asReadonly();
-  readonly isAdmin = computed(() => this._currentUser()?.role === 'admin');
+  readonly isAdmin = computed(() => this._currentUser()?.roles?.includes('admin') ?? false);
+  readonly isTeacher = computed(() => this._currentUser()?.roles?.includes('teacher') ?? false);
+  readonly isParent = computed(() => this._currentUser()?.roles?.includes('parent') ?? false);
+  readonly userRoles = computed(() => this._currentUser()?.roles ?? []);
 
   constructor() {
     this.loadFromStorage();

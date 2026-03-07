@@ -61,7 +61,13 @@ import { DurationPipe } from '../../shared/pipes/duration.pipe';
         <ng-template pTemplate="body" let-q>
           <tr>
             <td>{{ q.position }}</td>
-            <td>{{ questionText(q) }}</td>
+            <td>
+              @if (q.prompt?.render_html) {
+                <span [innerHTML]="q.prompt.render_html"></span>
+              } @else {
+                {{ questionText(q) }}
+              }
+            </td>
             <td class="font-semibold">{{ q.correct }}</td>
             <td>{{ answerText(q) }}</td>
             <td>
@@ -76,6 +82,29 @@ import { DurationPipe } from '../../shared/pipes/duration.pipe';
           </tr>
         </ng-template>
       </p-table>
+
+      <!-- Reviews panel -->
+      @if (reviews().length > 0) {
+        <h3 class="mt-4 mb-2">Reviews</h3>
+        @for (rev of reviews(); track rev.id) {
+          <div class="surface-100 border-round p-3 mb-2">
+            <div class="flex justify-content-between">
+              <span class="font-semibold">
+                {{ rev.reviewer_role === 'teacher' ? 'Teacher review' : 'Parent sign-off' }}
+                — {{ rev.reviewer_name }}
+              </span>
+              <p-tag
+                [value]="rev.status === 'signed' ? 'Signed' : 'Reviewed'"
+                [severity]="rev.status === 'signed' ? 'success' : 'info'"
+              ></p-tag>
+            </div>
+            @if (rev.comment) {
+              <p class="mt-2 mb-1">{{ rev.comment }}</p>
+            }
+            <span class="text-xs text-500">{{ (rev.updated_at || rev.created_at) | date:'short' }}</span>
+          </div>
+        }
+      }
     }
   `,
 })
@@ -85,12 +114,16 @@ export class SessionDetailComponent implements OnInit {
 
   loading = signal(true);
   detail = signal<SessionDetail | null>(null);
+  reviews = signal<any[]>([]);
 
   ngOnInit() {
     const id = this.route.snapshot.paramMap.get('sessionId') || '';
     this.api.getSession(id).subscribe({
-      next: (d) => {
+      next: (d: any) => {
         this.detail.set(d);
+        if (d.reviews) {
+          this.reviews.set(d.reviews);
+        }
         this.loading.set(false);
       },
       error: () => this.loading.set(false),

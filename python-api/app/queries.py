@@ -698,12 +698,17 @@ async def update_user_password(user_id: str, password_hash: str) -> None:
 
 
 async def list_users_admin() -> list[dict[str, Any]]:
-    """List all users with auth columns (admin view)."""
+    """List all users with auth columns and roles (admin view)."""
     pool = await get_pool()
     rows = await pool.fetch(
-        """SELECT id, name, email, role, auth_provider, birthday, age,
-                  gender, learned_timetables, created_at
-           FROM users ORDER BY name, created_at DESC"""
+        """SELECT u.id, u.name, u.email, u.role, u.auth_provider, u.birthday,
+                  u.age, u.gender, u.learned_timetables, u.created_at,
+                  COALESCE(
+                      (SELECT array_agg(r.name ORDER BY r.name)
+                       FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+                       WHERE ur.user_id = u.id), ARRAY[]::text[]
+                  ) AS roles
+           FROM users u ORDER BY u.name, u.created_at DESC"""
     )
     return [_row_to_dict(r) for r in rows]
 
@@ -771,3 +776,292 @@ async def list_sessions_for_user(user_id: str, quiz_type_code: str | None = None
     query += " ORDER BY qs.started_at DESC"
     rows = await pool.fetch(query, *params)
     return [_row_to_dict(r) for r in rows]
+
+
+# ── Roles (v2.3) ────────────────────────────────────
+
+async def get_user_roles(user_id: str) -> list[str]:
+    """Return list of role names for a user from user_roles junction table."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT r.name FROM user_roles ur
+           JOIN roles r ON ur.role_id = r.id
+           WHERE ur.user_id = $1
+           ORDER BY r.name""",
+        UUID(user_id),
+    )
+    return [r["name"] for r in rows]
+
+
+async def set_user_roles(user_id: str, role_names: list[str]) -> list[str]:
+    """Replace all roles for a user. Returns the new role list."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute(
+                "DELETE FROM user_roles WHERE user_id = $1", UUID(user_id)
+            )
+            if role_names:
+                await conn.executemany(
+                    """INSERT INTO user_roles (user_id, role_id)
+                       SELECT $1, r.id FROM roles r WHERE r.name = $2
+                       ON CONFLICT (user_id, role_id) DO NOTHING""",
+                    [(UUID(user_id), name) for name in role_names],
+                )
+    return await get_user_roles(user_id)
+
+
+async def add_user_role(user_id: str, role_name: str) -> None:
+    """Add a single role to a user."""
+    pool = await get_pool()
+    await pool.execute(
+        """INSERT INTO user_roles (user_id, role_id)
+           SELECT $1, r.id FROM roles r WHERE r.name = $2
+           ON CONFLICT (user_id, role_id) DO NOTHING""",
+        UUID(user_id),
+        role_name,
+    )
+
+
+async def get_all_roles() -> list[dict[str, Any]]:
+    """Return all available roles."""
+    pool = await get_pool()
+    rows = await pool.fetch("SELECT id, name, description FROM roles ORDER BY name")
+    return [_row_to_dict(r) for r in rows]
+
+
+# ── Teacher–Student relationships (v2.3) ────────────
+
+async def list_teacher_students(teacher_id: str) -> list[dict[str, Any]]:
+    """List students assigned to a teacher."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT ts.id AS assignment_id, u.id, u.name, u.email, u.birthday, u.age, u.gender
+           FROM teacher_students ts
+           JOIN users u ON ts.student_id = u.id
+           WHERE ts.teacher_id = $1
+           ORDER BY u.name""",
+        UUID(teacher_id),
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+async def is_teacher_of_student(teacher_id: str, student_id: str) -> bool:
+    """Check if teacher is assigned to student."""
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        "SELECT 1 FROM teacher_students WHERE teacher_id = $1 AND student_id = $2",
+        UUID(teacher_id),
+        UUID(student_id),
+    )
+    return row is not None
+
+
+async def list_all_teacher_students() -> list[dict[str, Any]]:
+    """List all teacher–student assignments (admin)."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT ts.id, ts.teacher_id, ts.student_id, ts.created_at,
+                  t.name AS teacher_name, t.email AS teacher_email,
+                  s.name AS student_name, s.email AS student_email
+           FROM teacher_students ts
+           JOIN users t ON ts.teacher_id = t.id
+           JOIN users s ON ts.student_id = s.id
+           ORDER BY t.name, s.name"""
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+async def create_teacher_student(teacher_id: str, student_id: str) -> dict[str, Any]:
+    """Assign a student to a teacher."""
+    if teacher_id == student_id:
+        raise ValueError("A user cannot be assigned as their own teacher")
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """INSERT INTO teacher_students (teacher_id, student_id)
+           VALUES ($1, $2)
+           ON CONFLICT (teacher_id, student_id) DO NOTHING
+           RETURNING id, teacher_id, student_id, created_at""",
+        UUID(teacher_id),
+        UUID(student_id),
+    )
+    if not row:
+        # Already exists
+        row = await pool.fetchrow(
+            "SELECT id, teacher_id, student_id, created_at FROM teacher_students WHERE teacher_id = $1 AND student_id = $2",
+            UUID(teacher_id),
+            UUID(student_id),
+        )
+    return _row_to_dict(row)
+
+
+async def delete_teacher_student(assignment_id: str) -> bool:
+    pool = await get_pool()
+    result = await pool.execute(
+        "DELETE FROM teacher_students WHERE id = $1", UUID(assignment_id)
+    )
+    return result == "DELETE 1"
+
+
+# ── Parent–Student relationships (v2.3) ─────────────
+
+async def list_parent_children(parent_id: str) -> list[dict[str, Any]]:
+    """List children assigned to a parent."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT ps.id AS assignment_id, u.id, u.name, u.email, u.birthday, u.age, u.gender
+           FROM parent_students ps
+           JOIN users u ON ps.student_id = u.id
+           WHERE ps.parent_id = $1
+           ORDER BY u.name""",
+        UUID(parent_id),
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+async def is_parent_of_student(parent_id: str, student_id: str) -> bool:
+    """Check if parent is assigned to student."""
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        "SELECT 1 FROM parent_students WHERE parent_id = $1 AND student_id = $2",
+        UUID(parent_id),
+        UUID(student_id),
+    )
+    return row is not None
+
+
+async def list_all_parent_students() -> list[dict[str, Any]]:
+    """List all parent–student assignments (admin)."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT ps.id, ps.parent_id, ps.student_id, ps.created_at,
+                  p.name AS parent_name, p.email AS parent_email,
+                  s.name AS student_name, s.email AS student_email
+           FROM parent_students ps
+           JOIN users p ON ps.parent_id = p.id
+           JOIN users s ON ps.student_id = s.id
+           ORDER BY p.name, s.name"""
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+async def create_parent_student(parent_id: str, student_id: str) -> dict[str, Any]:
+    """Assign a student to a parent."""
+    if parent_id == student_id:
+        raise ValueError("A user cannot be assigned as their own parent")
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """INSERT INTO parent_students (parent_id, student_id)
+           VALUES ($1, $2)
+           ON CONFLICT (parent_id, student_id) DO NOTHING
+           RETURNING id, parent_id, student_id, created_at""",
+        UUID(parent_id),
+        UUID(student_id),
+    )
+    if not row:
+        row = await pool.fetchrow(
+            "SELECT id, parent_id, student_id, created_at FROM parent_students WHERE parent_id = $1 AND student_id = $2",
+            UUID(parent_id),
+            UUID(student_id),
+        )
+    return _row_to_dict(row)
+
+
+async def delete_parent_student(assignment_id: str) -> bool:
+    pool = await get_pool()
+    result = await pool.execute(
+        "DELETE FROM parent_students WHERE id = $1", UUID(assignment_id)
+    )
+    return result == "DELETE 1"
+
+
+# ── Quiz Reviews (v2.3) ─────────────────────────────
+
+async def get_reviews_for_session(session_id: str) -> list[dict[str, Any]]:
+    """Get all reviews for a session."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT qr.id, qr.session_id, qr.reviewer_id, qr.reviewer_role,
+                  qr.status, qr.comment, qr.created_at, qr.updated_at,
+                  u.name AS reviewer_name
+           FROM quiz_reviews qr
+           JOIN users u ON qr.reviewer_id = u.id
+           WHERE qr.session_id = $1
+           ORDER BY qr.created_at""",
+        UUID(session_id),
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+async def create_or_update_review(
+    session_id: str,
+    reviewer_id: str,
+    reviewer_role: str,
+    status: str,
+    comment: str | None = None,
+) -> dict[str, Any]:
+    """Create or update a review for a session by a reviewer."""
+    pool = await get_pool()
+    # Check if review already exists for this reviewer + session
+    existing = await pool.fetchrow(
+        """SELECT id FROM quiz_reviews
+           WHERE session_id = $1 AND reviewer_id = $2""",
+        UUID(session_id),
+        UUID(reviewer_id),
+    )
+    if existing:
+        row = await pool.fetchrow(
+            """UPDATE quiz_reviews
+               SET status = $3, comment = $4, updated_at = now()
+               WHERE session_id = $1 AND reviewer_id = $2
+               RETURNING id, session_id, reviewer_id, reviewer_role,
+                         status, comment, created_at, updated_at""",
+            UUID(session_id),
+            UUID(reviewer_id),
+            status,
+            comment,
+        )
+    else:
+        row = await pool.fetchrow(
+            """INSERT INTO quiz_reviews (session_id, reviewer_id, reviewer_role, status, comment)
+               VALUES ($1, $2, $3, $4, $5)
+               RETURNING id, session_id, reviewer_id, reviewer_role,
+                         status, comment, created_at, updated_at""",
+            UUID(session_id),
+            UUID(reviewer_id),
+            reviewer_role,
+            status,
+            comment,
+        )
+    return _row_to_dict(row)
+
+
+async def list_reviews_by_reviewer(reviewer_id: str) -> list[dict[str, Any]]:
+    """List all reviews created by a specific reviewer."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT qr.id, qr.session_id, qr.reviewer_id, qr.reviewer_role,
+                  qr.status, qr.comment, qr.created_at, qr.updated_at,
+                  u.name AS student_name,
+                  qt.code AS quiz_type_code,
+                  qt.description AS quiz_type_description,
+                  qs.score_percent, qs.difficulty, qs.started_at
+           FROM quiz_reviews qr
+           JOIN quiz_sessions qs ON qr.session_id = qs.id
+           JOIN users u ON qs.user_id = u.id
+           LEFT JOIN quiz_types qt ON qs.quiz_type_id = qt.id
+           WHERE qr.reviewer_id = $1
+           ORDER BY qr.created_at DESC""",
+        UUID(reviewer_id),
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+async def get_session_owner_id(session_id: str) -> str | None:
+    """Get the user_id of a session's owner."""
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        "SELECT user_id FROM quiz_sessions WHERE id = $1",
+        UUID(session_id),
+    )
+    return str(row["user_id"]) if row else None

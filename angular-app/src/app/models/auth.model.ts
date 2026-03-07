@@ -2,7 +2,8 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
-  role: 'student' | 'admin';
+  role: string;           // backward compat — primary role
+  roles: string[];         // all assigned roles
   age: number | null;
   authProvider: 'local' | 'google' | 'both';
 }
@@ -51,7 +52,8 @@ export interface MeResponse {
   id: string;
   name: string;
   email: string;
-  role: 'student' | 'admin';
+  role: string;
+  roles: string[];
   age: number | null;
   birthday: string | null;
   gender: string | null;

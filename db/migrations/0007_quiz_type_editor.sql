@@ -43,7 +43,7 @@ VALUES
   ('sub_within_100',       'Subtraction within 100 (a − b, a ≥ b)',           'a_minus_b_100',    'int', 'arithmetic',    8,  7, 9),
   ('two_digit_plus_one',   'Two‑digit + one‑digit (47 + 6)',                  'two_plus_one',     'int', 'arithmetic',    9,  7, 9),
   ('two_digit_minus_one',  'Two‑digit − one‑digit (63 − 5)',                  'two_minus_one',    'int', 'arithmetic',   10,  7, 9)
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) DO UPDATE SET description = EXCLUDED.description;
 
 -- Multiplication & Division
 INSERT INTO quiz_types (code, description, template_kind, answer_type, category, sort_order, recommended_age_min, recommended_age_max)
@@ -54,21 +54,21 @@ VALUES
   ('division_exact',   'Division without remainder (12 ÷ 3 = 4)',     'a_div_b',       'int', 'multiplication', 14, 8, 10),
   ('division_remainder','Division with remainder (13 ÷ 4 = 3 r 1)',   'a_div_b_rem',   'text','multiplication', 15, 8, 10),
   ('double_number',    'Double of a number (2 × a)',                   'double',        'int', 'multiplication', 16, 7, 9)
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) DO UPDATE SET description = EXCLUDED.description;
 
 -- Counting patterns
 INSERT INTO quiz_types (code, description, template_kind, answer_type, category, sort_order, recommended_age_min, recommended_age_max)
 VALUES
   ('count_by_2', 'Continue the pattern: counting by 2 (6, 8, 10, ?, ?)',  'count_by_n', 'tuple', 'patterns', 17, 7, 8),
   ('count_by_5', 'Continue the pattern: counting by 5 (5, 10, 15, ?, ?)', 'count_by_n', 'tuple', 'patterns', 18, 7, 8)
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) DO UPDATE SET description = EXCLUDED.description;
 
 -- Roman numerals
 INSERT INTO quiz_types (code, description, template_kind, answer_type, category, sort_order, recommended_age_min, recommended_age_max)
 VALUES
   ('roman_to_arabic', 'Roman → Arabic (XIV = ?)',    'roman_to_int',  'int',  'roman', 19, 7, 9),
   ('arabic_to_roman', 'Arabic → Roman (27 = ?)',     'int_to_roman',  'text', 'roman', 20, 7, 9)
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) DO UPDATE SET description = EXCLUDED.description;
 
 -- Measurement
 INSERT INTO quiz_types (code, description, template_kind, answer_type, category, sort_order, recommended_age_min, recommended_age_max)
@@ -76,4 +76,4 @@ VALUES
   ('measure_dm_to_cm', 'Conversion: dm → cm (5 dm = ? cm)',        'dm_to_cm',       'int', 'measurement', 21, 7, 9),
   ('measure_m_to_cm',  'Conversion: m → cm (2 m = ? cm)',          'm_to_cm',        'int', 'measurement', 22, 7, 9),
   ('length_addition',  'Length addition (35 cm + 12 cm = ? cm)',    'length_add',     'int', 'measurement', 23, 7, 9)
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) DO UPDATE SET description = EXCLUDED.description;

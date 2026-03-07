@@ -17,12 +17,22 @@ def _pick_factors(focus_set: list[int], learned_set: list[int]) -> tuple[int, in
     return focus_factor, other_factor
 
 
+def _render_to_html(render: str) -> str:
+    """Convert a plain-text render string to an HTML snippet with proper entities."""
+    html = render
+    html = html.replace("×", "&times;")
+    html = html.replace("÷", "&divide;")
+    html = html.replace("−", "&minus;")
+    return f"<span class='om-expr'>{html}</span>"
+
+
 def _make_prompt(kind: str, answer_type: str, render: str, **extra: Any) -> dict[str, Any]:
     """Build a JSONB prompt dict."""
     return {
         "template": {"kind": kind, **extra},
         "answer": {"type": answer_type},
         "render": render,
+        "render_html": _render_to_html(render),
     }
 
 

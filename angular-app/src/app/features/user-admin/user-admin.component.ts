@@ -11,6 +11,7 @@ import { PasswordModule } from 'primeng/password';
 import { DropdownModule } from 'primeng/dropdown';
 import { CheckboxModule } from 'primeng/checkbox';
 import { CalendarModule } from 'primeng/calendar';
+import { MultiSelectModule } from 'primeng/multiselect';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -21,6 +22,7 @@ interface UserRow {
   name: string;
   email: string | null;
   role: string;
+  roles: string[];
   auth_provider: string;
   birthday: string | null;
   age: number | null;
@@ -45,6 +47,7 @@ interface UserRow {
     DropdownModule,
     CheckboxModule,
     CalendarModule,
+    MultiSelectModule,
     ConfirmDialogModule,
     ToastModule,
   ],
@@ -69,7 +72,7 @@ interface UserRow {
         [value]="users()"
         [rows]="20"
         [paginator]="users().length > 20"
-        [globalFilterFields]="['name', 'email', 'role']"
+        [globalFilterFields]="['name', 'email']"
         [rowHover]="true"
         styleClass="p-datatable-sm"
       >
@@ -78,7 +81,7 @@ interface UserRow {
             <th pSortableColumn="name">Name <p-sortIcon field="name"></p-sortIcon></th>
             <th pSortableColumn="email">Email <p-sortIcon field="email"></p-sortIcon></th>
             <th>Age</th>
-            <th pSortableColumn="role">Role <p-sortIcon field="role"></p-sortIcon></th>
+            <th>Roles</th>
             <th>Provider</th>
             <th>Actions</th>
           </tr>
@@ -89,10 +92,17 @@ interface UserRow {
             <td>{{ s.email || '—' }}</td>
             <td>{{ calculateAge(s.birthday) ?? s.age ?? '—' }}</td>
             <td>
-              <p-tag
-                [value]="s.role"
-                [severity]="s.role === 'admin' ? 'warning' : 'info'"
-              ></p-tag>
+              <div class="flex gap-1 flex-wrap">
+                @for (r of s.roles; track r) {
+                  <p-tag
+                    [value]="r"
+                    [severity]="r === 'admin' ? 'warning' : r === 'teacher' ? 'success' : r === 'parent' ? 'secondary' : 'info'"
+                  ></p-tag>
+                }
+                @if (!s.roles?.length) {
+                  <span class="text-500">—</span>
+                }
+              </div>
             </td>
             <td>{{ s.auth_provider || '—' }}</td>
             <td>
@@ -176,13 +186,16 @@ interface UserRow {
           </div>
         </div>
         <div class="flex flex-column gap-1">
-          <label class="font-semibold">Role</label>
-          <p-dropdown
+          <label class="font-semibold">Roles</label>
+          <p-multiSelect
             [options]="roleOptions"
-            [(ngModel)]="dialogRole"
+            [(ngModel)]="dialogRoles"
             optionLabel="label"
             optionValue="value"
-          ></p-dropdown>
+            placeholder="Select roles"
+            display="chip"
+            styleClass="w-full"
+          ></p-multiSelect>
         </div>
         <div class="flex flex-column gap-1">
           <label class="font-semibold">Timetables</label>
@@ -257,6 +270,7 @@ export class UserAdminComponent implements OnInit {
   dialogBirthday: Date | null = null;
   dialogGender: string | null = null;
   dialogRole = 'student';
+  dialogRoles: string[] = ['student'];
   dialogTimetables: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
   resetPwVisible = false;
@@ -274,6 +288,8 @@ export class UserAdminComponent implements OnInit {
   ];
   roleOptions = [
     { label: 'Student', value: 'student' },
+    { label: 'Teacher', value: 'teacher' },
+    { label: 'Parent', value: 'parent' },
     { label: 'Admin', value: 'admin' },
   ];
 
@@ -312,6 +328,7 @@ export class UserAdminComponent implements OnInit {
     this.dialogBirthday = null;
     this.dialogGender = null;
     this.dialogRole = 'student';
+    this.dialogRoles = ['student'];
     this.dialogTimetables = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     this.dialogVisible = true;
   }
@@ -324,6 +341,7 @@ export class UserAdminComponent implements OnInit {
     this.dialogBirthday = s.birthday ? new Date(s.birthday) : null;
     this.dialogGender = s.gender;
     this.dialogRole = s.role;
+    this.dialogRoles = [...(s.roles || [])];
     this.dialogTimetables = [...(s.learned_timetables || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])];
     this.dialogVisible = true;
   }
@@ -342,10 +360,21 @@ export class UserAdminComponent implements OnInit {
         })
         .subscribe({
           next: () => {
-            this.dialogSaving.set(false);
-            this.dialogVisible = false;
-            this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'User updated' });
-            this.loadUsers();
+            // Also update roles via the roles endpoint
+            this.api.setUserRoles(this.editingUser!.id, this.dialogRoles).subscribe({
+              next: () => {
+                this.dialogSaving.set(false);
+                this.dialogVisible = false;
+                this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'User updated' });
+                this.loadUsers();
+              },
+              error: () => {
+                this.dialogSaving.set(false);
+                this.dialogVisible = false;
+                this.messageService.add({ severity: 'warn', summary: 'Partial', detail: 'Profile saved but role update failed' });
+                this.loadUsers();
+              },
+            });
           },
           error: () => {
             this.dialogSaving.set(false);
@@ -366,15 +395,33 @@ export class UserAdminComponent implements OnInit {
           password: this.dialogPassword,
           birthday: birthdayStr || null,
           gender: this.dialogGender,
-          role: this.dialogRole,
+          role: this.dialogRoles[0] || 'student',
           learnedTimetables: this.dialogTimetables,
         })
         .subscribe({
-          next: () => {
-            this.dialogSaving.set(false);
-            this.dialogVisible = false;
-            this.messageService.add({ severity: 'success', summary: 'Created', detail: 'User account created' });
-            this.loadUsers();
+          next: (created: any) => {
+            // If multiple roles selected, update roles after creation
+            if (this.dialogRoles.length > 1 && created?.id) {
+              this.api.setUserRoles(created.id, this.dialogRoles).subscribe({
+                next: () => {
+                  this.dialogSaving.set(false);
+                  this.dialogVisible = false;
+                  this.messageService.add({ severity: 'success', summary: 'Created', detail: 'User account created' });
+                  this.loadUsers();
+                },
+                error: () => {
+                  this.dialogSaving.set(false);
+                  this.dialogVisible = false;
+                  this.messageService.add({ severity: 'warn', summary: 'Partial', detail: 'User created but some roles not assigned' });
+                  this.loadUsers();
+                },
+              });
+            } else {
+              this.dialogSaving.set(false);
+              this.dialogVisible = false;
+              this.messageService.add({ severity: 'success', summary: 'Created', detail: 'User account created' });
+              this.loadUsers();
+            }
           },
           error: (err) => {
             this.dialogSaving.set(false);

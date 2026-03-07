@@ -40,13 +40,15 @@ def create_access_token(
     email: str,
     name: str,
     role: str,
+    roles: list[str] | None = None,
 ) -> str:
     now = datetime.now(timezone.utc)
     payload = {
         "sub": sub,
         "email": email,
         "name": name,
-        "role": role,
+        "role": role,  # backward compat — primary role
+        "roles": roles or [role],  # full role list
         "iat": now,
         "exp": now + timedelta(minutes=settings.jwt_access_token_expire_minutes),
     }

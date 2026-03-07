@@ -8,16 +8,25 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.auth import calculate_age, hash_password
 from app.dependencies import get_current_user, require_admin
 from app.queries import (
+    create_parent_student,
+    create_teacher_student,
     create_user_with_auth,
+    delete_parent_student,
+    delete_teacher_student,
     get_user_performance_stats,
     get_user_profile,
+    get_user_roles,
+    list_all_parent_students,
+    list_all_teacher_students,
     list_users,
     list_users_admin,
+    add_user_role,
+    set_user_roles,
     update_user_password,
     update_user_profile,
     update_user_profile_v2,
 )
-from app.schemas.auth import AdminCreateUserRequest
+from app.schemas.auth import AdminCreateUserRequest, RoleAssignment, RelationshipRequest
 from app.schemas.user import UserOut, UpdateUserRequest
 
 router = APIRouter(tags=["users"])
@@ -31,7 +40,8 @@ async def get_users(user: dict[str, Any] = Depends(require_admin)):
 @router.get("/users/{user_id}")
 async def get_user(user_id: str, user: dict[str, Any] = Depends(get_current_user)):
     # Users can only view own profile; admins can view any
-    if user.get("role") != "admin" and user["sub"] != user_id:
+    user_roles = await get_user_roles(user["sub"])
+    if "admin" not in user_roles and user["sub"] != user_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     profile = await get_user_profile(user_id)
@@ -49,7 +59,8 @@ async def patch_user(
     user: dict[str, Any] = Depends(get_current_user),
 ):
     # Users can only edit own profile; admins can edit any
-    if user.get("role") != "admin" and user["sub"] != user_id:
+    user_roles = await get_user_roles(user["sub"])
+    if "admin" not in user_roles and user["sub"] != user_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     birthday: date | None = None
@@ -99,12 +110,16 @@ async def create_user(
         learned_timetables=timetables,
     )
 
+    # Assign role in user_roles table
+    await add_user_role(str(new_user["id"]), body.role)
+
     age = calculate_age(birthday) if birthday else None
     return {
         "id": str(new_user["id"]),
         "name": new_user["name"],
         "email": new_user.get("email"),
         "role": new_user.get("role"),
+        "roles": [body.role],
         "age": age,
         "createdAt": new_user.get("created_at"),
     }
@@ -122,4 +137,90 @@ async def reset_user_password(
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
     pw_hash = hash_password(new_password)
     await update_user_password(user_id, pw_hash)
+    return {"success": True}
+
+
+# ── Role management (admin) ─────────────────────────
+
+@router.get("/users/{user_id}/roles")
+async def get_roles(user_id: str, user: dict[str, Any] = Depends(require_admin)):
+    """Get roles for a user."""
+    roles = await get_user_roles(user_id)
+    return {"roles": roles}
+
+
+@router.put("/users/{user_id}/roles")
+async def update_roles(
+    user_id: str,
+    body: RoleAssignment,
+    user: dict[str, Any] = Depends(require_admin),
+):
+    """Set roles for a user (replaces all)."""
+    roles = await set_user_roles(user_id, body.roles)
+    return {"roles": roles}
+
+
+# ── Relationship management (admin) ─────────────────
+
+@router.get("/admin/teacher-students")
+async def get_teacher_students(user: dict[str, Any] = Depends(require_admin)):
+    """List all teacher–student assignments."""
+    return await list_all_teacher_students()
+
+
+@router.post("/admin/teacher-students", status_code=201)
+async def add_teacher_student(
+    body: RelationshipRequest,
+    user: dict[str, Any] = Depends(require_admin),
+):
+    """Assign student to teacher."""
+    if not body.teacher_id:
+        raise HTTPException(status_code=400, detail="teacherId is required")
+    try:
+        return await create_teacher_student(body.teacher_id, body.student_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/admin/teacher-students/{assignment_id}")
+async def remove_teacher_student(
+    assignment_id: str,
+    user: dict[str, Any] = Depends(require_admin),
+):
+    """Remove teacher–student assignment."""
+    deleted = await delete_teacher_student(assignment_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    return {"success": True}
+
+
+@router.get("/admin/parent-students")
+async def get_parent_students(user: dict[str, Any] = Depends(require_admin)):
+    """List all parent–student assignments."""
+    return await list_all_parent_students()
+
+
+@router.post("/admin/parent-students", status_code=201)
+async def add_parent_student(
+    body: RelationshipRequest,
+    user: dict[str, Any] = Depends(require_admin),
+):
+    """Assign student to parent."""
+    if not body.parent_id:
+        raise HTTPException(status_code=400, detail="parentId is required")
+    try:
+        return await create_parent_student(body.parent_id, body.student_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/admin/parent-students/{assignment_id}")
+async def remove_parent_student(
+    assignment_id: str,
+    user: dict[str, Any] = Depends(require_admin),
+):
+    """Remove parent–student assignment."""
+    deleted = await delete_parent_student(assignment_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Assignment not found")
     return {"success": True}

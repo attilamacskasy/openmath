@@ -18,10 +18,12 @@ from app.auth import (
 )
 from app.dependencies import get_current_user
 from app.queries import (
+    add_user_role,
     create_user_with_auth,
     find_user_by_email,
     find_user_by_google_sub,
     find_user_by_id,
+    get_user_roles,
     update_user_google_link,
 )
 from app.schemas.auth import (
@@ -37,27 +39,33 @@ from app.schemas.auth import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _build_auth_user(user_record: dict) -> AuthUser:
+async def _build_auth_user(user_record: dict) -> AuthUser:
     birthday = user_record.get("birthday")
     age = calculate_age(birthday) if birthday else user_record.get("age")
+    roles = await get_user_roles(str(user_record["id"]))
+    primary_role = roles[0] if roles else user_record.get("role", "student")
     return AuthUser(
         id=str(user_record["id"]),
         name=user_record["name"],
         email=user_record.get("email", ""),
-        role=user_record.get("role", "student"),
+        role=primary_role,
+        roles=roles,
         age=age,
         authProvider=user_record.get("auth_provider", "local"),
     )
 
 
-def _build_tokens(user_record: dict) -> tuple[str, str]:
+async def _build_tokens(user_record: dict) -> tuple[str, str]:
     sid = str(user_record["id"])
+    roles = await get_user_roles(sid)
+    primary_role = roles[0] if roles else user_record.get("role", "student")
     return (
         create_access_token(
             sub=sid,
             email=user_record.get("email", ""),
             name=user_record["name"],
-            role=user_record.get("role", "student"),
+            role=primary_role,
+            roles=roles,
         ),
         create_refresh_token(sub=sid),
     )
@@ -95,11 +103,14 @@ async def register(body: RegisterRequest) -> AuthResponse:
         learned_timetables=timetables,
     )
 
-    access, refresh = _build_tokens(user_record)
+    # Assign student role in user_roles table
+    await add_user_role(str(user_record["id"]), "student")
+
+    access, refresh = await _build_tokens(user_record)
     return AuthResponse(
         accessToken=access,
         refreshToken=refresh,
-        user=_build_auth_user(user_record),
+        user=await _build_auth_user(user_record),
     )
 
 
@@ -114,11 +125,11 @@ async def login(body: LoginRequest) -> AuthResponse:
     if not verify_password(body.password, user_record["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    access, refresh = _build_tokens(user_record)
+    access, refresh = await _build_tokens(user_record)
     return AuthResponse(
         accessToken=access,
         refreshToken=refresh,
-        user=_build_auth_user(user_record),
+        user=await _build_auth_user(user_record),
     )
 
 
@@ -176,13 +187,15 @@ async def google_auth(body: GoogleAuthRequest) -> AuthResponse:
                 auth_provider="google",
                 google_sub=google_sub,
             )
+            # Assign student role in user_roles table
+            await add_user_role(str(user_record["id"]), "student")
             is_new_user = True
 
-    access, refresh = _build_tokens(user_record)
+    access, refresh = await _build_tokens(user_record)
     return AuthResponse(
         accessToken=access,
         refreshToken=refresh,
-        user=_build_auth_user(user_record),
+        user=await _build_auth_user(user_record),
         isNewUser=is_new_user,
     )
 
@@ -199,7 +212,7 @@ async def refresh(body: RefreshRequest) -> dict:
     if not user_record:
         raise HTTPException(status_code=401, detail="User not found")
 
-    access, new_refresh = _build_tokens(user_record)
+    access, new_refresh = await _build_tokens(user_record)
     return {"accessToken": access, "refreshToken": new_refresh}
 
 
@@ -213,12 +226,14 @@ async def me(user: dict = Depends(get_current_user)) -> dict:
 
     birthday = user_record.get("birthday")
     age = calculate_age(birthday) if birthday else user_record.get("age")
+    roles = await get_user_roles(user["sub"])
 
     return {
         "id": str(user_record["id"]),
         "name": user_record["name"],
         "email": user_record.get("email", ""),
-        "role": user_record.get("role", "student"),
+        "role": roles[0] if roles else user_record.get("role", "student"),
+        "roles": roles,
         "age": age,
         "birthday": str(birthday) if birthday else None,
         "gender": user_record.get("gender"),

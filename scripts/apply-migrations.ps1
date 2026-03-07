@@ -53,6 +53,9 @@ if ([string]::IsNullOrWhiteSpace($env:DATABASE_URL)) {
   exit 1
 }
 
+# Ensure psql uses UTF-8 so Unicode characters (≤, ≥, −, …) are preserved
+[System.Environment]::SetEnvironmentVariable("PGCLIENTENCODING", "UTF8", "Process")
+
 if (-not (Test-Path $migrationsDir)) {
   Write-Error "Migrations directory not found: $migrationsDir"
   exit 1

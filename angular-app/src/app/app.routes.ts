@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, adminGuard } from './core/guards/auth.guard';
+import { authGuard, adminGuard, teacherGuard, parentGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   // Public routes
@@ -67,6 +67,26 @@ export const routes: Routes = [
         (m) => m.UserGuideComponent
       ),
     canActivate: [authGuard],
+  },
+
+  // Teacher routes
+  {
+    path: 'teacher',
+    loadComponent: () =>
+      import('./features/teacher/teacher-dashboard.component').then(
+        (m) => m.TeacherDashboardComponent
+      ),
+    canActivate: [authGuard, teacherGuard],
+  },
+
+  // Parent routes
+  {
+    path: 'parent',
+    loadComponent: () =>
+      import('./features/parent/parent-dashboard.component').then(
+        (m) => m.ParentDashboardComponent
+      ),
+    canActivate: [authGuard, parentGuard],
   },
 
   // Admin routes

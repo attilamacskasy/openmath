@@ -9,7 +9,9 @@ from app.queries import (
     create_session,
     delete_session,
     get_quiz_type_by_code,
+    get_reviews_for_session,
     get_session_by_id,
+    get_user_roles,
     insert_questions,
     list_sessions,
     list_sessions_for_user,
@@ -29,7 +31,8 @@ async def get_sessions(
     quiz_type_code: str | None = Query(default=None),
 ):
     # Users see only own sessions; admins see all
-    if user.get("role") == "admin":
+    user_roles = await get_user_roles(user["sub"])
+    if "admin" in user_roles:
         return await list_sessions(quiz_type_code=quiz_type_code)
     return await list_sessions_for_user(user["sub"], quiz_type_code=quiz_type_code)
 
@@ -39,11 +42,15 @@ async def get_session(session_id: str, user: dict[str, Any] = Depends(get_curren
     result = await get_session_by_id(session_id)
     if not result:
         raise HTTPException(status_code=404, detail="Session not found")
-    # Users can only access own sessions
-    if user.get("role") != "admin":
+    # Users can only access own sessions; admins can access any
+    user_roles = await get_user_roles(user["sub"])
+    if "admin" not in user_roles:
         s = result.get("session", {})
         if str(s.get("user_id", "")) != user["sub"]:
             raise HTTPException(status_code=403, detail="Access denied")
+    # Attach reviews
+    reviews = await get_reviews_for_session(session_id)
+    result["reviews"] = reviews
     return result
 
 

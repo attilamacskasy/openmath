@@ -14,6 +14,12 @@ import { AuthService } from '../../../core/services/auth.service';
         <a routerLink="/" routerLinkActive="font-bold" [routerLinkActiveOptions]="{exact: true}" class="no-underline text-primary text-lg">Start</a>
         <a routerLink="/profile" routerLinkActive="font-bold" class="no-underline text-primary">Profile</a>
         <a routerLink="/history" routerLinkActive="font-bold" class="no-underline text-primary">History</a>
+        @if (auth.isTeacher()) {
+          <a routerLink="/teacher" routerLinkActive="font-bold" class="no-underline text-primary">My Students</a>
+        }
+        @if (auth.isParent()) {
+          <a routerLink="/parent" routerLinkActive="font-bold" class="no-underline text-primary">My Child</a>
+        }
         <a routerLink="/user-guide" routerLinkActive="font-bold" class="no-underline text-primary">User Guide</a>
         @if (auth.isAdmin()) {
           <a routerLink="/users" routerLinkActive="font-bold" class="no-underline text-primary">Users</a>
