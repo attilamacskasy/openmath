@@ -5,7 +5,7 @@
     <form class="card" @submit.prevent="startQuiz">
       <label>
         Quiz type
-        <select v-model="selectedQuizTypeCode" class="student-select">
+        <select v-model="selectedQuizTypeCode" class="user-select">
           <option v-for="quizType in quizTypes" :key="quizType.id" :value="quizType.code">
             {{ quizType.description }} ({{ quizType.code }})
           </option>
@@ -14,19 +14,19 @@
 
       <DifficultySelect v-model="difficulty" />
 
-      <label v-if="!currentStudentId">
-        New student name
-        <BaseInput v-model="studentName" type="text" placeholder="Anna" />
+      <label v-if="!currentUserId">
+        New user name
+        <BaseInput v-model="userName" type="text" placeholder="Anna" />
       </label>
 
-      <label v-if="!currentStudentId">
+      <label v-if="!currentUserId">
         Age
-        <BaseInput v-model.number="studentAge" type="number" min="4" max="120" />
+        <BaseInput v-model.number="userAge" type="number" min="4" max="120" />
       </label>
 
-      <label v-if="!currentStudentId">
+      <label v-if="!currentUserId">
         Gender
-        <select v-model="studentGender" class="student-select">
+        <select v-model="userGender" class="user-select">
           <option value="">Prefer not to say</option>
           <option value="female">Female</option>
           <option value="male">Male</option>
@@ -34,7 +34,7 @@
         </select>
       </label>
 
-      <fieldset v-if="!currentStudentId" class="tables-fieldset">
+      <fieldset v-if="!currentUserId" class="tables-fieldset">
         <legend>Learned timetables (1–10)</legend>
         <div class="tables-grid">
           <label v-for="table in timetableOptions" :key="table" class="table-option">
@@ -64,14 +64,14 @@ const difficulty = ref<"low" | "medium" | "hard">("low")
 const totalQuestions = ref(10)
 const quizTypes = ref<Array<{ id: string; code: string; description: string }>>([])
 const selectedQuizTypeCode = ref("multiplication_1_10")
-const studentName = ref("")
-const studentAge = ref<number | null>(null)
-const studentGender = ref<"female" | "male" | "other" | "prefer_not_say" | "">("")
+const userName = ref("")
+const userAge = ref<number | null>(null)
+const userGender = ref<"female" | "male" | "other" | "prefer_not_say" | "">("")
 const learnedTimetables = ref<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 const pending = ref(false)
 const errorMessage = ref("")
 const timetableOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-const currentStudentId = useState<string>("currentStudentId", () => "")
+const currentUserId = useState<string>("currentUserId", () => "")
 
 const activeQuiz = useState<{
   sessionId: string
@@ -83,13 +83,13 @@ async function startQuiz() {
   pending.value = true
   errorMessage.value = ""
 
-  if (!currentStudentId.value && studentName.value.trim().length === 0) {
-    errorMessage.value = "Please enter a new student name."
+  if (!currentUserId.value && userName.value.trim().length === 0) {
+    errorMessage.value = "Please enter a new user name."
     pending.value = false
     return
   }
 
-  if (!currentStudentId.value && learnedTimetables.value.length === 0) {
+  if (!currentUserId.value && learnedTimetables.value.length === 0) {
     errorMessage.value = "Please select at least one learned timetable."
     pending.value = false
     return
@@ -99,11 +99,11 @@ async function startQuiz() {
     const response = await api.createSession({
       difficulty: difficulty.value,
       totalQuestions: totalQuestions.value,
-      studentId: currentStudentId.value || undefined,
-      studentName: !currentStudentId.value ? studentName.value.trim() : undefined,
-      studentAge: !currentStudentId.value ? studentAge.value ?? undefined : undefined,
-      studentGender: !currentStudentId.value ? (studentGender.value || "prefer_not_say") : undefined,
-      learnedTimetables: !currentStudentId.value ? learnedTimetables.value : undefined,
+      userId: currentUserId.value || undefined,
+      userName: !currentUserId.value ? userName.value.trim() : undefined,
+      userAge: !currentUserId.value ? userAge.value ?? undefined : undefined,
+      userGender: !currentUserId.value ? (userGender.value || "prefer_not_say") : undefined,
+      learnedTimetables: !currentUserId.value ? learnedTimetables.value : undefined,
       quizTypeCode: selectedQuizTypeCode.value,
     })
 
@@ -146,7 +146,7 @@ onMounted(async () => {
   border-radius: 0.75rem;
   padding: 1rem;
 }
-.student-select {
+.user-select {
   width: 100%;
   border: 1px solid #cbd5e1;
   border-radius: 0.5rem;

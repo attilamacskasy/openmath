@@ -1,4 +1,4 @@
-export interface StudentListItem {
+export interface UserListItem {
   id: string;
   name: string;
 }
@@ -16,21 +16,21 @@ export interface PerformanceBucket {
   total_time_seconds: number;
 }
 
-export interface StudentPerformanceStats {
+export interface UserPerformanceStats {
   overall: PerformanceBucket;
   by_quiz_type: PerformanceBucket[];
 }
 
-export interface StudentProfile {
+export interface UserProfile {
   id: string;
   name: string;
   age: number | null;
   gender: string | null;
   learned_timetables: number[];
-  stats: StudentPerformanceStats;
+  stats: UserPerformanceStats;
 }
 
-export interface UpdateStudentRequest {
+export interface UpdateUserRequest {
   name: string;
   age: number | null;
   gender: string | null;

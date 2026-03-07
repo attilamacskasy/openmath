@@ -14,9 +14,9 @@ import { MessageService } from 'primeng/api';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import {
-  StudentProfile,
+  UserProfile,
   PerformanceBucket,
-} from '../../models/student.model';
+} from '../../models/user.model';
 import { MeResponse } from '../../models/auth.model';
 
 @Component({
@@ -151,7 +151,7 @@ export class ProfileComponent implements OnInit {
 
   loading = signal(true);
   saving = signal(false);
-  profile = signal<StudentProfile | null>(null);
+  profile = signal<UserProfile | null>(null);
   meData = signal<MeResponse | null>(null);
 
   name = '';
@@ -206,7 +206,7 @@ export class ProfileComponent implements OnInit {
         this.meData.set(me);
         this.birthday = me.birthday ? new Date(me.birthday) : null;
 
-        this.api.getStudent(user.id).subscribe({
+        this.api.getUser(user.id).subscribe({
           next: (p) => {
             this.profile.set(p);
             this.name = p.name;
@@ -235,7 +235,7 @@ export class ProfileComponent implements OnInit {
     }
 
     this.api
-      .updateStudent(user.id, {
+      .updateUser(user.id, {
         name: this.name.trim(),
         age,
         gender: this.gender,

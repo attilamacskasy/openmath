@@ -1,0 +1,125 @@
+"""Users router."""
+
+from datetime import date
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.auth import calculate_age, hash_password
+from app.dependencies import get_current_user, require_admin
+from app.queries import (
+    create_user_with_auth,
+    get_user_performance_stats,
+    get_user_profile,
+    list_users,
+    list_users_admin,
+    update_user_password,
+    update_user_profile,
+    update_user_profile_v2,
+)
+from app.schemas.auth import AdminCreateUserRequest
+from app.schemas.user import UserOut, UpdateUserRequest
+
+router = APIRouter(tags=["users"])
+
+
+@router.get("/users")
+async def get_users(user: dict[str, Any] = Depends(require_admin)):
+    return await list_users_admin()
+
+
+@router.get("/users/{user_id}")
+async def get_user(user_id: str, user: dict[str, Any] = Depends(get_current_user)):
+    # Users can only view own profile; admins can view any
+    if user.get("role") != "admin" and user["sub"] != user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    profile = await get_user_profile(user_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    stats = await get_user_performance_stats(user_id)
+    return {**profile, "stats": stats}
+
+
+@router.patch("/users/{user_id}")
+async def patch_user(
+    user_id: str,
+    body: UpdateUserRequest,
+    user: dict[str, Any] = Depends(get_current_user),
+):
+    # Users can only edit own profile; admins can edit any
+    if user.get("role") != "admin" and user["sub"] != user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    birthday: date | None = None
+    if body.birthday:
+        try:
+            birthday = date.fromisoformat(body.birthday)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid birthday format (use YYYY-MM-DD)")
+
+    updated = await update_user_profile_v2(
+        user_id,
+        name=body.name,
+        age=body.age,
+        gender=body.gender,
+        learned_timetables=body.learned_timetables,
+        birthday=birthday,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="User not found")
+    return updated
+
+
+@router.post("/users", status_code=201)
+async def create_user(
+    body: AdminCreateUserRequest,
+    user: dict[str, Any] = Depends(require_admin),
+):
+    """Admin creates a new user account."""
+    birthday: date | None = None
+    if body.birthday:
+        try:
+            birthday = date.fromisoformat(body.birthday)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid birthday format")
+
+    pw_hash = hash_password(body.password)
+    timetables = body.learnedTimetables or [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+    new_user = await create_user_with_auth(
+        name=body.name,
+        email=body.email,
+        password_hash=pw_hash,
+        role=body.role,
+        auth_provider="local",
+        birthday=birthday,
+        gender=body.gender,
+        learned_timetables=timetables,
+    )
+
+    age = calculate_age(birthday) if birthday else None
+    return {
+        "id": str(new_user["id"]),
+        "name": new_user["name"],
+        "email": new_user.get("email"),
+        "role": new_user.get("role"),
+        "age": age,
+        "createdAt": new_user.get("created_at"),
+    }
+
+
+@router.post("/users/{user_id}/reset-password")
+async def reset_user_password(
+    user_id: str,
+    body: dict,
+    user: dict[str, Any] = Depends(require_admin),
+):
+    """Admin resets a user's password."""
+    new_password = body.get("password", "")
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    pw_hash = hash_password(new_password)
+    await update_user_password(user_id, pw_hash)
+    return {"success": True}

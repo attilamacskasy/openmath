@@ -9,7 +9,7 @@
     <section class="card">
       <h2>Quick Start Workflow</h2>
       <ol>
-        <li>Select an <strong>Active student</strong> in the top bar, or leave empty to create a new student from Start.</li>
+        <li>Select an <strong>Active user</strong> in the top bar, or leave empty to create a new user from Start.</li>
         <li>Go to <strong>Start</strong>, choose quiz type and difficulty, then start the quiz.</li>
         <li>Answer all questions and submit each answer to complete the session.</li>
         <li>Use <strong>History</strong> to review score, time spent, and average time per question.</li>
@@ -18,13 +18,13 @@
     </section>
 
     <section class="card">
-      <h2>Create and Manage Students</h2>
+      <h2>Create and Manage Users</h2>
       <ul>
         <li>
-          <strong>Create new student:</strong> in <strong>Start</strong>, keep active student as "No student", fill name/profile, and
+          <strong>Create new user:</strong> in <strong>Start</strong>, keep active user as "No user", fill name/profile, and
           start a quiz.
         </li>
-        <li><strong>Switch student:</strong> use the <strong>Active student</strong> selector in the header.</li>
+        <li><strong>Switch user:</strong> use the <strong>Active user</strong> selector in the header.</li>
         <li>
           <strong>Edit profile:</strong> open <strong>Profile</strong> to update name, age, gender, and learned timetables.
         </li>
@@ -45,7 +45,7 @@
       <h2>Review History and Improve</h2>
       <ul>
         <li><strong>History</strong> groups sessions by quiz type.</li>
-        <li>Use "Show only active student results" to focus on one student.</li>
+        <li>Use "Show only active user results" to focus on one user.</li>
         <li>Check these key metrics:</li>
       </ul>
       <ul class="metrics">
@@ -62,11 +62,11 @@
       <h2>Menu Points</h2>
       <ul>
         <li><strong>Start</strong>: create a session and begin a quiz.</li>
-        <li><strong>Profile</strong>: edit student preferences and view performance statistics.</li>
+        <li><strong>Profile</strong>: edit user preferences and view performance statistics.</li>
         <li><strong>History</strong>: review sessions, resume unfinished quizzes, and inspect summaries.</li>
         <li><strong>User Guide</strong>: this page with usage instructions.</li>
         <li><strong>Database Statistics</strong>: admin-style table counts, data browsing, and reset actions.</li>
-        <li><strong>Active student (top selector)</strong>: sets the current student across all pages.</li>
+        <li><strong>Active user (top selector)</strong>: sets the current user across all pages.</li>
       </ul>
     </section>
 

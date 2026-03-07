@@ -3,9 +3,9 @@
     <h1>Profile</h1>
 
     <section class="card">
-      <p v-if="!selectedStudentId" class="hint">Select an active student in the top bar to edit profile preferences.</p>
+      <p v-if="!selectedUserId" class="hint">Select an active user in the top bar to edit profile preferences.</p>
 
-      <template v-if="selectedStudentId">
+      <template v-if="selectedUserId">
         <label>
           Name
           <BaseInput v-model="name" type="text" />
@@ -89,8 +89,8 @@
 <script setup lang="ts">
 const api = useApi()
 
-const selectedStudentId = useState<string>("currentStudentId", () => "")
-const studentsDirectory = useState<Array<{ id: string; name: string }>>("studentsDirectory", () => [])
+const selectedUserId = useState<string>("currentUserId", () => "")
+const usersDirectory = useState<Array<{ id: string; name: string }>>("usersDirectory", () => [])
 const name = ref("")
 const age = ref<number | null>(null)
 const gender = ref<"female" | "male" | "other" | "prefer_not_say" | "">("")
@@ -155,10 +155,10 @@ function formatDuration(totalSeconds: number): string {
   return `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`
 }
 
-async function onStudentChange() {
+async function onUserChange() {
   message.value = ""
 
-  if (!selectedStudentId.value) {
+  if (!selectedUserId.value) {
     name.value = ""
     age.value = null
     gender.value = ""
@@ -182,7 +182,7 @@ async function onStudentChange() {
   }
 
   try {
-    const profile = await api.getStudentProfile(selectedStudentId.value)
+    const profile = await api.getUserProfile(selectedUserId.value)
     name.value = profile.name
     age.value = profile.age
     gender.value = profile.gender ?? ""
@@ -190,16 +190,16 @@ async function onStudentChange() {
     profileStats.value = profile.stats
   } catch {
     messageType.value = "error"
-    message.value = "Could not load student profile."
+    message.value = "Could not load user profile."
   }
 }
 
-watch(selectedStudentId, () => {
-  onStudentChange()
+watch(selectedUserId, () => {
+  onUserChange()
 }, { immediate: true })
 
 async function saveProfile() {
-  if (!selectedStudentId.value) {
+  if (!selectedUserId.value) {
     return
   }
 
@@ -219,7 +219,7 @@ async function saveProfile() {
   message.value = ""
 
   try {
-    const updated = await api.updateStudentProfile(selectedStudentId.value, {
+    const updated = await api.updateUserProfile(selectedUserId.value, {
       name: name.value.trim(),
       age: age.value,
       gender: gender.value || null,
@@ -231,8 +231,8 @@ async function saveProfile() {
     gender.value = updated.gender ?? ""
     learnedTimetables.value = updated.learned_timetables
 
-    studentsDirectory.value = studentsDirectory.value.map((student) =>
-      student.id === updated.id ? { ...student, name: updated.name } : student
+    usersDirectory.value = usersDirectory.value.map((user) =>
+      user.id === updated.id ? { ...user, name: updated.name } : user
     )
 
     messageType.value = "success"

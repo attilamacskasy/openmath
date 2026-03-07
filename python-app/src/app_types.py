@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Literal, TypedDict
 
 Difficulty = Literal["low", "medium", "hard"]
-StudentGender = Literal["female", "male", "other", "prefer_not_say"]
+UserGender = Literal["female", "male", "other", "prefer_not_say"]
 
 
 class SessionStats(TypedDict):
@@ -15,4 +15,4 @@ class SessionStats(TypedDict):
 
 @dataclass(slots=True)
 class AppState:
-    active_student_id: str | None = None
+    active_user_id: str | None = None

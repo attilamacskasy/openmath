@@ -7,10 +7,10 @@ import { isDifficulty } from "~~/layers/core/server/logic/difficulty"
 const sessionSchema = z.object({
   difficulty: z.string(),
   totalQuestions: z.number().int().min(1).max(50).default(10),
-  studentId: z.string().uuid().optional(),
-  studentName: z.string().optional(),
-  studentAge: z.number().int().min(4).max(120).optional(),
-  studentGender: z.enum(["female", "male", "other", "prefer_not_say"]).optional(),
+  userId: z.string().uuid().optional(),
+  userName: z.string().optional(),
+  userAge: z.number().int().min(4).max(120).optional(),
+  userGender: z.enum(["female", "male", "other", "prefer_not_say"]).optional(),
   learnedTimetables: z.array(z.number().int().min(1).max(10)).optional(),
   quizTypeCode: z.string().optional(),
 })
@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: "Invalid request payload" })
   }
 
-  const { difficulty, totalQuestions, studentId, studentName, studentAge, studentGender, learnedTimetables, quizTypeCode } = parsed.data
+  const { difficulty, totalQuestions, userId, userName, userAge, userGender, learnedTimetables, quizTypeCode } = parsed.data
 
   if (!isDifficulty(difficulty)) {
     throw createError({ statusCode: 400, statusMessage: "Invalid difficulty" })
@@ -34,10 +34,10 @@ export default defineEventHandler(async (event) => {
   const session = await createSession({
     difficulty,
     totalQuestions,
-    studentId,
-    studentName,
-    studentAge,
-    studentGender,
+    userId,
+    userName,
+    userAge,
+    userGender,
     learnedTimetables,
     quizTypeCode: effectiveQuizTypeCode,
   })

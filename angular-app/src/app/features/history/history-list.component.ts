@@ -66,7 +66,7 @@ import { DurationPipe } from '../../shared/pipes/duration.pipe';
         <ng-template pTemplate="header">
           <tr>
             <th pSortableColumn="quiz_type_description">Quiz Type <p-sortIcon field="quiz_type_description"></p-sortIcon></th>
-            <th>Student</th>
+            <th>User</th>
             <th>Difficulty</th>
             <th>Questions</th>
             <th>Time</th>
@@ -82,7 +82,7 @@ import { DurationPipe } from '../../shared/pipes/duration.pipe';
         <ng-template pTemplate="body" let-s>
           <tr>
             <td>{{ s.quiz_type_description || s.quiz_type_code || '—' }}</td>
-            <td>{{ s.student_name || '—' }}</td>
+            <td>{{ s.user_name || '—' }}</td>
             <td>
               <a [routerLink]="['/history', s.id]" class="text-primary no-underline">
                 {{ s.difficulty }}

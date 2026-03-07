@@ -16,10 +16,10 @@ export interface CreateSessionRequest {
   difficulty: string;
   totalQuestions: number;
   quizTypeCode?: string;
-  studentId?: string | null;
-  studentName?: string;
-  studentAge?: number | null;
-  studentGender?: string | null;
+  userId?: string | null;
+  userName?: string;
+  userAge?: number | null;
+  userGender?: string | null;
   learnedTimetables?: number[];
 }
 
@@ -33,13 +33,13 @@ export interface CreateSessionResponse {
 
 export interface SessionListItem {
   id: string;
-  student_id: string | null;
+  user_id: string | null;
   difficulty: string;
   total_questions: number;
   score_percent: number;
   started_at: string;
   finished_at: string | null;
-  student_name: string | null;
+  user_name: string | null;
   quiz_type_code: string | null;
   quiz_type_description: string | null;
 }
@@ -65,7 +65,7 @@ export interface SessionDetailQuestion {
 
 export interface SessionDetailSession {
   id: string;
-  student_id: string | null;
+  user_id: string | null;
   quiz_type_id: string;
   difficulty: string;
   total_questions: number;
@@ -74,7 +74,7 @@ export interface SessionDetailSession {
   score_percent: string;
   started_at: string;
   finished_at: string | null;
-  studentName: string | null;
+  userName: string | null;
   quizTypeCode: string | null;
 }
 

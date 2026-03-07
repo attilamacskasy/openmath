@@ -23,7 +23,7 @@ export const routes: Routes = [
       ),
   },
 
-  // Student routes (authenticated)
+  // User routes (authenticated)
   {
     path: '',
     loadComponent: () =>
@@ -71,10 +71,10 @@ export const routes: Routes = [
 
   // Admin routes
   {
-    path: 'students',
+    path: 'users',
     loadComponent: () =>
-      import('./features/student-admin/student-admin.component').then(
-        (m) => m.StudentAdminComponent
+      import('./features/user-admin/user-admin.component').then(
+        (m) => m.UserAdminComponent
       ),
     canActivate: [authGuard, adminGuard],
   },

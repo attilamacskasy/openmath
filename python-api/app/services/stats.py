@@ -1,4 +1,4 @@
-"""Student performance statistics aggregation."""
+"""User performance statistics aggregation."""
 
 from typing import Any
 

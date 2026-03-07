@@ -16,7 +16,7 @@ import { ToastModule } from 'primeng/toast';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ApiService } from '../../core/services/api.service';
 
-interface StudentRow {
+interface UserRow {
   id: string;
   name: string;
   email: string | null;
@@ -30,7 +30,7 @@ interface StudentRow {
 }
 
 @Component({
-  selector: 'app-student-admin',
+  selector: 'app-user-admin',
   standalone: true,
   imports: [
     CommonModule,
@@ -54,9 +54,9 @@ interface StudentRow {
     <p-confirmDialog></p-confirmDialog>
 
     <div class="flex justify-content-between align-items-center mb-3">
-      <h2 class="m-0">Student Administration</h2>
+      <h2 class="m-0">User Administration</h2>
       <p-button
-        label="New Student"
+        label="New User"
         icon="pi pi-plus"
         (onClick)="openCreateDialog()"
       ></p-button>
@@ -66,9 +66,9 @@ interface StudentRow {
       <p class="text-500">Loading...</p>
     } @else {
       <p-table
-        [value]="students()"
+        [value]="users()"
         [rows]="20"
-        [paginator]="students().length > 20"
+        [paginator]="users().length > 20"
         [globalFilterFields]="['name', 'email', 'role']"
         [rowHover]="true"
         styleClass="p-datatable-sm"
@@ -102,7 +102,7 @@ interface StudentRow {
                   [rounded]="true"
                   [text]="true"
                   size="small"
-                  (onClick)="editStudent(s)"
+                  (onClick)="editUser(s)"
                 ></p-button>
                 <p-button
                   icon="pi pi-key"
@@ -118,7 +118,7 @@ interface StudentRow {
           </tr>
         </ng-template>
         <ng-template pTemplate="emptymessage">
-          <tr><td colspan="6" class="text-center text-500">No students found.</td></tr>
+          <tr><td colspan="6" class="text-center text-500">No users found.</td></tr>
         </ng-template>
       </p-table>
     }
@@ -126,7 +126,7 @@ interface StudentRow {
     <!-- Create / Edit Dialog -->
     <p-dialog
       [(visible)]="dialogVisible"
-      [header]="editingStudent ? 'Edit Student' : 'Create Student'"
+      [header]="editingUser ? 'Edit User' : 'Create User'"
       [modal]="true"
       [style]="{ width: '450px' }"
     >
@@ -139,7 +139,7 @@ interface StudentRow {
           <label class="font-semibold">Email *</label>
           <input pInputText [(ngModel)]="dialogEmail" class="w-full" type="email" />
         </div>
-        @if (!editingStudent) {
+        @if (!editingUser) {
           <div class="flex flex-column gap-1">
             <label class="font-semibold">Password * (min 6)</label>
             <p-password
@@ -204,9 +204,9 @@ interface StudentRow {
       <ng-template pTemplate="footer">
         <p-button label="Cancel" severity="secondary" (onClick)="dialogVisible = false"></p-button>
         <p-button
-          [label]="editingStudent ? 'Save' : 'Create'"
+          [label]="editingUser ? 'Save' : 'Create'"
           icon="pi pi-check"
-          (onClick)="saveStudent()"
+          (onClick)="saveUser()"
           [loading]="dialogSaving()"
         ></p-button>
       </ng-template>
@@ -219,7 +219,7 @@ interface StudentRow {
       [modal]="true"
       [style]="{ width: '350px' }"
     >
-      <p class="mb-3">Set a new password for <strong>{{ resetPwStudentName }}</strong></p>
+      <p class="mb-3">Set a new password for <strong>{{ resetPwUserName }}</strong></p>
       <p-password
         [(ngModel)]="newPassword"
         [feedback]="false"
@@ -241,15 +241,15 @@ interface StudentRow {
     </p-dialog>
   `,
 })
-export class StudentAdminComponent implements OnInit {
+export class UserAdminComponent implements OnInit {
   private api = inject(ApiService);
   private messageService = inject(MessageService);
 
   loading = signal(true);
-  students = signal<StudentRow[]>([]);
+  users = signal<UserRow[]>([]);
   dialogVisible = false;
   dialogSaving = signal(false);
-  editingStudent: StudentRow | null = null;
+  editingUser: UserRow | null = null;
 
   dialogName = '';
   dialogEmail = '';
@@ -260,8 +260,8 @@ export class StudentAdminComponent implements OnInit {
   dialogTimetables: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
   resetPwVisible = false;
-  resetPwStudentId = '';
-  resetPwStudentName = '';
+  resetPwUserId = '';
+  resetPwUserName = '';
   newPassword = '';
 
   maxDate = new Date();
@@ -278,14 +278,14 @@ export class StudentAdminComponent implements OnInit {
   ];
 
   ngOnInit() {
-    this.loadStudents();
+    this.loadUsers();
   }
 
-  loadStudents() {
+  loadUsers() {
     this.loading.set(true);
-    this.api.getStudents().subscribe({
-      next: (students) => {
-        this.students.set(students as any);
+    this.api.getUsers().subscribe({
+      next: (users) => {
+        this.users.set(users as any);
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
@@ -305,7 +305,7 @@ export class StudentAdminComponent implements OnInit {
   }
 
   openCreateDialog() {
-    this.editingStudent = null;
+    this.editingUser = null;
     this.dialogName = '';
     this.dialogEmail = '';
     this.dialogPassword = '';
@@ -316,8 +316,8 @@ export class StudentAdminComponent implements OnInit {
     this.dialogVisible = true;
   }
 
-  editStudent(s: StudentRow) {
-    this.editingStudent = s;
+  editUser(s: UserRow) {
+    this.editingUser = s;
     this.dialogName = s.name;
     this.dialogEmail = s.email || '';
     this.dialogPassword = '';
@@ -328,13 +328,13 @@ export class StudentAdminComponent implements OnInit {
     this.dialogVisible = true;
   }
 
-  saveStudent() {
+  saveUser() {
     this.dialogSaving.set(true);
-    if (this.editingStudent) {
+    if (this.editingUser) {
       // Edit existing
       const age = this.dialogBirthday ? this.calculateAge(this.dialogBirthday.toISOString()) : null;
       this.api
-        .updateStudent(this.editingStudent.id, {
+        .updateUser(this.editingUser.id, {
           name: this.dialogName.trim(),
           age,
           gender: this.dialogGender,
@@ -344,12 +344,12 @@ export class StudentAdminComponent implements OnInit {
           next: () => {
             this.dialogSaving.set(false);
             this.dialogVisible = false;
-            this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Student updated' });
-            this.loadStudents();
+            this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'User updated' });
+            this.loadUsers();
           },
           error: () => {
             this.dialogSaving.set(false);
-            this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to update student' });
+            this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to update user' });
           },
         });
     } else {
@@ -360,7 +360,7 @@ export class StudentAdminComponent implements OnInit {
         birthdayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       }
       this.api
-        .createStudent({
+        .createUser({
           name: this.dialogName.trim(),
           email: this.dialogEmail.trim(),
           password: this.dialogPassword,
@@ -373,30 +373,30 @@ export class StudentAdminComponent implements OnInit {
           next: () => {
             this.dialogSaving.set(false);
             this.dialogVisible = false;
-            this.messageService.add({ severity: 'success', summary: 'Created', detail: 'Student account created' });
-            this.loadStudents();
+            this.messageService.add({ severity: 'success', summary: 'Created', detail: 'User account created' });
+            this.loadUsers();
           },
           error: (err) => {
             this.dialogSaving.set(false);
             this.messageService.add({
               severity: 'error',
               summary: 'Error',
-              detail: err.error?.detail || 'Failed to create student',
+              detail: err.error?.detail || 'Failed to create user',
             });
           },
         });
     }
   }
 
-  openResetPasswordDialog(s: StudentRow) {
-    this.resetPwStudentId = s.id;
-    this.resetPwStudentName = s.name;
+  openResetPasswordDialog(s: UserRow) {
+    this.resetPwUserId = s.id;
+    this.resetPwUserName = s.name;
     this.newPassword = '';
     this.resetPwVisible = true;
   }
 
   resetPassword() {
-    this.api.resetStudentPassword(this.resetPwStudentId, this.newPassword).subscribe({
+    this.api.resetUserPassword(this.resetPwUserId, this.newPassword).subscribe({
       next: () => {
         this.resetPwVisible = false;
         this.messageService.add({ severity: 'success', summary: 'Done', detail: 'Password reset successfully' });

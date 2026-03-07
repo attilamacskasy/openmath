@@ -1,6 +1,6 @@
 import { asc, desc, eq, inArray, sql } from "drizzle-orm"
 import { db, typedDb } from "./client"
-import { answers, questions, quizSessions, quizTypes, students } from "./schema"
+import { answers, questions, quizSessions, quizTypes, users } from "./schema"
 import { calculatePercent } from "../../../core/server/logic/scoring"
 import type { Difficulty } from "../../../core/server/logic/types"
 import type { GeneratedQuestion } from "../../../core/server/logic/generator"
@@ -21,7 +21,7 @@ function sanitizeLearnedTimetables(values: number[] | undefined) {
   return [...new Set(filtered)]
 }
 
-export const statsTableNames = ["quiz_types", "students", "quiz_sessions", "questions", "answers"] as const
+export const statsTableNames = ["quiz_types", "users", "quiz_sessions", "questions", "answers"] as const
 export type StatsTableName = (typeof statsTableNames)[number]
 
 async function getQuizTypeIdByCode(code: string) {
@@ -38,9 +38,9 @@ async function getQuizTypeIdByCode(code: string) {
 }
 
 export async function getDatabaseStatistics() {
-  const [quizTypesCountResult, studentsCountResult, sessionsCountResult, questionsCountResult, answersCountResult] = await Promise.all([
+  const [quizTypesCountResult, usersCountResult, sessionsCountResult, questionsCountResult, answersCountResult] = await Promise.all([
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(quizTypes),
-    db.select({ count: sql<number>`cast(count(*) as int)` }).from(students),
+    db.select({ count: sql<number>`cast(count(*) as int)` }).from(users),
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(quizSessions),
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(questions),
     db.select({ count: sql<number>`cast(count(*) as int)` }).from(answers),
@@ -48,7 +48,7 @@ export async function getDatabaseStatistics() {
 
   return {
     quiz_types: quizTypesCountResult[0]?.count ?? 0,
-    students: studentsCountResult[0]?.count ?? 0,
+    users: usersCountResult[0]?.count ?? 0,
     quiz_sessions: sessionsCountResult[0]?.count ?? 0,
     questions: questionsCountResult[0]?.count ?? 0,
     answers: answersCountResult[0]?.count ?? 0,
@@ -62,9 +62,9 @@ export async function getDatabaseTableRows(table: StatsTableName) {
     })
   }
 
-  if (table === "students") {
-    return typedDb.query.students.findMany({
-      orderBy: [desc(students.createdAt)],
+  if (table === "users") {
+    return typedDb.query.users.findMany({
+      orderBy: [desc(users.createdAt)],
     })
   }
 
@@ -90,23 +90,23 @@ export async function deleteAllSchemaData() {
     await tx.delete(answers)
     await tx.delete(questions)
     await tx.delete(quizSessions)
-    await tx.delete(students)
+    await tx.delete(users)
   })
 }
 
-export async function listStudents() {
+export async function listUsers() {
   return db
     .select({
-      id: students.id,
-      name: students.name,
+      id: users.id,
+      name: users.name,
     })
-    .from(students)
-    .orderBy(asc(students.name), desc(students.createdAt))
+    .from(users)
+    .orderBy(asc(users.name), desc(users.createdAt))
 }
 
-export async function getStudentProfile(studentId: string) {
-  return typedDb.query.students.findFirst({
-    where: eq(students.id, studentId),
+export async function getUserProfile(userId: string) {
+  return typedDb.query.users.findFirst({
+    where: eq(users.id, userId),
     columns: {
       id: true,
       name: true,
@@ -117,7 +117,7 @@ export async function getStudentProfile(studentId: string) {
   })
 }
 
-type StudentPerformanceBucket = {
+type UserPerformanceBucket = {
   quiz_type_code: string
   quiz_type_description: string
   sessions: number
@@ -130,7 +130,7 @@ type StudentPerformanceBucket = {
   total_time_seconds: number
 }
 
-function createPerformanceBucket(quizTypeCode: string, quizTypeDescription: string): StudentPerformanceBucket {
+function createPerformanceBucket(quizTypeCode: string, quizTypeDescription: string): UserPerformanceBucket {
   return {
     quiz_type_code: quizTypeCode,
     quiz_type_description: quizTypeDescription,
@@ -145,7 +145,7 @@ function createPerformanceBucket(quizTypeCode: string, quizTypeDescription: stri
   }
 }
 
-export async function getStudentPerformanceStats(studentId: string) {
+export async function getUserPerformanceStats(userId: string) {
   const sessionRows = await db
     .select({
       quizTypeCode: quizTypes.code,
@@ -159,10 +159,10 @@ export async function getStudentPerformanceStats(studentId: string) {
     })
     .from(quizSessions)
     .leftJoin(quizTypes, eq(quizSessions.quizTypeId, quizTypes.id))
-    .where(eq(quizSessions.studentId, studentId))
+    .where(eq(quizSessions.userId, userId))
 
   const overall = createPerformanceBucket("all", "All quiz types")
-  const byQuizTypeMap = new Map<string, StudentPerformanceBucket>()
+  const byQuizTypeMap = new Map<string, UserPerformanceBucket>()
   let overallScoreSum = 0
   let overallScoreCount = 0
   const byQuizTypeScore = new Map<string, { sum: number; count: number }>()
@@ -237,8 +237,8 @@ export async function getStudentPerformanceStats(studentId: string) {
   }
 }
 
-export async function updateStudentProfile(
-  studentId: string,
+export async function updateUserProfile(
+  userId: string,
   payload: {
     name: string
     age?: number
@@ -247,20 +247,20 @@ export async function updateStudentProfile(
   }
 ) {
   const updatedRows = await db
-    .update(students)
+    .update(users)
     .set({
       name: payload.name.trim(),
       age: payload.age ?? null,
       gender: payload.gender ?? null,
       learnedTimetables: sanitizeLearnedTimetables(payload.learnedTimetables),
     })
-    .where(eq(students.id, studentId))
+    .where(eq(users.id, userId))
     .returning({
-      id: students.id,
-      name: students.name,
-      age: students.age,
-      gender: students.gender,
-      learnedTimetables: students.learnedTimetables,
+      id: users.id,
+      name: users.name,
+      age: users.age,
+      gender: users.gender,
+      learnedTimetables: users.learnedTimetables,
     })
 
   return updatedRows[0] ?? null
@@ -280,50 +280,50 @@ export async function listQuizTypes() {
 export async function createSession(params: {
   difficulty: Difficulty
   totalQuestions: number
-  studentId?: string
-  studentName?: string
-  studentAge?: number
-  studentGender?: "female" | "male" | "other" | "prefer_not_say"
+  userId?: string
+  userName?: string
+  userAge?: number
+  userGender?: "female" | "male" | "other" | "prefer_not_say"
   learnedTimetables?: number[]
   quizTypeCode?: string
 }) {
-  let studentId: string | null = null
+  let userId: string | null = null
   let learnedTimetables = DEFAULT_LEARNED_TIMETABLES
   const quizTypeId = await getQuizTypeIdByCode(params.quizTypeCode ?? DEFAULT_QUIZ_TYPE_CODE)
 
-  if (params.studentId) {
-    const existingStudent = await typedDb.query.students.findFirst({
-      where: eq(students.id, params.studentId),
+  if (params.userId) {
+    const existingUser = await typedDb.query.users.findFirst({
+      where: eq(users.id, params.userId),
       columns: { id: true, learnedTimetables: true },
     })
 
-    if (existingStudent) {
-      studentId = existingStudent.id
-      learnedTimetables = sanitizeLearnedTimetables(existingStudent.learnedTimetables)
+    if (existingUser) {
+      userId = existingUser.id
+      learnedTimetables = sanitizeLearnedTimetables(existingUser.learnedTimetables)
     }
-  } else if (params.studentName && params.studentName.trim().length > 0) {
+  } else if (params.userName && params.userName.trim().length > 0) {
     learnedTimetables = sanitizeLearnedTimetables(params.learnedTimetables)
 
-    const insertedStudents = await db
-      .insert(students)
+    const insertedUsers = await db
+      .insert(users)
       .values({
-        name: params.studentName.trim(),
-        age: params.studentAge,
-        gender: params.studentGender,
+        name: params.userName.trim(),
+        age: params.userAge,
+        gender: params.userGender,
         learnedTimetables,
       })
-      .returning({ id: students.id, learnedTimetables: students.learnedTimetables })
-    const student = insertedStudents[0]
-    if (student) {
-      studentId = student.id
-      learnedTimetables = sanitizeLearnedTimetables(student.learnedTimetables)
+      .returning({ id: users.id, learnedTimetables: users.learnedTimetables })
+    const user = insertedUsers[0]
+    if (user) {
+      userId = user.id
+      learnedTimetables = sanitizeLearnedTimetables(user.learnedTimetables)
     }
   }
 
   const insertedSessions = await db
     .insert(quizSessions)
     .values({
-      studentId,
+      userId,
       quizTypeId,
       difficulty: params.difficulty,
       totalQuestions: params.totalQuestions,
@@ -378,17 +378,17 @@ export async function listSessions() {
   return db
     .select({
       id: quizSessions.id,
-      studentId: quizSessions.studentId,
+      userId: quizSessions.userId,
       difficulty: quizSessions.difficulty,
       totalQuestions: quizSessions.totalQuestions,
       scorePercent: quizSessions.scorePercent,
       startedAt: quizSessions.startedAt,
       finishedAt: quizSessions.finishedAt,
-      studentName: students.name,
+      userName: users.name,
       quizTypeCode: quizTypes.code,
     })
     .from(quizSessions)
-    .leftJoin(students, eq(quizSessions.studentId, students.id))
+    .leftJoin(users, eq(quizSessions.userId, users.id))
     .leftJoin(quizTypes, eq(quizSessions.quizTypeId, quizTypes.id))
     .orderBy(desc(quizSessions.startedAt))
 }
@@ -402,9 +402,9 @@ export async function getSessionById(sessionId: string) {
     return null
   }
 
-  const student = session.studentId
-    ? await typedDb.query.students.findFirst({
-        where: eq(students.id, session.studentId),
+  const user = session.userId
+    ? await typedDb.query.users.findFirst({
+        where: eq(users.id, session.userId),
         columns: { name: true },
       })
     : null
@@ -424,7 +424,7 @@ export async function getSessionById(sessionId: string) {
   return {
     session: {
       ...session,
-      studentName: student?.name ?? null,
+      userName: user?.name ?? null,
       quizTypeCode: (
         await typedDb.query.quizTypes.findFirst({
           where: eq(quizTypes.id, session.quizTypeId),

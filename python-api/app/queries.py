@@ -15,7 +15,7 @@ from app.services.scoring import calculate_percent
 DEFAULT_QUIZ_TYPE_CODE = "multiplication_1_10"
 DEFAULT_LEARNED_TIMETABLES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-STATS_TABLE_NAMES = ("quiz_types", "students", "quiz_sessions", "questions", "answers")
+STATS_TABLE_NAMES = ("quiz_types", "users", "quiz_sessions", "questions", "answers")
 
 
 def _sanitize_learned_timetables(values: list[int] | None) -> list[int]:
@@ -211,24 +211,24 @@ async def get_distinct_categories() -> list[str]:
     return [r["category"] for r in rows]
 
 
-# ── Students ───────────────────────────────────────────────
+# ── Users ──────────────────────────────────────────────────
 
-async def list_students() -> list[dict[str, Any]]:
+async def list_users() -> list[dict[str, Any]]:
     pool = await get_pool()
-    rows = await pool.fetch("SELECT id, name FROM students ORDER BY name, created_at DESC")
+    rows = await pool.fetch("SELECT id, name FROM users ORDER BY name, created_at DESC")
     return [_row_to_dict(r) for r in rows]
 
 
-async def get_student_profile(student_id: str) -> dict[str, Any] | None:
+async def get_user_profile(user_id: str) -> dict[str, Any] | None:
     pool = await get_pool()
     row = await pool.fetchrow(
-        "SELECT id, name, age, gender, learned_timetables FROM students WHERE id = $1",
-        UUID(student_id),
+        "SELECT id, name, age, gender, learned_timetables FROM users WHERE id = $1",
+        UUID(user_id),
     )
     return _row_to_dict(row) if row else None
 
 
-async def get_student_performance_stats(student_id: str) -> dict[str, Any]:
+async def get_user_performance_stats(user_id: str) -> dict[str, Any]:
     pool = await get_pool()
     rows = await pool.fetch(
         """SELECT qt.code AS quiz_type_code,
@@ -237,8 +237,8 @@ async def get_student_performance_stats(student_id: str) -> dict[str, Any]:
                   qs.score_percent, qs.started_at, qs.finished_at
            FROM quiz_sessions qs
            LEFT JOIN quiz_types qt ON qs.quiz_type_id = qt.id
-           WHERE qs.student_id = $1""",
-        UUID(student_id),
+           WHERE qs.user_id = $1""",
+        UUID(user_id),
     )
     from app.services.stats import aggregate_performance
 
@@ -246,8 +246,8 @@ async def get_student_performance_stats(student_id: str) -> dict[str, Any]:
     return aggregate_performance(session_rows)
 
 
-async def update_student_profile(
-    student_id: str,
+async def update_user_profile(
+    user_id: str,
     name: str,
     age: int | None,
     gender: str | None,
@@ -256,11 +256,11 @@ async def update_student_profile(
     pool = await get_pool()
     sanitized = _sanitize_learned_timetables(learned_timetables)
     row = await pool.fetchrow(
-        """UPDATE students
+        """UPDATE users
            SET name = $2, age = $3, gender = $4, learned_timetables = $5
            WHERE id = $1
            RETURNING id, name, age, gender, learned_timetables""",
-        UUID(student_id),
+        UUID(user_id),
         name.strip(),
         age,
         gender,
@@ -274,10 +274,10 @@ async def update_student_profile(
 async def create_session(
     difficulty: str,
     total_questions: int,
-    student_id: str | None = None,
-    student_name: str | None = None,
-    student_age: int | None = None,
-    student_gender: str | None = None,
+    user_id: str | None = None,
+    user_name: str | None = None,
+    user_age: int | None = None,
+    user_gender: str | None = None,
     learned_timetables: list[int] | None = None,
     quiz_type_code: str | None = None,
 ) -> dict[str, Any]:
@@ -286,38 +286,38 @@ async def create_session(
     quiz_type_id_str = await get_quiz_type_id_by_code(code)
     quiz_type_id = UUID(quiz_type_id_str)
 
-    resolved_student_id: UUID | None = None
+    resolved_user_id: UUID | None = None
     resolved_timetables = list(DEFAULT_LEARNED_TIMETABLES)
 
     async with pool.acquire() as conn:
-        if student_id:
+        if user_id:
             existing = await conn.fetchrow(
-                "SELECT id, learned_timetables FROM students WHERE id = $1",
-                UUID(student_id),
+                "SELECT id, learned_timetables FROM users WHERE id = $1",
+                UUID(user_id),
             )
             if existing:
-                resolved_student_id = existing["id"]
+                resolved_user_id = existing["id"]
                 resolved_timetables = _sanitize_learned_timetables(list(existing["learned_timetables"] or []))
-        elif student_name and student_name.strip():
+        elif user_name and user_name.strip():
             resolved_timetables = _sanitize_learned_timetables(learned_timetables)
             inserted = await conn.fetchrow(
-                """INSERT INTO students (name, age, gender, learned_timetables)
+                """INSERT INTO users (name, age, gender, learned_timetables)
                    VALUES ($1, $2, $3, $4)
                    RETURNING id, learned_timetables""",
-                student_name.strip(),
-                student_age,
-                student_gender,
+                user_name.strip(),
+                user_age,
+                user_gender,
                 resolved_timetables,
             )
             if inserted:
-                resolved_student_id = inserted["id"]
+                resolved_user_id = inserted["id"]
                 resolved_timetables = _sanitize_learned_timetables(list(inserted["learned_timetables"] or []))
 
         session = await conn.fetchrow(
-            """INSERT INTO quiz_sessions (student_id, quiz_type_id, difficulty, total_questions)
+            """INSERT INTO quiz_sessions (user_id, quiz_type_id, difficulty, total_questions)
                VALUES ($1, $2, $3, $4)
                RETURNING id, quiz_type_id, difficulty, total_questions""",
-            resolved_student_id,
+            resolved_user_id,
             quiz_type_id,
             difficulty,
             total_questions,
@@ -377,14 +377,14 @@ async def insert_questions(
 
 async def list_sessions(quiz_type_code: str | None = None) -> list[dict[str, Any]]:
     pool = await get_pool()
-    query = """SELECT qs.id, qs.student_id, qs.difficulty,
+    query = """SELECT qs.id, qs.user_id, qs.difficulty,
                   qs.total_questions, qs.score_percent,
                   qs.started_at, qs.finished_at,
-                  s.name AS student_name,
+                  u.name AS user_name,
                   qt.code AS quiz_type_code,
                   qt.description AS quiz_type_description
            FROM quiz_sessions qs
-           LEFT JOIN students s ON qs.student_id = s.id
+           LEFT JOIN users u ON qs.user_id = u.id
            LEFT JOIN quiz_types qt ON qs.quiz_type_id = qt.id"""
     if quiz_type_code:
         query += " WHERE qt.code = $1"
@@ -404,12 +404,12 @@ async def get_session_by_id(session_id: str) -> dict[str, Any] | None:
     if not session:
         return None
 
-    student_name: str | None = None
-    if session["student_id"]:
-        student_row = await pool.fetchrow(
-            "SELECT name FROM students WHERE id = $1", session["student_id"]
+    user_name: str | None = None
+    if session["user_id"]:
+        user_row = await pool.fetchrow(
+            "SELECT name FROM users WHERE id = $1", session["user_id"]
         )
-        student_name = student_row["name"] if student_row else None
+        user_name = user_row["name"] if user_row else None
 
     qt_code: str | None = None
     qt_row = await pool.fetchrow(
@@ -440,7 +440,7 @@ async def get_session_by_id(session_id: str) -> dict[str, Any] | None:
         answers_by_qid[str(a["question_id"])] = ad
 
     session_dict = _row_to_dict(session)
-    session_dict["studentName"] = student_name
+    session_dict["userName"] = user_name
     session_dict["quizTypeCode"] = qt_code
 
     questions_out = []
@@ -564,7 +564,7 @@ async def submit_answer(
 
 async def get_database_statistics() -> dict[str, int]:
     pool = await get_pool()
-    tables = ["quiz_types", "students", "quiz_sessions", "questions", "answers"]
+    tables = ["quiz_types", "users", "quiz_sessions", "questions", "answers"]
     result: dict[str, int] = {}
     for table in tables:
         row = await pool.fetchrow(f"SELECT count(*)::int AS cnt FROM {table}")  # noqa: S608
@@ -579,7 +579,7 @@ async def get_database_table_rows(table: str) -> list[dict[str, Any]]:
     pool = await get_pool()
     order = {
         "quiz_types": "ORDER BY code",
-        "students": "ORDER BY created_at DESC",
+        "users": "ORDER BY created_at DESC",
         "quiz_sessions": "ORDER BY started_at DESC",
         "questions": "ORDER BY position",
         "answers": "ORDER BY answered_at DESC",
@@ -606,45 +606,45 @@ async def delete_all_schema_data() -> None:
             await conn.execute("DELETE FROM answers")
             await conn.execute("DELETE FROM questions")
             await conn.execute("DELETE FROM quiz_sessions")
-            await conn.execute("DELETE FROM students")
+            await conn.execute("DELETE FROM users")
 
 
-# ── Auth / Students (v2.1) ────────────────────────────────
+# ── Auth / Users (v2.1) ─────────────────────────────
 
-async def find_student_by_email(email: str) -> dict[str, Any] | None:
+async def find_user_by_email(email: str) -> dict[str, Any] | None:
     pool = await get_pool()
     row = await pool.fetchrow(
         """SELECT id, name, email, password_hash, role, auth_provider,
                   google_sub, birthday, age, gender, learned_timetables
-           FROM students WHERE email = $1""",
+           FROM users WHERE email = $1""",
         email,
     )
     return _row_to_dict(row) if row else None
 
 
-async def find_student_by_google_sub(google_sub: str) -> dict[str, Any] | None:
+async def find_user_by_google_sub(google_sub: str) -> dict[str, Any] | None:
     pool = await get_pool()
     row = await pool.fetchrow(
         """SELECT id, name, email, password_hash, role, auth_provider,
                   google_sub, birthday, age, gender, learned_timetables
-           FROM students WHERE google_sub = $1""",
+           FROM users WHERE google_sub = $1""",
         google_sub,
     )
     return _row_to_dict(row) if row else None
 
 
-async def find_student_by_id(student_id: str) -> dict[str, Any] | None:
+async def find_user_by_id(user_id: str) -> dict[str, Any] | None:
     pool = await get_pool()
     row = await pool.fetchrow(
         """SELECT id, name, email, password_hash, role, auth_provider,
                   google_sub, birthday, age, gender, learned_timetables
-           FROM students WHERE id = $1""",
-        UUID(student_id),
+           FROM users WHERE id = $1""",
+        UUID(user_id),
     )
     return _row_to_dict(row) if row else None
 
 
-async def create_student_with_auth(
+async def create_user_with_auth(
     name: str,
     email: str,
     password_hash: str | None,
@@ -658,7 +658,7 @@ async def create_student_with_auth(
     pool = await get_pool()
     sanitized = _sanitize_learned_timetables(learned_timetables)
     row = await pool.fetchrow(
-        """INSERT INTO students (name, email, password_hash, role, auth_provider,
+        """INSERT INTO users (name, email, password_hash, role, auth_provider,
                                  google_sub, birthday, gender, learned_timetables)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            RETURNING id, name, email, role, auth_provider, google_sub,
@@ -676,40 +676,40 @@ async def create_student_with_auth(
     return _row_to_dict(row)
 
 
-async def update_student_google_link(
-    student_id: str, google_sub: str, auth_provider: str = "both"
+async def update_user_google_link(
+    user_id: str, google_sub: str, auth_provider: str = "both"
 ) -> None:
     pool = await get_pool()
     await pool.execute(
-        "UPDATE students SET google_sub = $2, auth_provider = $3 WHERE id = $1",
-        UUID(student_id),
+        "UPDATE users SET google_sub = $2, auth_provider = $3 WHERE id = $1",
+        UUID(user_id),
         google_sub,
         auth_provider,
     )
 
 
-async def update_student_password(student_id: str, password_hash: str) -> None:
+async def update_user_password(user_id: str, password_hash: str) -> None:
     pool = await get_pool()
     await pool.execute(
-        "UPDATE students SET password_hash = $2 WHERE id = $1",
-        UUID(student_id),
+        "UPDATE users SET password_hash = $2 WHERE id = $1",
+        UUID(user_id),
         password_hash,
     )
 
 
-async def list_students_admin() -> list[dict[str, Any]]:
-    """List all students with auth columns (admin view)."""
+async def list_users_admin() -> list[dict[str, Any]]:
+    """List all users with auth columns (admin view)."""
     pool = await get_pool()
     rows = await pool.fetch(
         """SELECT id, name, email, role, auth_provider, birthday, age,
                   gender, learned_timetables, created_at
-           FROM students ORDER BY name, created_at DESC"""
+           FROM users ORDER BY name, created_at DESC"""
     )
     return [_row_to_dict(r) for r in rows]
 
 
-async def update_student_profile_v2(
-    student_id: str,
+async def update_user_profile_v2(
+    user_id: str,
     name: str,
     age: int | None,
     gender: str | None,
@@ -722,7 +722,7 @@ async def update_student_profile_v2(
     pool = await get_pool()
     sanitized = _sanitize_learned_timetables(learned_timetables)
     row = await pool.fetchrow(
-        """UPDATE students
+        """UPDATE users
            SET name = $2, age = $3, gender = $4, learned_timetables = $5,
                birthday = $6,
                email = COALESCE($7, email),
@@ -730,7 +730,7 @@ async def update_student_profile_v2(
            WHERE id = $1
            RETURNING id, name, email, role, auth_provider, birthday, age,
                      gender, learned_timetables""",
-        UUID(student_id),
+        UUID(user_id),
         name.strip(),
         age,
         gender,
@@ -751,20 +751,20 @@ async def delete_session(session_id: str) -> bool:
     return result == "DELETE 1"
 
 
-async def list_sessions_for_student(student_id: str, quiz_type_code: str | None = None) -> list[dict[str, Any]]:
-    """List sessions filtered by student_id."""
+async def list_sessions_for_user(user_id: str, quiz_type_code: str | None = None) -> list[dict[str, Any]]:
+    """List sessions filtered by user_id."""
     pool = await get_pool()
-    query = """SELECT qs.id, qs.student_id, qs.difficulty,
+    query = """SELECT qs.id, qs.user_id, qs.difficulty,
                   qs.total_questions, qs.score_percent,
                   qs.started_at, qs.finished_at,
-                  s.name AS student_name,
+                  u.name AS user_name,
                   qt.code AS quiz_type_code,
                   qt.description AS quiz_type_description
            FROM quiz_sessions qs
-           LEFT JOIN students s ON qs.student_id = s.id
+           LEFT JOIN users u ON qs.user_id = u.id
            LEFT JOIN quiz_types qt ON qs.quiz_type_id = qt.id
-           WHERE qs.student_id = $1"""
-    params: list[Any] = [UUID(student_id)]
+           WHERE qs.user_id = $1"""
+    params: list[Any] = [UUID(user_id)]
     if quiz_type_code:
         query += " AND qt.code = $2"
         params.append(quiz_type_code)

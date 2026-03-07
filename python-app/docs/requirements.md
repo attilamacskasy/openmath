@@ -11,7 +11,7 @@ Build a menu-driven Python console application that replicates the currently imp
 	- Resume in-progress quiz
 	- History
 	- Session detail
-	- Active student
+	- Active user
 	- Profile
 	- User guide
 	- Database statistics
@@ -39,49 +39,49 @@ Build a menu-driven Python console application that replicates the currently imp
 	- selected quiz type
 	- difficulty
 	- total questions (default 10, CLI guard 1..30)
-	- student context (active existing or newly created)
+	- user context (active existing or newly created)
 - Persist generated questions immediately.
 - Submit answers one by one and persist each answer.
 - Recompute session counters from stored answers:
 	- `correct_count`, `wrong_count`, `score_percent`
 - Mark `finished_at` when answer count reaches `total_questions`.
 
-### Student Context
-- Maintain in-process `active_student_id`.
-- Allow selecting or clearing active student from DB list.
-- When active student is selected, Start flow reuses student profile and learned timetables.
+### User Context
+- Maintain in-process `active_user_id`.
+- Allow selecting or clearing active user from DB list.
+- When active user is selected, Start flow reuses user profile and learned timetables.
 
 ### Profile
-- Load and edit student fields:
+- Load and edit user fields:
 	- `name` (required)
 	- `age` (nullable, 4..120)
 	- `gender` (nullable enum: female|male|other|prefer_not_say)
 	- `learned_timetables` (at least one item)
-- Show student performance stats:
+- Show user performance stats:
 	- overall bucket
 	- by quiz type buckets
 
 ### History and Session Detail
 - History grouped by quiz type.
-- Optional filter to active student.
+- Optional filter to active user.
 - Display per-session metrics:
 	- score percent
 	- started/finished timestamps
 	- time spent
 	- average time per question
-- Session detail shows all questions, student answers, correctness status, and summary.
+- Session detail shows all questions, user answers, correctness status, and summary.
 
 ### Resume
 - List unfinished sessions (`finished_at is null`).
 - Resume by session id and continue unanswered questions.
 
 ### Database Statistics
-- Show counts for `quiz_types`, `students`, `quiz_sessions`, `questions`, `answers`.
+- Show counts for `quiz_types`, `users`, `quiz_sessions`, `questions`, `answers`.
 - Allow viewing raw rows for each table.
 
 ### Danger Zone Reset
 - Require exact typed confirmation: `DELETE ALL DATA`.
-- Delete data from `answers`, `questions`, `quiz_sessions`, `students`.
+- Delete data from `answers`, `questions`, `quiz_sessions`, `users`.
 - Keep `quiz_types` intact.
 
 ### Input Validation
@@ -92,7 +92,7 @@ Build a menu-driven Python console application that replicates the currently imp
 - PostgreSQL is authoritative for all persistent state.
 - No file-based persistence for domain entities.
 - Schema behavior must match current web implementation:
-	- `students`, `quiz_types`, `quiz_sessions`, `questions`, `answers`
+	- `users`, `quiz_types`, `quiz_sessions`, `questions`, `answers`
 	- same uniqueness, foreign keys, and check constraints
 
 ## Non-Functional

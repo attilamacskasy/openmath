@@ -121,7 +121,7 @@ export class AdminComponent implements OnInit {
 
   tableOptions = [
     { label: 'Quiz Types', value: 'quiz_types' },
-    { label: 'Students', value: 'students' },
+    { label: 'Users', value: 'users' },
     { label: 'Quiz Sessions', value: 'quiz_sessions' },
     { label: 'Questions', value: 'questions' },
     { label: 'Answers', value: 'answers' },
@@ -132,7 +132,7 @@ export class AdminComponent implements OnInit {
     if (!s) return [];
     return [
       { label: 'Quiz Types', count: s.quiz_types },
-      { label: 'Students', count: s.students },
+      { label: 'Users', count: s.users },
       { label: 'Sessions', count: s.quiz_sessions },
       { label: 'Questions', count: s.questions },
       { label: 'Answers', count: s.answers },
@@ -158,7 +158,7 @@ export class AdminComponent implements OnInit {
 
   confirmReset() {
     this.confirm.confirm({
-      message: 'This will permanently delete ALL student and session data. Quiz types will be preserved. Are you sure?',
+      message: 'This will permanently delete ALL user and session data. Quiz types will be preserved. Are you sure?',
       header: 'Delete All Data',
       icon: 'pi pi-exclamation-triangle',
       acceptButtonStyleClass: 'p-button-danger',

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-ALLOWED_STATS_TABLES = ("quiz_types", "students", "quiz_sessions", "questions", "answers")
+ALLOWED_STATS_TABLES = ("quiz_types", "users", "quiz_sessions", "questions", "answers")
 
 
 def list_quiz_types(conn) -> list[dict[str, Any]]:
@@ -46,36 +46,36 @@ def upsert_quiz_type(conn, code: str, description: str) -> dict[str, Any]:
         return cur.fetchone()
 
 
-def list_students(conn) -> list[dict[str, Any]]:
+def list_users(conn) -> list[dict[str, Any]]:
     with conn.cursor() as cur:
         cur.execute(
             """
             SELECT id, name
-            FROM students
+            FROM users
             ORDER BY name ASC, created_at DESC
             """
         )
         return cur.fetchall()
 
 
-def get_student_profile(conn, student_id: str) -> dict[str, Any] | None:
+def get_user_profile(conn, user_id: str) -> dict[str, Any] | None:
     with conn.cursor() as cur:
         cur.execute(
             """
             SELECT id, name, age, gender, learned_timetables
-            FROM students
+            FROM users
             WHERE id = %s
             """,
-            (student_id,),
+            (user_id,),
         )
         return cur.fetchone()
 
 
-def update_student_profile(conn, student_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+def update_user_profile(conn, user_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
     with conn.cursor() as cur:
         cur.execute(
             """
-            UPDATE students
+            UPDATE users
             SET name = %s,
                 age = %s,
                 gender = %s,
@@ -88,7 +88,7 @@ def update_student_profile(conn, student_id: str, payload: dict[str, Any]) -> di
                 payload.get("age"),
                 payload.get("gender"),
                 payload["learned_timetables"],
-                student_id,
+                user_id,
             ),
         )
         return cur.fetchone()
@@ -100,11 +100,11 @@ def get_quiz_type_by_code(conn, code: str) -> dict[str, Any] | None:
         return cur.fetchone()
 
 
-def create_student(conn, payload: dict[str, Any]) -> dict[str, Any]:
+def create_user(conn, payload: dict[str, Any]) -> dict[str, Any]:
     with conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO students (name, age, gender, learned_timetables)
+            INSERT INTO users (name, age, gender, learned_timetables)
             VALUES (%s, %s, %s, %s)
             RETURNING id, name, age, gender, learned_timetables
             """,
@@ -117,11 +117,11 @@ def create_session(conn, payload: dict[str, Any]) -> dict[str, Any]:
     with conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO quiz_sessions (student_id, quiz_type_id, difficulty, total_questions)
+            INSERT INTO quiz_sessions (user_id, quiz_type_id, difficulty, total_questions)
             VALUES (%s, %s, %s, %s)
-            RETURNING id, student_id, quiz_type_id, difficulty, total_questions, correct_count, wrong_count, score_percent, started_at, finished_at
+            RETURNING id, user_id, quiz_type_id, difficulty, total_questions, correct_count, wrong_count, score_percent, started_at, finished_at
             """,
-            (payload.get("student_id"), payload["quiz_type_id"], payload["difficulty"], payload["total_questions"]),
+            (payload.get("user_id"), payload["quiz_type_id"], payload["difficulty"], payload["total_questions"]),
         )
         return cur.fetchone()
 
@@ -154,7 +154,7 @@ def get_session(conn, session_id: str) -> dict[str, Any] | None:
         cur.execute(
             """
             SELECT qs.id,
-                   qs.student_id,
+                   qs.user_id,
                    qs.quiz_type_id,
                    qs.difficulty,
                    qs.total_questions,
@@ -163,10 +163,10 @@ def get_session(conn, session_id: str) -> dict[str, Any] | None:
                    qs.score_percent,
                    qs.started_at,
                    qs.finished_at,
-                   s.name AS student_name,
+                   s.name AS user_name,
                    qt.code AS quiz_type_code
             FROM quiz_sessions qs
-            LEFT JOIN students s ON s.id = qs.student_id
+            LEFT JOIN users s ON s.id = qs.user_id
             LEFT JOIN quiz_types qt ON qt.id = qs.quiz_type_id
             WHERE qs.id = %s
             """,
@@ -207,17 +207,17 @@ def list_sessions(conn) -> list[dict[str, Any]]:
         cur.execute(
             """
             SELECT qs.id,
-                   qs.student_id,
+                   qs.user_id,
                    qs.difficulty,
                    qs.total_questions,
                    qs.score_percent,
                    qs.started_at,
                    qs.finished_at,
-                   s.name AS student_name,
+                   s.name AS user_name,
                    qt.code AS quiz_type_code,
                    qt.description AS quiz_type_description
             FROM quiz_sessions qs
-            LEFT JOIN students s ON s.id = qs.student_id
+            LEFT JOIN users s ON s.id = qs.user_id
             LEFT JOIN quiz_types qt ON qt.id = qs.quiz_type_id
             ORDER BY qs.started_at DESC
             """
@@ -301,7 +301,7 @@ def get_database_statistics(conn) -> dict[str, int]:
             """
             SELECT
               (SELECT COUNT(*)::int FROM quiz_types) AS quiz_types,
-              (SELECT COUNT(*)::int FROM students) AS students,
+              (SELECT COUNT(*)::int FROM users) AS users,
               (SELECT COUNT(*)::int FROM quiz_sessions) AS quiz_sessions,
               (SELECT COUNT(*)::int FROM questions) AS questions,
               (SELECT COUNT(*)::int FROM answers) AS answers
@@ -324,10 +324,10 @@ def delete_all_schema_data(conn) -> None:
         cur.execute("DELETE FROM answers")
         cur.execute("DELETE FROM questions")
         cur.execute("DELETE FROM quiz_sessions")
-        cur.execute("DELETE FROM students")
+        cur.execute("DELETE FROM users")
 
 
-def get_student_sessions_for_stats(conn, student_id: str) -> list[dict[str, Any]]:
+def get_user_sessions_for_stats(conn, user_id: str) -> list[dict[str, Any]]:
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -341,8 +341,8 @@ def get_student_sessions_for_stats(conn, student_id: str) -> list[dict[str, Any]
                    qs.finished_at
             FROM quiz_sessions qs
             LEFT JOIN quiz_types qt ON qt.id = qs.quiz_type_id
-            WHERE qs.student_id = %s
+            WHERE qs.user_id = %s
             """,
-            (student_id,),
+            (user_id,),
         )
         return cur.fetchall()

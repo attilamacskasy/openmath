@@ -108,10 +108,10 @@ def create_session_with_questions(
     *,
     difficulty: str,
     total_questions: int,
-    student_id: str | None,
-    student_name: str | None,
-    student_age: int | None,
-    student_gender: str | None,
+    user_id: str | None,
+    user_name: str | None,
+    user_age: int | None,
+    user_gender: str | None,
     learned_timetables: list[int] | None,
     quiz_type_code: str | None,
 ) -> dict[str, Any]:
@@ -126,32 +126,32 @@ def create_session_with_questions(
     if not quiz_type:
         raise ValueError(f"Quiz type not found: {resolved_quiz_type_code}")
 
-    resolved_student_id: str | None = None
+    resolved_user_id: str | None = None
     resolved_learned_timetables = DEFAULT_LEARNED_TIMETABLES.copy()
 
-    if student_id:
-        existing_student = repo.get_student_profile(conn, student_id)
-        if existing_student:
-            resolved_student_id = existing_student["id"]
-            resolved_learned_timetables = sanitize_learned_timetables(existing_student["learned_timetables"])
-    elif student_name and student_name.strip():
-        normalized_gender = student_gender if student_gender in ALLOWED_GENDERS else "prefer_not_say"
+    if user_id:
+        existing_user = repo.get_user_profile(conn, user_id)
+        if existing_user:
+            resolved_user_id = existing_user["id"]
+            resolved_learned_timetables = sanitize_learned_timetables(existing_user["learned_timetables"])
+    elif user_name and user_name.strip():
+        normalized_gender = user_gender if user_gender in ALLOWED_GENDERS else "prefer_not_say"
         resolved_learned_timetables = sanitize_learned_timetables(learned_timetables)
-        student = repo.create_student(
+        user = repo.create_user(
             conn,
             {
-                "name": student_name.strip(),
-                "age": student_age,
+                "name": user_name.strip(),
+                "age": user_age,
                 "gender": normalized_gender,
                 "learned_timetables": resolved_learned_timetables,
             },
         )
-        resolved_student_id = student["id"]
+        resolved_user_id = user["id"]
 
     session = repo.create_session(
         conn,
         {
-            "student_id": resolved_student_id,
+            "user_id": resolved_user_id,
             "quiz_type_id": quiz_type["id"],
             "difficulty": difficulty,
             "total_questions": total_questions,
@@ -227,7 +227,7 @@ def get_session_detail(conn, session_id: str) -> dict[str, Any] | None:
     return {
         "session": {
             "id": session["id"],
-            "studentId": session["student_id"],
+            "userId": session["user_id"],
             "quizTypeId": session["quiz_type_id"],
             "difficulty": session["difficulty"],
             "totalQuestions": session["total_questions"],
@@ -236,7 +236,7 @@ def get_session_detail(conn, session_id: str) -> dict[str, Any] | None:
             "scorePercent": float(session["score_percent"]),
             "startedAt": session["started_at"],
             "finishedAt": session["finished_at"],
-            "studentName": session["student_name"],
+            "userName": session["user_name"],
             "quizTypeCode": session["quiz_type_code"],
         },
         "questions": questions,
@@ -291,13 +291,13 @@ def list_sessions(conn) -> list[dict[str, Any]]:
     return [
         {
             "id": row["id"],
-            "student_id": row["student_id"],
+            "user_id": row["user_id"],
             "difficulty": row["difficulty"],
             "total_questions": row["total_questions"],
             "score_percent": float(row["score_percent"]),
             "started_at": row["started_at"],
             "finished_at": row["finished_at"],
-            "student_name": row["student_name"],
+            "user_name": row["user_name"],
             "quiz_type_code": row["quiz_type_code"],
             "quiz_type_description": row["quiz_type_description"],
         }
@@ -305,8 +305,8 @@ def list_sessions(conn) -> list[dict[str, Any]]:
     ]
 
 
-def get_student_performance_stats(conn, student_id: str) -> dict[str, Any]:
-    session_rows = repo.get_student_sessions_for_stats(conn, student_id)
+def get_user_performance_stats(conn, user_id: str) -> dict[str, Any]:
+    session_rows = repo.get_user_sessions_for_stats(conn, user_id)
 
     def create_bucket(code: str, description: str) -> dict[str, Any]:
         return {

@@ -12,7 +12,7 @@ from app.queries import (
     get_session_by_id,
     insert_questions,
     list_sessions,
-    list_sessions_for_student,
+    list_sessions_for_user,
 )
 from app.schemas.session import CreateSessionRequest
 from app.services.difficulty import is_difficulty
@@ -28,10 +28,10 @@ async def get_sessions(
     user: dict[str, Any] = Depends(get_current_user),
     quiz_type_code: str | None = Query(default=None),
 ):
-    # Students see only own sessions; admins see all
+    # Users see only own sessions; admins see all
     if user.get("role") == "admin":
         return await list_sessions(quiz_type_code=quiz_type_code)
-    return await list_sessions_for_student(user["sub"], quiz_type_code=quiz_type_code)
+    return await list_sessions_for_user(user["sub"], quiz_type_code=quiz_type_code)
 
 
 @router.get("/sessions/{session_id}")
@@ -39,10 +39,10 @@ async def get_session(session_id: str, user: dict[str, Any] = Depends(get_curren
     result = await get_session_by_id(session_id)
     if not result:
         raise HTTPException(status_code=404, detail="Session not found")
-    # Students can only access own sessions
+    # Users can only access own sessions
     if user.get("role") != "admin":
         s = result.get("session", {})
-        if str(s.get("student_id", "")) != user["sub"]:
+        if str(s.get("user_id", "")) != user["sub"]:
             raise HTTPException(status_code=403, detail="Access denied")
     return result
 
@@ -71,10 +71,10 @@ async def post_session(body: CreateSessionRequest, user: dict[str, Any] = Depend
     session = await create_session(
         difficulty=body.difficulty,
         total_questions=body.totalQuestions,
-        student_id=body.studentId,
-        student_name=body.studentName,
-        student_age=body.studentAge,
-        student_gender=body.studentGender,
+        user_id=body.userId,
+        user_name=body.userName,
+        user_age=body.userAge,
+        user_gender=body.userGender,
         learned_timetables=body.learnedTimetables,
         quiz_type_code=quiz_type_code,
     )

@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import lifespan
-from app.routers import answers, auth, quiz_types, sessions, stats, students
+from app.routers import answers, auth, quiz_types, sessions, stats, users
 
 app = FastAPI(
     title="OpenMath API",
@@ -23,7 +23,7 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api")
 app.include_router(quiz_types.router, prefix="/api")
-app.include_router(students.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
 app.include_router(sessions.router, prefix="/api")
 app.include_router(answers.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")

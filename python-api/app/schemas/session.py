@@ -11,10 +11,10 @@ class CreateSessionRequest(BaseModel):
     difficulty: str = Field(pattern=r"^(low|medium|hard)$")
     totalQuestions: int = Field(ge=1, le=50, alias="totalQuestions")
     quizTypeCode: str | None = Field(default=None, alias="quizTypeCode")
-    studentId: str | None = Field(default=None, alias="studentId")
-    studentName: str | None = Field(default=None, alias="studentName")
-    studentAge: int | None = Field(default=None, ge=4, le=120, alias="studentAge")
-    studentGender: str | None = Field(default=None, alias="studentGender")
+    userId: str | None = Field(default=None, alias="userId")
+    userName: str | None = Field(default=None, alias="userName")
+    userAge: int | None = Field(default=None, ge=4, le=120, alias="userAge")
+    userGender: str | None = Field(default=None, alias="userGender")
     learnedTimetables: list[int] | None = Field(default=None, alias="learnedTimetables")
 
     model_config = {"populate_by_name": True}
@@ -34,13 +34,13 @@ class CreateSessionResponse(BaseModel):
 
 class SessionListItem(BaseModel):
     id: UUID
-    student_id: UUID | None = None
+    user_id: UUID | None = None
     difficulty: str
     total_questions: int
     score_percent: float
     started_at: datetime
     finished_at: datetime | None = None
-    student_name: str | None = None
+    user_name: str | None = None
     quiz_type_code: str | None = None
 
 
@@ -59,7 +59,7 @@ class SessionDetailQuestion(BaseModel):
 
 class SessionDetailSession(BaseModel):
     id: UUID
-    studentId: UUID | None = None
+    userId: UUID | None = None
     quizTypeId: UUID
     difficulty: str
     totalQuestions: int
@@ -68,7 +68,7 @@ class SessionDetailSession(BaseModel):
     scorePercent: str
     startedAt: datetime
     finishedAt: datetime | None = None
-    studentName: str | None = None
+    userName: str | None = None
     quizTypeCode: str | None = None
 
 

@@ -12,7 +12,7 @@ export const quizTypes = pgTable(
   (table) => [unique("quiz_types_code_unique").on(table.code)]
 )
 
-export const students = pgTable("students", {
+export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
   age: integer("age"),
@@ -21,15 +21,15 @@ export const students = pgTable("students", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 },
   (table) => [
-    check("students_age_check", sql`${table.age} is null or ${table.age} between 4 and 120`),
-    check("students_gender_check", sql`${table.gender} is null or ${table.gender} in ('female', 'male', 'other', 'prefer_not_say')`),
+    check("users_age_check", sql`${table.age} is null or ${table.age} between 4 and 120`),
+    check("users_gender_check", sql`${table.gender} is null or ${table.gender} in ('female', 'male', 'other', 'prefer_not_say')`),
   ])
 
 export const quizSessions = pgTable(
   "quiz_sessions",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    studentId: uuid("student_id").references(() => students.id, { onDelete: "set null" }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
     quizTypeId: uuid("quiz_type_id").notNull().references(() => quizTypes.id),
     difficulty: text("difficulty").notNull(),
     totalQuestions: integer("total_questions").notNull(),

@@ -16,9 +16,9 @@
           </button>
         </li>
         <li>
-          <button class="table-button" type="button" @click="openTable('students')">
-            <strong>students:</strong>
-            <span>{{ stats.students }}</span>
+          <button class="table-button" type="button" @click="openTable('users')">
+            <strong>users:</strong>
+            <span>{{ stats.users }}</span>
           </button>
         </li>
         <li>
@@ -68,7 +68,7 @@
 
     <section class="card danger-zone">
       <h2>Danger Zone</h2>
-      <p>Delete all data from students, quiz_sessions, questions, and answers.</p>
+      <p>Delete all data from users, quiz_sessions, questions, and answers.</p>
       <button class="delete-button" type="button" @click="isConfirmOpen = true">Delete all data</button>
       <p v-if="dangerMessage" :class="dangerError ? 'error' : 'success'">{{ dangerMessage }}</p>
     </section>
@@ -96,12 +96,12 @@
 
 <script setup lang="ts">
 const api = useApi()
-type StatsTableName = "quiz_types" | "students" | "quiz_sessions" | "questions" | "answers"
+type StatsTableName = "quiz_types" | "users" | "quiz_sessions" | "questions" | "answers"
 type TableRow = Record<string, unknown>
 
 const loading = ref(true)
 const errorMessage = ref("")
-const stats = ref<{ quiz_types: number; students: number; quiz_sessions: number; questions: number; answers: number } | null>(null)
+const stats = ref<{ quiz_types: number; users: number; quiz_sessions: number; questions: number; answers: number } | null>(null)
 const selectedTable = ref<StatsTableName | null>(null)
 const tableRows = ref<TableRow[]>([])
 const tableColumns = ref<string[]>([])

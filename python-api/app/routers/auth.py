@@ -18,14 +18,14 @@ from app.auth import (
 )
 from app.dependencies import get_current_user
 from app.queries import (
-    create_student_with_auth,
-    find_student_by_email,
-    find_student_by_google_sub,
-    find_student_by_id,
-    update_student_google_link,
+    create_user_with_auth,
+    find_user_by_email,
+    find_user_by_google_sub,
+    find_user_by_id,
+    update_user_google_link,
 )
 from app.schemas.auth import (
-    AdminCreateStudentRequest,
+    AdminCreateUserRequest,
     AuthResponse,
     AuthUser,
     GoogleAuthRequest,
@@ -37,27 +37,27 @@ from app.schemas.auth import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _build_auth_user(student: dict) -> AuthUser:
-    birthday = student.get("birthday")
-    age = calculate_age(birthday) if birthday else student.get("age")
+def _build_auth_user(user_record: dict) -> AuthUser:
+    birthday = user_record.get("birthday")
+    age = calculate_age(birthday) if birthday else user_record.get("age")
     return AuthUser(
-        id=str(student["id"]),
-        name=student["name"],
-        email=student.get("email", ""),
-        role=student.get("role", "student"),
+        id=str(user_record["id"]),
+        name=user_record["name"],
+        email=user_record.get("email", ""),
+        role=user_record.get("role", "student"),
         age=age,
-        authProvider=student.get("auth_provider", "local"),
+        authProvider=user_record.get("auth_provider", "local"),
     )
 
 
-def _build_tokens(student: dict) -> tuple[str, str]:
-    sid = str(student["id"])
+def _build_tokens(user_record: dict) -> tuple[str, str]:
+    sid = str(user_record["id"])
     return (
         create_access_token(
             sub=sid,
-            email=student.get("email", ""),
-            name=student["name"],
-            role=student.get("role", "student"),
+            email=user_record.get("email", ""),
+            name=user_record["name"],
+            role=user_record.get("role", "student"),
         ),
         create_refresh_token(sub=sid),
     )
@@ -67,7 +67,7 @@ def _build_tokens(student: dict) -> tuple[str, str]:
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(body: RegisterRequest) -> AuthResponse:
-    existing = await find_student_by_email(body.email)
+    existing = await find_user_by_email(body.email)
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -84,7 +84,7 @@ async def register(body: RegisterRequest) -> AuthResponse:
     pw_hash = hash_password(body.password)
     timetables = body.learnedTimetables or [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-    student = await create_student_with_auth(
+    user_record = await create_user_with_auth(
         name=body.name,
         email=body.email,
         password_hash=pw_hash,
@@ -95,11 +95,11 @@ async def register(body: RegisterRequest) -> AuthResponse:
         learned_timetables=timetables,
     )
 
-    access, refresh = _build_tokens(student)
+    access, refresh = _build_tokens(user_record)
     return AuthResponse(
         accessToken=access,
         refreshToken=refresh,
-        user=_build_auth_user(student),
+        user=_build_auth_user(user_record),
     )
 
 
@@ -107,18 +107,18 @@ async def register(body: RegisterRequest) -> AuthResponse:
 
 @router.post("/login")
 async def login(body: LoginRequest) -> AuthResponse:
-    student = await find_student_by_email(body.email)
-    if not student or not student.get("password_hash"):
+    user_record = await find_user_by_email(body.email)
+    if not user_record or not user_record.get("password_hash"):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    if not verify_password(body.password, student["password_hash"]):
+    if not verify_password(body.password, user_record["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    access, refresh = _build_tokens(student)
+    access, refresh = _build_tokens(user_record)
     return AuthResponse(
         accessToken=access,
         refreshToken=refresh,
-        user=_build_auth_user(student),
+        user=_build_auth_user(user_record),
     )
 
 
@@ -156,19 +156,19 @@ async def google_auth(body: GoogleAuthRequest) -> AuthResponse:
     is_new_user = False
 
     # Look up by google_sub first, then email
-    student = await find_student_by_google_sub(google_sub)
-    if not student:
-        student = await find_student_by_email(email)
-        if student:
+    user_record = await find_user_by_google_sub(google_sub)
+    if not user_record:
+        user_record = await find_user_by_email(email)
+        if user_record:
             # Link Google account to existing local account
-            await update_student_google_link(
-                str(student["id"]), google_sub, "both"
+            await update_user_google_link(
+                str(user_record["id"]), google_sub, "both"
             )
-            student["auth_provider"] = "both"
-            student["google_sub"] = google_sub
+            user_record["auth_provider"] = "both"
+            user_record["google_sub"] = google_sub
         else:
-            # Create new student from Google profile
-            student = await create_student_with_auth(
+            # Create new user from Google profile
+            user_record = await create_user_with_auth(
                 name=name,
                 email=email,
                 password_hash=None,
@@ -178,11 +178,11 @@ async def google_auth(body: GoogleAuthRequest) -> AuthResponse:
             )
             is_new_user = True
 
-    access, refresh = _build_tokens(student)
+    access, refresh = _build_tokens(user_record)
     return AuthResponse(
         accessToken=access,
         refreshToken=refresh,
-        user=_build_auth_user(student),
+        user=_build_auth_user(user_record),
         isNewUser=is_new_user,
     )
 
@@ -195,11 +195,11 @@ async def refresh(body: RefreshRequest) -> dict:
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
-    student = await find_student_by_id(payload["sub"])
-    if not student:
+    user_record = await find_user_by_id(payload["sub"])
+    if not user_record:
         raise HTTPException(status_code=401, detail="User not found")
 
-    access, new_refresh = _build_tokens(student)
+    access, new_refresh = _build_tokens(user_record)
     return {"accessToken": access, "refreshToken": new_refresh}
 
 
@@ -207,21 +207,21 @@ async def refresh(body: RefreshRequest) -> dict:
 
 @router.get("/me")
 async def me(user: dict = Depends(get_current_user)) -> dict:
-    student = await find_student_by_id(user["sub"])
-    if not student:
+    user_record = await find_user_by_id(user["sub"])
+    if not user_record:
         raise HTTPException(status_code=404, detail="User not found")
 
-    birthday = student.get("birthday")
-    age = calculate_age(birthday) if birthday else student.get("age")
+    birthday = user_record.get("birthday")
+    age = calculate_age(birthday) if birthday else user_record.get("age")
 
     return {
-        "id": str(student["id"]),
-        "name": student["name"],
-        "email": student.get("email", ""),
-        "role": student.get("role", "student"),
+        "id": str(user_record["id"]),
+        "name": user_record["name"],
+        "email": user_record.get("email", ""),
+        "role": user_record.get("role", "student"),
         "age": age,
         "birthday": str(birthday) if birthday else None,
-        "gender": student.get("gender"),
-        "authProvider": student.get("auth_provider", "local"),
-        "learnedTimetables": student.get("learned_timetables", []),
+        "gender": user_record.get("gender"),
+        "authProvider": user_record.get("auth_provider", "local"),
+        "learnedTimetables": user_record.get("learned_timetables", []),
     }

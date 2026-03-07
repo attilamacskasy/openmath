@@ -3,8 +3,8 @@
     <h1>Quiz History</h1>
 
     <label class="filter-toggle">
-      <input v-model="filterToActiveStudent" type="checkbox" />
-      <span>Show only active student results</span>
+      <input v-model="filterToActiveUser" type="checkbox" />
+      <span>Show only active user results</span>
     </label>
 
     <section v-if="historyGroups.length > 0" v-for="group in historyGroups" :key="group.code" class="group-card">
@@ -24,24 +24,24 @@
 const api = useApi()
 type SessionItem = {
   id: string
-  student_id: string | null
+  user_id: string | null
   difficulty: string
   total_questions: number
   score_percent: number
   started_at: string
   finished_at: string | null
-  student_name: string | null
+  user_name: string | null
   quiz_type_code: string | null
 }
 
 const sessions = ref<SessionItem[]>([])
 const quizTypes = ref<Array<{ id: string; code: string; description: string }>>([])
-const currentStudentId = useState<string>("currentStudentId", () => "")
-const filterToActiveStudent = ref(true)
+const currentUserId = useState<string>("currentUserId", () => "")
+const filterToActiveUser = ref(true)
 
 const visibleSessions = computed(() => {
-  if (filterToActiveStudent.value && currentStudentId.value) {
-    return sessions.value.filter((session) => session.student_id === currentStudentId.value)
+  if (filterToActiveUser.value && currentUserId.value) {
+    return sessions.value.filter((session) => session.user_id === currentUserId.value)
   }
 
   return sessions.value

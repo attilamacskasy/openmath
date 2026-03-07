@@ -1,13 +1,13 @@
 export function useApi() {
-  type StatsTableName = "quiz_types" | "students" | "quiz_sessions" | "questions" | "answers"
+  type StatsTableName = "quiz_types" | "users" | "quiz_sessions" | "questions" | "answers"
 
   const createSession = (payload: {
     difficulty: string
     totalQuestions: number
-    studentId?: string
-    studentName?: string
-    studentAge?: number
-    studentGender?: "female" | "male" | "other" | "prefer_not_say"
+    userId?: string
+    userName?: string
+    userAge?: number
+    userGender?: "female" | "male" | "other" | "prefer_not_say"
     learnedTimetables?: number[]
     quizTypeCode?: string
   }) => {
@@ -21,11 +21,11 @@ export function useApi() {
     })
   }
 
-  const listStudents = () => {
-    return $fetch<Array<{ id: string; name: string }>>("/api/students")
+  const listUsers = () => {
+    return $fetch<Array<{ id: string; name: string }>>("/api/users")
   }
 
-  const getStudentProfile = (id: string) => {
+  const getUserProfile = (id: string) => {
     return $fetch<{
       id: string
       name: string
@@ -58,10 +58,10 @@ export function useApi() {
           total_time_seconds: number
         }>
       }
-    }>(`/api/students/${id}`)
+    }>(`/api/users/${id}`)
   }
 
-  const updateStudentProfile = (
+  const updateUserProfile = (
     id: string,
     payload: {
       name: string
@@ -76,7 +76,7 @@ export function useApi() {
       age: number | null
       gender: "female" | "male" | "other" | "prefer_not_say" | null
       learned_timetables: number[]
-    }>(`/api/students/${id}`, {
+    }>(`/api/users/${id}`, {
       method: "PATCH",
       body: payload,
     })
@@ -100,13 +100,13 @@ export function useApi() {
     return $fetch<
       Array<{
         id: string
-        student_id: string | null
+        user_id: string | null
         difficulty: string
         total_questions: number
         score_percent: number
         started_at: string
         finished_at: string | null
-        student_name: string | null
+        user_name: string | null
         quiz_type_code: string | null
       }>
     >(
@@ -119,7 +119,7 @@ export function useApi() {
   }
 
   const getDatabaseStats = () => {
-    return $fetch<{ quiz_types: number; students: number; quiz_sessions: number; questions: number; answers: number }>("/api/stats")
+    return $fetch<{ quiz_types: number; users: number; quiz_sessions: number; questions: number; answers: number }>("/api/stats")
   }
 
   const getDatabaseTableRows = (table: StatsTableName) => {
@@ -135,9 +135,9 @@ export function useApi() {
 
   return {
     createSession,
-    listStudents,
-    getStudentProfile,
-    updateStudentProfile,
+    listUsers,
+    getUserProfile,
+    updateUserProfile,
     listQuizTypes,
     submitAnswer,
     listSessions,

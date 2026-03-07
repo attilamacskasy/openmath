@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { createError, readBody } from "h3"
-import { updateStudentProfile } from "~~/layers/db/server/db/queries"
+import { updateUserProfile } from "~~/layers/db/server/db/queries"
 
 const patchSchema = z.object({
   name: z.string().trim().min(1),
@@ -13,17 +13,17 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, "id")
 
   if (!id) {
-    throw createError({ statusCode: 400, statusMessage: "Student id is required" })
+    throw createError({ statusCode: 400, statusMessage: "User id is required" })
   }
 
   const body = await readBody(event)
   const parsed = patchSchema.safeParse(body)
 
   if (!parsed.success) {
-    throw createError({ statusCode: 400, statusMessage: "Invalid student profile payload" })
+    throw createError({ statusCode: 400, statusMessage: "Invalid user profile payload" })
   }
 
-  const updated = await updateStudentProfile(id, {
+  const updated = await updateUserProfile(id, {
     name: parsed.data.name,
     age: parsed.data.age ?? undefined,
     gender: parsed.data.gender ?? undefined,
@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
   })
 
   if (!updated) {
-    throw createError({ statusCode: 404, statusMessage: "Student not found" })
+    throw createError({ statusCode: 404, statusMessage: "User not found" })
   }
 
   return {

@@ -9,10 +9,10 @@ import {
   PreviewQuestion,
 } from '../../models/quiz-type.model';
 import {
-  StudentListItem,
-  StudentProfile,
-  UpdateStudentRequest,
-} from '../../models/student.model';
+  UserListItem,
+  UserProfile,
+  UpdateUserRequest,
+} from '../../models/user.model';
 import {
   CreateSessionRequest,
   CreateSessionResponse,
@@ -24,7 +24,7 @@ import {
   SubmitAnswerResponse,
 } from '../../models/answer.model';
 import { DatabaseStats } from '../../models/stats.model';
-import { AdminCreateStudentRequest } from '../../models/auth.model';
+import { AdminCreateUserRequest } from '../../models/auth.model';
 
 export interface QuizTypesResponse {
   types: QuizType[];
@@ -77,28 +77,28 @@ export class ApiService {
     return this.http.post<PreviewQuestion[]>(`${this.baseUrl}/admin/quiz-types/${id}/preview`, {});
   }
 
-  // ── Students ────────────────────────────────────────────
-  getStudents(): Observable<StudentListItem[]> {
-    return this.http.get<StudentListItem[]>(`${this.baseUrl}/students`);
+  // ── Users ───────────────────────────────────────────────
+  getUsers(): Observable<UserListItem[]> {
+    return this.http.get<UserListItem[]>(`${this.baseUrl}/users`);
   }
 
-  getStudent(id: string): Observable<StudentProfile> {
-    return this.http.get<StudentProfile>(`${this.baseUrl}/students/${id}`);
+  getUser(id: string): Observable<UserProfile> {
+    return this.http.get<UserProfile>(`${this.baseUrl}/users/${id}`);
   }
 
-  updateStudent(
+  updateUser(
     id: string,
-    payload: UpdateStudentRequest
+    payload: UpdateUserRequest
   ): Observable<Record<string, any>> {
-    return this.http.patch(`${this.baseUrl}/students/${id}`, payload);
+    return this.http.patch(`${this.baseUrl}/users/${id}`, payload);
   }
 
-  createStudent(payload: AdminCreateStudentRequest): Observable<any> {
-    return this.http.post(`${this.baseUrl}/students`, payload);
+  createUser(payload: AdminCreateUserRequest): Observable<any> {
+    return this.http.post(`${this.baseUrl}/users`, payload);
   }
 
-  resetStudentPassword(studentId: string, password: string): Observable<any> {
-    return this.http.post(`${this.baseUrl}/students/${studentId}/reset-password`, { password });
+  resetUserPassword(userId: string, password: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/users/${userId}/reset-password`, { password });
   }
 
   // ── Sessions ────────────────────────────────────────────

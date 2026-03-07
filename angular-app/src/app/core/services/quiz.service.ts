@@ -1,6 +1,6 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { QuestionOut } from '../../models/session.model';
-import { StudentListItem } from '../../models/student.model';
+import { UserListItem } from '../../models/user.model';
 import { ApiService } from './api.service';
 
 export interface ActiveQuiz {
@@ -16,37 +16,37 @@ export class QuizService {
   private api = inject(ApiService);
 
   private _activeQuiz = signal<ActiveQuiz | null>(null);
-  private _currentStudentId = signal<string>('');
-  private _studentsDirectory = signal<StudentListItem[]>([]);
+  private _currentUserId = signal<string>('');
+  private _usersDirectory = signal<UserListItem[]>([]);
 
   readonly activeQuiz = this._activeQuiz.asReadonly();
-  readonly currentStudentId = this._currentStudentId.asReadonly();
-  readonly studentsDirectory = this._studentsDirectory.asReadonly();
+  readonly currentUserId = this._currentUserId.asReadonly();
+  readonly usersDirectory = this._usersDirectory.asReadonly();
 
-  readonly currentStudent = computed(() => {
-    const id = this._currentStudentId();
-    return this._studentsDirectory().find((s) => s.id === id) || null;
+  readonly currentUser = computed(() => {
+    const id = this._currentUserId();
+    return this._usersDirectory().find((s) => s.id === id) || null;
   });
 
   setActiveQuiz(quiz: ActiveQuiz | null) {
     this._activeQuiz.set(quiz);
   }
 
-  setCurrentStudent(id: string) {
-    this._currentStudentId.set(id);
+  setCurrentUser(id: string) {
+    this._currentUserId.set(id);
   }
 
-  setStudentsDirectory(students: StudentListItem[]) {
-    this._studentsDirectory.set(students);
+  setUsersDirectory(users: UserListItem[]) {
+    this._usersDirectory.set(users);
   }
 
-  refreshStudents(): void {
-    this.api.getStudents().subscribe((students) => {
-      this._studentsDirectory.set(students);
-      // Auto-reset if selected student no longer exists
-      const id = this._currentStudentId();
-      if (id && !students.find((s) => s.id === id)) {
-        this._currentStudentId.set('');
+  refreshUsers(): void {
+    this.api.getUsers().subscribe((users) => {
+      this._usersDirectory.set(users);
+      // Auto-reset if selected user no longer exists
+      const id = this._currentUserId();
+      if (id && !users.find((s) => s.id === id)) {
+        this._currentUserId.set('');
       }
     });
   }

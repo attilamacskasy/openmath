@@ -56,7 +56,7 @@ interface DropdownGroup {
                   inputId="age-filter"
                   (onChange)="onFiltersChanged()"
                 ></p-checkbox>
-                <label for="age-filter" class="text-sm">Show quizzes for my age ({{ studentAge() }})</label>
+                <label for="age-filter" class="text-sm">Show quizzes for my age ({{ userAge() }})</label>
               </div>
             }
             <div class="flex align-items-center gap-2">
@@ -167,14 +167,14 @@ export class StartComponent implements OnInit {
 
   difficulties = ['low', 'medium', 'hard'];
 
-  studentAge = computed(() => {
+  userAge = computed(() => {
     const user = this.auth.currentUser();
     return user?.age ?? null;
   });
 
   /** Only show the age-filter checkbox for school-aged children (4–18) */
   hasAge = computed(() => {
-    const age = this.studentAge();
+    const age = this.userAge();
     return age !== null && age >= 4 && age <= 18;
   });
 
@@ -219,7 +219,7 @@ export class StartComponent implements OnInit {
   }
 
   loadQuizTypes() {
-    const age = this.filterByAge && this.hasAge() ? this.studentAge()! : undefined;
+    const age = this.filterByAge && this.hasAge() ? this.userAge()! : undefined;
     this.api.getQuizTypes(age).subscribe((resp: QuizTypesResponse) => {
       this.allQuizTypes.set(resp.types);
       this.categories.set(resp.categories);
@@ -275,7 +275,7 @@ export class StartComponent implements OnInit {
         difficulty: this.difficulty,
         totalQuestions: this.totalQuestions,
         quizTypeCode: this.quizTypeCode,
-        studentId: user?.id || undefined,
+        userId: user?.id || undefined,
       })
       .subscribe({
         next: (res) => {

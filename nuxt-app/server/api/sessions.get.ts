@@ -4,23 +4,23 @@ export default defineEventHandler(async () => {
   const sessions = await listSessions()
   return sessions.map((session: {
     id: string
-    studentId: string | null
+    userId: string | null
     difficulty: string
     totalQuestions: number
     scorePercent: string | number
     startedAt: Date
     finishedAt: Date | null
-    studentName: string | null
+    userName: string | null
     quizTypeCode: string | null
   }) => ({
     id: session.id,
-    student_id: session.studentId,
+    user_id: session.userId,
     difficulty: session.difficulty,
     total_questions: session.totalQuestions,
     score_percent: Number(session.scorePercent),
     started_at: session.startedAt,
     finished_at: session.finishedAt,
-    student_name: session.studentName,
+    user_name: session.userName,
     quiz_type_code: session.quizTypeCode,
   }))
 })

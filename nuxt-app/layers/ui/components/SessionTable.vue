@@ -2,7 +2,7 @@
   <table class="session-table">
     <thead>
       <tr>
-        <th>Student</th>
+        <th>User</th>
         <th>Difficulty</th>
         <th>Questions</th>
         <th>Time Spent</th>
@@ -14,7 +14,7 @@
     </thead>
     <tbody>
       <tr v-for="row in sessions" :key="row.id">
-        <td>{{ row.student_name || "-" }}</td>
+        <td>{{ row.user_name || "-" }}</td>
         <td>
           <NuxtLink :to="`/history/${row.id}`">{{ row.difficulty }}</NuxtLink>
         </td>
@@ -41,7 +41,7 @@ defineProps<{
     score_percent: number
     started_at: string
     finished_at: string | null
-    student_name: string | null
+    user_name: string | null
   }>
 }>()
 

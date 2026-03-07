@@ -1,7 +1,7 @@
 <template>
   <main class="page" v-if="sessionDetail">
     <h1>Session {{ sessionDetail.session.id }}</h1>
-    <p><strong>Student:</strong> {{ sessionDetail.session.studentName || "-" }}</p>
+    <p><strong>User:</strong> {{ sessionDetail.session.userName || "-" }}</p>
     <ResultSummary
       :correct="sessionDetail.session.correctCount"
       :wrong="sessionDetail.session.wrongCount"
@@ -15,7 +15,7 @@
           <th>#</th>
           <th>Question</th>
           <th>Correct</th>
-          <th>Student</th>
+          <th>User</th>
           <th>Status</th>
         </tr>
       </thead>

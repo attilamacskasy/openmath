@@ -12,11 +12,11 @@
       <NuxtLink to="/user-guide">User Guide</NuxtLink>
       <NuxtLink to="/database-stats">Database Statistics</NuxtLink>
 
-      <label class="student-label">
-        Active student
-        <select v-model="currentStudentId" class="student-select">
-          <option value="">No student</option>
-          <option v-for="student in studentsDirectory" :key="student.id" :value="student.id">{{ student.name }}</option>
+      <label class="user-label">
+        Active user
+        <select v-model="currentUserId" class="user-select">
+          <option value="">No user</option>
+          <option v-for="user in usersDirectory" :key="user.id" :value="user.id">{{ user.name }}</option>
         </select>
       </label>
     </header>
@@ -36,14 +36,14 @@
 <script setup lang="ts">
 const api = useApi()
 
-const currentStudentId = useState<string>("currentStudentId", () => "")
-const studentsDirectory = useState<Array<{ id: string; name: string }>>("studentsDirectory", () => [])
+const currentUserId = useState<string>("currentUserId", () => "")
+const usersDirectory = useState<Array<{ id: string; name: string }>>("usersDirectory", () => [])
 
 onMounted(async () => {
-  studentsDirectory.value = await api.listStudents()
+  usersDirectory.value = await api.listUsers()
 
-  if (currentStudentId.value && !studentsDirectory.value.some((student) => student.id === currentStudentId.value)) {
-    currentStudentId.value = ""
+  if (currentUserId.value && !usersDirectory.value.some((user) => user.id === currentUserId.value)) {
+    currentUserId.value = ""
   }
 })
 </script>
@@ -85,14 +85,14 @@ onMounted(async () => {
   font-weight: 700;
 }
 
-.student-label {
+.user-label {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.student-select {
+.user-select {
   border: 1px solid #cbd5e1;
   border-radius: 0.5rem;
   padding: 0.35rem 0.6rem;

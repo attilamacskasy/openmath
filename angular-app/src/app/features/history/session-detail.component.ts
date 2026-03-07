@@ -24,8 +24,8 @@ import { DurationPipe } from '../../shared/pipes/duration.pipe';
       <p-card styleClass="mb-3">
         <div class="grid">
           <div class="col-6 md:col-3">
-            <div class="text-500 text-sm">Student</div>
-            <div class="font-semibold">{{ detail()!.session.studentName || '—' }}</div>
+            <div class="text-500 text-sm">User</div>
+            <div class="font-semibold">{{ detail()!.session.userName || '—' }}</div>
           </div>
           <div class="col-6 md:col-3">
             <div class="text-500 text-sm">Difficulty</div>

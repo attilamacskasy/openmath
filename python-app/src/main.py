@@ -40,18 +40,18 @@ def ensure_quiz_type_integrity(interactive: bool = True) -> None:
         print(f"- {row['code']} ({row['description']})")
 
 
-def get_active_student_display(state: AppState) -> str:
-    if not state.active_student_id:
-        return "No student"
+def get_active_user_display(state: AppState) -> str:
+    if not state.active_user_id:
+        return "No user"
 
     with get_connection() as conn:
-        student = repo.get_student_profile(conn, state.active_student_id)
+        user = repo.get_user_profile(conn, state.active_user_id)
 
-    if not student:
-        state.active_student_id = None
-        return "No student"
+    if not user:
+        state.active_user_id = None
+        return "No user"
 
-    return student["name"]
+    return user["name"]
 
 
 def prompt_difficulty() -> str:
@@ -114,23 +114,23 @@ def start_quiz(state: AppState) -> None:
     difficulty = prompt_difficulty()
     total_questions = views.ask_int("Total questions (1-30, default 10): ", minimum=1, maximum=30, default=10)
 
-    student_id = state.active_student_id
-    student_name = None
-    student_age = None
-    student_gender = None
+    user_id = state.active_user_id
+    user_name = None
+    user_age = None
+    user_gender = None
     learned_timetables = None
 
-    if not student_id:
-        student_name = views.ask_text("New student name: ")
-        student_age_raw = views.ask_text("Age (blank to skip): ", allow_empty=True)
-        if student_age_raw:
+    if not user_id:
+        user_name = views.ask_text("New user name: ")
+        user_age_raw = views.ask_text("Age (blank to skip): ", allow_empty=True)
+        if user_age_raw:
             try:
-                student_age = int(student_age_raw)
+                user_age = int(user_age_raw)
             except ValueError:
                 print("Invalid age, skipping.")
-                student_age = None
+                user_age = None
 
-        student_gender = prompt_gender(allow_empty=True) or "prefer_not_say"
+        user_gender = prompt_gender(allow_empty=True) or "prefer_not_say"
         learned_timetables = prompt_learned_timetables()
 
     with get_connection() as conn:
@@ -138,10 +138,10 @@ def start_quiz(state: AppState) -> None:
             conn,
             difficulty=difficulty,
             total_questions=total_questions,
-            student_id=student_id,
-            student_name=student_name,
-            student_age=student_age,
-            student_gender=student_gender,
+            user_id=user_id,
+            user_name=user_name,
+            user_age=user_age,
+            user_gender=user_gender,
             learned_timetables=learned_timetables,
             quiz_type_code=quiz_type_code,
         )
@@ -198,8 +198,8 @@ def resume_quiz(state: AppState) -> None:
     with get_connection() as conn:
         sessions = [row for row in services.list_sessions(conn) if row["finished_at"] is None]
 
-    if state.active_student_id:
-        sessions = [row for row in sessions if row["student_id"] == state.active_student_id]
+    if state.active_user_id:
+        sessions = [row for row in sessions if row["user_id"] == state.active_user_id]
 
     if not sessions:
         print("No in-progress sessions.")
@@ -210,7 +210,7 @@ def resume_quiz(state: AppState) -> None:
         [
             (
                 row["id"],
-                f"{row['id']} | {row['quiz_type_code']} | {row['student_name'] or '-'} | {row['difficulty']}",
+                f"{row['id']} | {row['quiz_type_code']} | {row['user_name'] or '-'} | {row['difficulty']}",
             )
             for row in sessions
         ],
@@ -223,14 +223,14 @@ def resume_quiz(state: AppState) -> None:
 
 def history(state: AppState) -> None:
     views.print_header("History")
-    only_active = views.ask_yes_no("Show only active student results?", default_yes=True)
+    only_active = views.ask_yes_no("Show only active user results?", default_yes=True)
 
     with get_connection() as conn:
         sessions = services.list_sessions(conn)
         quiz_types = repo.list_quiz_types(conn)
 
-    if only_active and state.active_student_id:
-        sessions = [row for row in sessions if row["student_id"] == state.active_student_id]
+    if only_active and state.active_user_id:
+        sessions = [row for row in sessions if row["user_id"] == state.active_user_id]
 
     if not quiz_types:
         print("No quiz types available.")
@@ -258,7 +258,7 @@ def history(state: AppState) -> None:
             finished_label = row["finished_at"].isoformat(sep=" ", timespec="seconds") if row["finished_at"] else "In progress"
 
             print(
-                f"- {row['id']} | student={row['student_name'] or '-'} | diff={row['difficulty']} | "
+                f"- {row['id']} | user={row['user_name'] or '-'} | diff={row['difficulty']} | "
                 f"questions={row['total_questions']} | score={row['score_percent']:.2f}% | "
                 f"time={duration} | avg={avg} | finished={finished_label}"
             )
@@ -277,7 +277,7 @@ def session_detail() -> None:
 
     session = detail["session"]
     print(f"Session: {session['id']}")
-    print(f"Student: {session['studentName'] or '-'}")
+    print(f"User: {session['userName'] or '-'}")
     print(f"Correct/Wrong: {session['correctCount']} / {session['wrongCount']}")
     print(f"Score: {session['scorePercent']:.2f}%")
 
@@ -291,68 +291,68 @@ def session_detail() -> None:
         status = "Pending"
         if row["answer"]:
             status = "Correct" if row["answer"]["isCorrect"] else "Wrong"
-        print(f"#{row['position']}: {question_text} | correct={row['correct']} | student={answer_value} | {status}")
+        print(f"#{row['position']}: {question_text} | correct={row['correct']} | user={answer_value} | {status}")
 
 
-def active_student_menu(state: AppState) -> None:
-    views.print_header("Active Student")
+def active_user_menu(state: AppState) -> None:
+    views.print_header("Active User")
     with get_connection() as conn:
-        students = repo.list_students(conn)
+        users = repo.list_users(conn)
 
-    if state.active_student_id:
-        current = next((row for row in students if row["id"] == state.active_student_id), None)
-        print(f"Current active student: {(current['name'] if current else '-')}")
+    if state.active_user_id:
+        current = next((row for row in users if row["id"] == state.active_user_id), None)
+        print(f"Current active user: {(current['name'] if current else '-')}")
     else:
-        print("Current active student: No student")
+        print("Current active user: No user")
 
-    options = [("", "No student")] + [(row["id"], row["name"]) for row in students]
-    selected = views.choose_from_list("Select active student: ", options)
+    options = [("" , "No user")] + [(row["id"], row["name"]) for row in users]
+    selected = views.choose_from_list("Select active user: ", options)
     if selected is None:
         return
 
-    state.active_student_id = selected or None
-    print("Active student updated.")
+    state.active_user_id = selected or None
+    print("Active user updated.")
 
 
 def profile(state: AppState) -> None:
     views.print_header("Profile")
-    if not state.active_student_id:
-        print("Select an active student first.")
+    if not state.active_user_id:
+        print("Select an active user first.")
         return
 
     with get_connection() as conn:
-        student = repo.get_student_profile(conn, state.active_student_id)
-        if not student:
-            print("Student not found.")
-            state.active_student_id = None
+        user = repo.get_user_profile(conn, state.active_user_id)
+        if not user:
+            print("User not found.")
+            state.active_user_id = None
             return
 
-        stats = services.get_student_performance_stats(conn, state.active_student_id)
+        stats = services.get_user_performance_stats(conn, state.active_user_id)
 
-        print(f"Name: {student['name']}")
-        print(f"Age: {student['age']}")
-        print(f"Gender: {student['gender']}")
-        print(f"Learned timetables: {student['learned_timetables']}")
+        print(f"Name: {user['name']}")
+        print(f"Age: {user['age']}")
+        print(f"Gender: {user['gender']}")
+        print(f"Learned timetables: {user['learned_timetables']}")
 
         if views.ask_yes_no("Edit profile?", default_yes=False):
-            new_name = views.ask_text(f"Name [{student['name']}]: ", allow_empty=True) or student["name"]
+            new_name = views.ask_text(f"Name [{user['name']}]: ", allow_empty=True) or user["name"]
 
-            age_input = views.ask_text(f"Age [{student['age'] if student['age'] is not None else ''}]: ", allow_empty=True)
-            new_age = student["age"] if age_input == "" else int(age_input)
+            age_input = views.ask_text(f"Age [{user['age'] if user['age'] is not None else ''}]: ", allow_empty=True)
+            new_age = user["age"] if age_input == "" else int(age_input)
 
             gender_input = views.ask_text(
-                f"Gender [{student['gender'] or 'prefer_not_say'}] (female/male/other/prefer_not_say or blank): ",
+                f"Gender [{user['gender'] or 'prefer_not_say'}] (female/male/other/prefer_not_say or blank): ",
                 allow_empty=True,
             )
-            new_gender = student["gender"] if gender_input == "" else gender_input
+            new_gender = user["gender"] if gender_input == "" else gender_input
             if new_gender not in services.ALLOWED_GENDERS:
                 new_gender = None
 
-            new_tables = prompt_learned_timetables(student["learned_timetables"])
+            new_tables = prompt_learned_timetables(user["learned_timetables"])
 
-            updated = repo.update_student_profile(
+            updated = repo.update_user_profile(
                 conn,
-                state.active_student_id,
+                state.active_user_id,
                 {
                     "name": new_name.strip(),
                     "age": new_age,
@@ -382,11 +382,11 @@ def profile(state: AppState) -> None:
 
 def user_guide() -> None:
     views.print_header("User Guide")
-    print("1) Select Active student or keep No student.")
+    print("1) Select Active user or keep No user.")
     print("2) Start quiz: choose quiz type, difficulty, and question count.")
     print("3) Answer all questions; results are stored in PostgreSQL.")
     print("4) Use History and Session detail for review and audit trail.")
-    print("5) Use Profile to edit student fields and view performance stats.")
+    print("5) Use Profile to edit user fields and view performance stats.")
     print("6) Use Database statistics and Danger zone carefully.")
 
 
@@ -396,7 +396,7 @@ def database_statistics() -> None:
         stats = repo.get_database_statistics(conn)
 
     print(
-        f"quiz_types={stats['quiz_types']}, students={stats['students']}, quiz_sessions={stats['quiz_sessions']}, "
+        f"quiz_types={stats['quiz_types']}, users={stats['users']}, quiz_sessions={stats['quiz_sessions']}, "
         f"questions={stats['questions']}, answers={stats['answers']}"
     )
 
@@ -414,7 +414,7 @@ def database_statistics() -> None:
 
 def danger_zone() -> None:
     views.print_header("Danger Zone")
-    print("This will delete all rows in students, quiz_sessions, questions, and answers.")
+    print("This will delete all rows in users, quiz_sessions, questions, and answers.")
     confirmation = views.ask_text("Type DELETE ALL DATA to confirm: ", allow_empty=True)
     if confirmation != "DELETE ALL DATA":
         print("Confirmation mismatch. Canceled.")
@@ -431,14 +431,14 @@ def main() -> None:
 
     while True:
         try:
-            active_student_display = get_active_student_display(state)
+            active_user_display = get_active_user_display(state)
             views.print_header("OpenMath CLI")
-            print(f"Active student: {active_student_display}")
+            print(f"Active user: {active_user_display}")
             print("1. Start quiz")
             print("2. Resume in-progress quiz")
             print("3. History")
             print("4. Session detail")
-            print("5. Active student")
+            print("5. Active user")
             print("6. Profile")
             print("7. User guide")
             print("8. Database statistics")
@@ -460,7 +460,7 @@ def main() -> None:
             elif choice == 4:
                 session_detail()
             elif choice == 5:
-                active_student_menu(state)
+                active_user_menu(state)
             elif choice == 6:
                 profile(state)
             elif choice == 7:

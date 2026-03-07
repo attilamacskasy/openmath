@@ -1,4 +1,4 @@
-"""Pydantic schemas for students."""
+"""Pydantic schemas for users."""
 
 from typing import Any
 from uuid import UUID
@@ -6,7 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
-class StudentListItem(BaseModel):
+class UserListItem(BaseModel):
     id: UUID
     name: str
 
@@ -24,21 +24,21 @@ class PerformanceBucket(BaseModel):
     total_time_seconds: float = 0.0
 
 
-class StudentPerformanceStats(BaseModel):
+class UserPerformanceStats(BaseModel):
     overall: PerformanceBucket
     by_quiz_type: list[PerformanceBucket]
 
 
-class StudentProfileOut(BaseModel):
+class UserProfileOut(BaseModel):
     id: UUID
     name: str
     age: int | None = None
     gender: str | None = None
     learned_timetables: list[int]
-    stats: StudentPerformanceStats
+    stats: UserPerformanceStats
 
 
-class UpdateStudentRequest(BaseModel):
+class UpdateUserRequest(BaseModel):
     name: str = Field(min_length=1)
     age: int | None = Field(default=None, ge=4, le=120)
     gender: str | None = Field(default=None, pattern=r"^(female|male|other|prefer_not_say)$")
@@ -46,7 +46,7 @@ class UpdateStudentRequest(BaseModel):
     birthday: str | None = None  # ISO date string YYYY-MM-DD
 
 
-class StudentOut(BaseModel):
+class UserOut(BaseModel):
     id: UUID
     name: str
     age: int | None = None

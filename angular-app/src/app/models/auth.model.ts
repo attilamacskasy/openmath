@@ -37,7 +37,7 @@ export interface RefreshRequest {
   refreshToken: string;
 }
 
-export interface AdminCreateStudentRequest {
+export interface AdminCreateUserRequest {
   name: string;
   email: string;
   password: string;

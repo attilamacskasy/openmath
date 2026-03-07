@@ -2,18 +2,18 @@
 
 ## Ready
 - [ ] Implement PostgreSQL connection and transaction helpers.
-- [ ] Add repository layer for students, quiz types, sessions, questions, answers.
+- [ ] Add repository layer for users, quiz types, sessions, questions, answers.
 - [ ] Implement main menu loop with all parity menu items.
-- [ ] Implement Active student selection/clear flow.
+- [ ] Implement Active user selection/clear flow.
 - [ ] Implement Start quiz flow with:
 	- [ ] quiz type selection
 	- [ ] difficulty selection
 	- [ ] question count input
-	- [ ] new student profile capture when no active student
+	- [ ] new user profile capture when no active user
 - [ ] Implement question generator parity for both quiz types.
 - [ ] Implement answer submit flow with idempotent insert and session recompute.
 - [ ] Implement Resume in-progress sessions flow.
-- [ ] Implement History grouped by quiz type with active-student filter toggle.
+- [ ] Implement History grouped by quiz type with active-user filter toggle.
 - [ ] Implement Session detail view with per-question status.
 - [ ] Implement Profile edit flow and performance stats rendering.
 - [ ] Implement Database statistics and table row browsing.

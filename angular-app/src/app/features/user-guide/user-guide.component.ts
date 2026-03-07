@@ -79,10 +79,10 @@ import { AuthService } from '../../core/services/auth.service';
 
         @if (auth.isAdmin()) {
           <section>
-            <h3>Admin — Student Management</h3>
+            <h3>Admin — User Management</h3>
             <p>
-              The <strong>Students</strong> page lets you view all registered students, create
-              new student accounts with email/password, and reset passwords. You can assign
+              The <strong>Users</strong> page lets you view all registered users, create
+              new user accounts with email/password, and reset passwords. You can assign
               roles (<em>student</em> or <em>admin</em>) when creating accounts.
             </p>
           </section>
@@ -91,8 +91,8 @@ import { AuthService } from '../../core/services/auth.service';
             <h3>Admin — Database &amp; Statistics</h3>
             <ul>
               <li>The <strong>Admin</strong> page shows database statistics and allows browsing raw table data.</li>
-              <li>Use "Delete All Data" (with confirmation) to reset all student and session data while keeping quiz type definitions.</li>
-              <li>Admins can see all students' sessions in <strong>History</strong> and delete individual sessions.</li>
+              <li>Use "Delete All Data" (with confirmation) to reset all user and session data while keeping quiz type definitions.</li>
+              <li>Admins can see all users' sessions in <strong>History</strong> and delete individual sessions.</li>
             </ul>
           </section>
         }

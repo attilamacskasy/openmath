@@ -23,18 +23,18 @@
 		- session creation
 		- question generation
 		- answer submission + scoring recompute
-		- student performance aggregation
+		- user performance aggregation
 		- database statistics + reset
 - `src/types.py`
 	- Dataclasses/typed dicts/enums for DTO contracts
 
 ## Core Runtime State
 In-process state should be minimal:
-- `active_student_id` (nullable)
+- `active_user_id` (nullable)
 - current menu context
 
 All domain state must come from DB reads:
-- students
+- users
 - quiz types
 - sessions
 - questions

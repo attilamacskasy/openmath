@@ -50,7 +50,7 @@ class AuthResponse(BaseModel):
     isNewUser: bool = False
 
 
-class AdminCreateStudentRequest(BaseModel):
+class AdminCreateUserRequest(BaseModel):
     name: str = Field(min_length=1)
     email: EmailStr
     password: str = Field(min_length=6)

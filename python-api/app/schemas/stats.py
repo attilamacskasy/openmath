@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 class DatabaseStats(BaseModel):
     quiz_types: int
-    students: int
+    users: int
     quiz_sessions: int
     questions: int
     answers: int
