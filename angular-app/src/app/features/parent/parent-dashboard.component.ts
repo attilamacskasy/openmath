@@ -7,6 +7,7 @@ import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { DialogModule } from 'primeng/dialog';
+import { InputTextModule } from 'primeng/inputtext';
 import { InputTextareaModule } from 'primeng/inputtextarea';
 import { DropdownModule } from 'primeng/dropdown';
 import { ToastModule } from 'primeng/toast';
@@ -25,6 +26,7 @@ import { ApiService } from '../../core/services/api.service';
     TableModule,
     TagModule,
     DialogModule,
+    InputTextModule,
     InputTextareaModule,
     DropdownModule,
     ToastModule,
@@ -32,7 +34,11 @@ import { ApiService } from '../../core/services/api.service';
   providers: [MessageService],
   template: `
     <p-toast></p-toast>
-    <h2 class="mt-0 mb-3">My Child</h2>
+    <div class="flex align-items-center justify-content-between mb-3">
+      <h2 class="mt-0 mb-0">My Child</h2>
+      <p-button label="Add Child" icon="pi pi-plus" size="small"
+        (onClick)="addChildDialogVisible = true"></p-button>
+    </div>
 
     @if (loading()) {
       <p class="text-500">Loading...</p>
@@ -43,7 +49,7 @@ import { ApiService } from '../../core/services/api.service';
     } @else {
       <!-- Child selector (if multiple) -->
       @if (children().length > 1) {
-        <div class="mb-3">
+        <div class="flex align-items-center gap-2 mb-3">
           <p-dropdown
             [options]="children()"
             [(ngModel)]="selectedChild"
@@ -51,6 +57,18 @@ import { ApiService } from '../../core/services/api.service';
             placeholder="Select child"
             (onChange)="onChildSelect($event.value)"
           ></p-dropdown>
+          @if (selectedChild) {
+            <p-button icon="pi pi-times" [rounded]="true" [text]="true" size="small"
+              severity="danger" pTooltip="Remove child"
+              (onClick)="removeChild(selectedChild)"></p-button>
+          }
+        </div>
+      } @else if (selectedChild) {
+        <div class="flex align-items-center gap-2 mb-3">
+          <span class="font-semibold">{{ selectedChild.name }}</span>
+          <p-button icon="pi pi-times" [rounded]="true" [text]="true" size="small"
+            severity="danger" pTooltip="Remove child"
+            (onClick)="removeChild(selectedChild)"></p-button>
         </div>
       }
 
@@ -224,6 +242,28 @@ import { ApiService } from '../../core/services/api.service';
         ></p-button>
       </ng-template>
     </p-dialog>
+
+    <!-- Add Child Dialog -->
+    <p-dialog
+      [(visible)]="addChildDialogVisible"
+      header="Add Child"
+      [modal]="true"
+      [style]="{ width: '400px' }"
+    >
+      <p class="mb-3">Enter the email address of your child to add them to your account.</p>
+      <div class="flex flex-column gap-1">
+        <label class="font-semibold">Child's Email *</label>
+        <input pInputText [(ngModel)]="addChildEmail" class="w-full" type="email"
+          placeholder="child@example.com" />
+      </div>
+      <ng-template pTemplate="footer">
+        <p-button label="Cancel" severity="secondary"
+          (onClick)="addChildDialogVisible = false"></p-button>
+        <p-button label="Add" icon="pi pi-plus"
+          (onClick)="addChild()" [disabled]="!addChildEmail"
+          [loading]="addChildLoading()"></p-button>
+      </ng-template>
+    </p-dialog>
   `,
 })
 export class ParentDashboardComponent implements OnInit {
@@ -242,7 +282,16 @@ export class ParentDashboardComponent implements OnInit {
   signoffComment = '';
   signoffSubmitting = signal(false);
 
+  addChildDialogVisible = false;
+  addChildEmail = '';
+  addChildLoading = signal(false);
+
   ngOnInit() {
+    this.loadChildren();
+  }
+
+  private loadChildren() {
+    this.loading.set(true);
     this.api.getParentChildren().subscribe({
       next: (c) => {
         this.children.set(c);
@@ -307,6 +356,37 @@ export class ParentDashboardComponent implements OnInit {
         this.signoffSubmitting.set(false);
         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to sign off' });
       },
+    });
+  }
+
+  addChild() {
+    this.addChildLoading.set(true);
+    this.api.addParentChild(this.addChildEmail).subscribe({
+      next: () => {
+        this.addChildLoading.set(false);
+        this.addChildDialogVisible = false;
+        this.addChildEmail = '';
+        this.messageService.add({ severity: 'success', summary: 'Added', detail: 'Child added to your account' });
+        this.loadChildren();
+      },
+      error: (err: any) => {
+        this.addChildLoading.set(false);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: err.error?.detail || 'Failed to add child' });
+      },
+    });
+  }
+
+  removeChild(child: any) {
+    this.api.removeParentChild(child.id).subscribe({
+      next: () => {
+        this.messageService.add({ severity: 'success', summary: 'Removed', detail: `${child.name} removed` });
+        this.loadChildren();
+        if (this.selectedChild?.id === child.id) {
+          this.selectedChild = null;
+          this.sessions.set([]);
+        }
+      },
+      error: () => this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to remove child' }),
     });
   }
 }

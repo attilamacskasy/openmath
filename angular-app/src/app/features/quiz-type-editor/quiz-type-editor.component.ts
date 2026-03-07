@@ -198,7 +198,7 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
           <div class="surface-50 p-3 border-round">
             <div class="font-semibold mb-2">Preview:</div>
             @for (p of dialogPreview(); track p.render) {
-              <div class="text-sm mb-1">• {{ p.render }} → {{ p.correct }}</div>
+              <div class="text-sm mb-1">• {{ p.render }} = {{ p.correct }}</div>
             }
           </div>
         }
@@ -229,7 +229,7 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
           @for (p of previewQuestions(); track p.render) {
             <div class="surface-50 p-3 border-round flex justify-content-between">
               <span class="font-semibold">{{ p.render }}</span>
-              <span class="text-green-600">→ {{ p.correct }}</span>
+              <span class="text-green-600">= {{ p.correct }}</span>
             </div>
           }
         </div>

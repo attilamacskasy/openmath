@@ -7,6 +7,7 @@ import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { DialogModule } from 'primeng/dialog';
+import { InputTextModule } from 'primeng/inputtext';
 import { InputTextareaModule } from 'primeng/inputtextarea';
 import { ListboxModule } from 'primeng/listbox';
 import { BadgeModule } from 'primeng/badge';
@@ -26,6 +27,7 @@ import { ApiService } from '../../core/services/api.service';
     TableModule,
     TagModule,
     DialogModule,
+    InputTextModule,
     InputTextareaModule,
     ListboxModule,
     BadgeModule,
@@ -43,6 +45,10 @@ import { ApiService } from '../../core/services/api.service';
         <!-- Left: Student list -->
         <div style="width: 280px; flex-shrink: 0">
           <p-card header="Students">
+            <ng-template pTemplate="subtitle">
+              <p-button label="Add Student" icon="pi pi-plus" size="small"
+                (onClick)="addStudentDialogVisible = true"></p-button>
+            </ng-template>
             @if (students().length === 0) {
               <p class="text-500 text-sm">No students assigned.</p>
             } @else {
@@ -56,9 +62,14 @@ import { ApiService } from '../../core/services/api.service';
                 <ng-template let-item pTemplate="item">
                   <div class="flex align-items-center justify-content-between w-full">
                     <span>{{ item.name }}</span>
-                    @if (calculateAge(item.birthday) !== null) {
-                      <p-badge [value]="calculateAge(item.birthday)!.toString()" severity="info"></p-badge>
-                    }
+                    <div class="flex align-items-center gap-1">
+                      @if (calculateAge(item.birthday) !== null) {
+                        <p-badge [value]="calculateAge(item.birthday)!.toString()" severity="info"></p-badge>
+                      }
+                      <p-button icon="pi pi-times" [rounded]="true" [text]="true" size="small"
+                        severity="danger" pTooltip="Remove"
+                        (onClick)="removeStudent(item, $event)"></p-button>
+                    </div>
                   </div>
                 </ng-template>
               </p-listbox>
@@ -235,6 +246,28 @@ import { ApiService } from '../../core/services/api.service';
         ></p-button>
       </ng-template>
     </p-dialog>
+
+    <!-- Add Student Dialog -->
+    <p-dialog
+      [(visible)]="addStudentDialogVisible"
+      header="Add Student"
+      [modal]="true"
+      [style]="{ width: '400px' }"
+    >
+      <p class="mb-3">Enter the email address of the student you want to add to your class.</p>
+      <div class="flex flex-column gap-1">
+        <label class="font-semibold">Student Email *</label>
+        <input pInputText [(ngModel)]="addStudentEmail" class="w-full" type="email"
+          placeholder="student@example.com" />
+      </div>
+      <ng-template pTemplate="footer">
+        <p-button label="Cancel" severity="secondary"
+          (onClick)="addStudentDialogVisible = false"></p-button>
+        <p-button label="Add" icon="pi pi-plus"
+          (onClick)="addStudent()" [disabled]="!addStudentEmail"
+          [loading]="addStudentLoading()"></p-button>
+      </ng-template>
+    </p-dialog>
   `,
 })
 export class TeacherDashboardComponent implements OnInit {
@@ -253,7 +286,16 @@ export class TeacherDashboardComponent implements OnInit {
   reviewComment = '';
   reviewSubmitting = signal(false);
 
+  addStudentDialogVisible = false;
+  addStudentEmail = '';
+  addStudentLoading = signal(false);
+
   ngOnInit() {
+    this.loadStudents();
+  }
+
+  private loadStudents() {
+    this.loading.set(true);
     this.api.getTeacherStudents().subscribe({
       next: (s) => { this.students.set(s); this.loading.set(false); },
       error: () => this.loading.set(false),
@@ -321,6 +363,38 @@ export class TeacherDashboardComponent implements OnInit {
         this.reviewSubmitting.set(false);
         this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to submit review' });
       },
+    });
+  }
+
+  addStudent() {
+    this.addStudentLoading.set(true);
+    this.api.addTeacherStudent(this.addStudentEmail).subscribe({
+      next: () => {
+        this.addStudentLoading.set(false);
+        this.addStudentDialogVisible = false;
+        this.addStudentEmail = '';
+        this.messageService.add({ severity: 'success', summary: 'Added', detail: 'Student added to your class' });
+        this.loadStudents();
+      },
+      error: (err: any) => {
+        this.addStudentLoading.set(false);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: err.error?.detail || 'Failed to add student' });
+      },
+    });
+  }
+
+  removeStudent(student: any, event: Event) {
+    event.stopPropagation(); // prevent listbox selection
+    this.api.removeTeacherStudent(student.id).subscribe({
+      next: () => {
+        this.messageService.add({ severity: 'success', summary: 'Removed', detail: `${student.name} removed from your class` });
+        this.loadStudents();
+        if (this.selectedStudent?.id === student.id) {
+          this.selectedStudent = null;
+          this.sessions.set([]);
+        }
+      },
+      error: () => this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to remove student' }),
     });
   }
 }

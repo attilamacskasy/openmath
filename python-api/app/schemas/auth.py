@@ -83,3 +83,7 @@ class RelationshipRequest(BaseModel):
     student_id: str = Field(alias="studentId")
 
     model_config = {"populate_by_name": True}
+
+
+class AssociateByEmailRequest(BaseModel):
+    email: str

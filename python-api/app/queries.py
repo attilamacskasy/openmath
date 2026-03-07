@@ -903,6 +903,17 @@ async def delete_teacher_student(assignment_id: str) -> bool:
     return result == "DELETE 1"
 
 
+async def delete_teacher_student_by_pair(teacher_id: str, student_id: str) -> bool:
+    """Remove a specific teacher–student assignment by the pair of IDs."""
+    pool = await get_pool()
+    result = await pool.execute(
+        "DELETE FROM teacher_students WHERE teacher_id = $1 AND student_id = $2",
+        UUID(teacher_id),
+        UUID(student_id),
+    )
+    return result == "DELETE 1"
+
+
 # ── Parent–Student relationships (v2.3) ─────────────
 
 async def list_parent_children(parent_id: str) -> list[dict[str, Any]]:
@@ -971,6 +982,17 @@ async def delete_parent_student(assignment_id: str) -> bool:
     pool = await get_pool()
     result = await pool.execute(
         "DELETE FROM parent_students WHERE id = $1", UUID(assignment_id)
+    )
+    return result == "DELETE 1"
+
+
+async def delete_parent_student_by_pair(parent_id: str, student_id: str) -> bool:
+    """Remove a specific parent–student assignment by the pair of IDs."""
+    pool = await get_pool()
+    result = await pool.execute(
+        "DELETE FROM parent_students WHERE parent_id = $1 AND student_id = $2",
+        UUID(parent_id),
+        UUID(student_id),
     )
     return result == "DELETE 1"
 

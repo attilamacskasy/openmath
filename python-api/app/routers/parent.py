@@ -1,4 +1,4 @@
-"""Parent router — view children's quizzes, sign off on reviews."""
+"""Parent router — view children's quizzes, sign off on reviews, self-association."""
 
 from __future__ import annotations
 
@@ -9,14 +9,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.dependencies import get_current_user, require_roles
 from app.queries import (
     create_or_update_review,
+    create_parent_student,
+    delete_parent_student_by_pair,
+    find_user_by_email,
     get_reviews_for_session,
     get_session_by_id,
     get_session_owner_id,
+    get_user_roles,
     is_parent_of_student,
     list_parent_children,
     list_sessions_for_user,
 )
-from app.schemas.auth import SignoffRequest
+from app.schemas.auth import AssociateByEmailRequest, SignoffRequest
 
 router = APIRouter(prefix="/parent", tags=["parent"])
 
@@ -95,3 +99,38 @@ async def sign_off(
         comment=body.comment,
     )
     return review
+
+
+@router.post("/children")
+async def associate_child(
+    body: AssociateByEmailRequest,
+    user: dict[str, Any] = Depends(require_parent),
+):
+    """Parent self-associates a child by email lookup."""
+    student = await find_user_by_email(body.email)
+    if not student:
+        raise HTTPException(status_code=404, detail="No registered student found with that email address")
+    student_roles = await get_user_roles(str(student["id"]))
+    if "student" not in student_roles:
+        raise HTTPException(status_code=400, detail="That user does not have the student role")
+    if str(student["id"]) == user["sub"]:
+        raise HTTPException(status_code=400, detail="You cannot add yourself")
+    try:
+        result = await create_parent_student(user["sub"], str(student["id"]))
+    except Exception as e:
+        if "at most 2 parents" in str(e):
+            raise HTTPException(status_code=409, detail="This student already has the maximum of 2 parents")
+        raise HTTPException(status_code=409, detail="This child is already assigned to your account")
+    return result
+
+
+@router.delete("/children/{child_id}")
+async def remove_child(
+    child_id: str,
+    user: dict[str, Any] = Depends(require_parent),
+):
+    """Parent removes a child from their own account."""
+    if not await is_parent_of_student(user["sub"], child_id):
+        raise HTTPException(status_code=404, detail="Child not found on your account")
+    await delete_parent_student_by_pair(user["sub"], child_id)
+    return {"ok": True}

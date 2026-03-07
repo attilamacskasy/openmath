@@ -66,14 +66,14 @@ ON CONFLICT (code) DO UPDATE SET description = EXCLUDED.description;
 -- Roman numerals
 INSERT INTO quiz_types (code, description, template_kind, answer_type, category, sort_order, recommended_age_min, recommended_age_max)
 VALUES
-  ('roman_to_arabic', 'Roman → Arabic (XIV = ?)',    'roman_to_int',  'int',  'roman', 19, 7, 9),
-  ('arabic_to_roman', 'Arabic → Roman (27 = ?)',     'int_to_roman',  'text', 'roman', 20, 7, 9)
+  ('roman_to_arabic', 'Roman = Arabic (XIV = ?)',    'roman_to_int',  'int',  'roman', 19, 7, 9),
+  ('arabic_to_roman', 'Arabic = Roman (27 = ?)',     'int_to_roman',  'text', 'roman', 20, 7, 9)
 ON CONFLICT (code) DO UPDATE SET description = EXCLUDED.description;
 
 -- Measurement
 INSERT INTO quiz_types (code, description, template_kind, answer_type, category, sort_order, recommended_age_min, recommended_age_max)
 VALUES
-  ('measure_dm_to_cm', 'Conversion: dm → cm (5 dm = ? cm)',        'dm_to_cm',       'int', 'measurement', 21, 7, 9),
-  ('measure_m_to_cm',  'Conversion: m → cm (2 m = ? cm)',          'm_to_cm',        'int', 'measurement', 22, 7, 9),
+  ('measure_dm_to_cm', 'Conversion: dm = cm (5 dm = ? cm)',        'dm_to_cm',       'int', 'measurement', 21, 7, 9),
+  ('measure_m_to_cm',  'Conversion: m = cm (2 m = ? cm)',          'm_to_cm',        'int', 'measurement', 22, 7, 9),
   ('length_addition',  'Length addition (35 cm + 12 cm = ? cm)',    'length_add',     'int', 'measurement', 23, 7, 9)
 ON CONFLICT (code) DO UPDATE SET description = EXCLUDED.description;

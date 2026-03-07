@@ -44,6 +44,7 @@ class UpdateUserRequest(BaseModel):
     gender: str | None = Field(default=None, pattern=r"^(female|male|other|prefer_not_say)$")
     learned_timetables: list[int] = Field(min_length=1)
     birthday: str | None = None  # ISO date string YYYY-MM-DD
+    email: str | None = None
 
 
 class UserOut(BaseModel):

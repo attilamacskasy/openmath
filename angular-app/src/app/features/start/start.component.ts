@@ -99,7 +99,7 @@ interface DropdownGroup {
               <div class="font-semibold mb-2 text-sm">Example questions:</div>
               @for (p of previewQuestions(); track p.render) {
                 <div class="text-sm mb-1">
-                  • {{ p.render }} <span class="text-500">→ {{ p.correct }}</span>
+                  • {{ p.render }} <span class="text-500">= {{ p.correct }}</span>
                 </div>
               }
             </div>

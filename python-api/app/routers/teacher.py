@@ -1,4 +1,4 @@
-"""Teacher router — view assigned students, review quizzes."""
+"""Teacher router — view assigned students, review quizzes, self-association."""
 
 from __future__ import annotations
 
@@ -9,15 +9,19 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.dependencies import get_current_user, require_roles
 from app.queries import (
     create_or_update_review,
+    create_teacher_student,
+    delete_teacher_student_by_pair,
+    find_user_by_email,
     get_reviews_for_session,
     get_session_by_id,
     get_session_owner_id,
+    get_user_roles,
     is_teacher_of_student,
     list_reviews_by_reviewer,
     list_sessions_for_user,
     list_teacher_students,
 )
-from app.schemas.auth import ReviewRequest
+from app.schemas.auth import AssociateByEmailRequest, ReviewRequest
 
 router = APIRouter(prefix="/teacher", tags=["teacher"])
 
@@ -103,3 +107,36 @@ async def submit_review(
 async def get_my_reviews(user: dict[str, Any] = Depends(require_teacher)):
     """List all reviews created by the current teacher."""
     return await list_reviews_by_reviewer(user["sub"])
+
+
+@router.post("/students")
+async def associate_student(
+    body: AssociateByEmailRequest,
+    user: dict[str, Any] = Depends(require_teacher),
+):
+    """Teacher self-associates a student by email lookup."""
+    student = await find_user_by_email(body.email)
+    if not student:
+        raise HTTPException(status_code=404, detail="No registered student found with that email address")
+    student_roles = await get_user_roles(str(student["id"]))
+    if "student" not in student_roles:
+        raise HTTPException(status_code=400, detail="That user does not have the student role")
+    if str(student["id"]) == user["sub"]:
+        raise HTTPException(status_code=400, detail="You cannot add yourself")
+    try:
+        result = await create_teacher_student(user["sub"], str(student["id"]))
+    except Exception:
+        raise HTTPException(status_code=409, detail="This student is already in your class")
+    return result
+
+
+@router.delete("/students/{student_id}")
+async def remove_student(
+    student_id: str,
+    user: dict[str, Any] = Depends(require_teacher),
+):
+    """Teacher removes a student from their own class."""
+    if not await is_teacher_of_student(user["sub"], student_id):
+        raise HTTPException(status_code=404, detail="Student not found in your class")
+    await delete_teacher_student_by_pair(user["sub"], student_id)
+    return {"ok": True}

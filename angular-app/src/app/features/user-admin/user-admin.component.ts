@@ -114,15 +114,17 @@ interface UserRow {
                   size="small"
                   (onClick)="editUser(s)"
                 ></p-button>
-                <p-button
-                  icon="pi pi-key"
-                  [rounded]="true"
-                  [text]="true"
-                  size="small"
-                  severity="warning"
-                  pTooltip="Reset password"
-                  (onClick)="openResetPasswordDialog(s)"
-                ></p-button>
+                @if (s.auth_provider !== 'google') {
+                  <p-button
+                    icon="pi pi-key"
+                    [rounded]="true"
+                    [text]="true"
+                    size="small"
+                    severity="warning"
+                    pTooltip="Reset password"
+                    (onClick)="openResetPasswordDialog(s)"
+                  ></p-button>
+                }
               </div>
             </td>
           </tr>
@@ -147,7 +149,11 @@ interface UserRow {
         </div>
         <div class="flex flex-column gap-1">
           <label class="font-semibold">Email *</label>
-          <input pInputText [(ngModel)]="dialogEmail" class="w-full" type="email" />
+          <input pInputText [(ngModel)]="dialogEmail" class="w-full" type="email"
+            [disabled]="editingUser !== null && editingUser.auth_provider === 'google'" />
+          @if (editingUser?.auth_provider === 'google') {
+            <small class="text-500">Email cannot be changed for Google SSO accounts.</small>
+          }
         </div>
         @if (!editingUser) {
           <div class="flex flex-column gap-1">
@@ -351,12 +357,19 @@ export class UserAdminComponent implements OnInit {
     if (this.editingUser) {
       // Edit existing
       const age = this.dialogBirthday ? this.calculateAge(this.dialogBirthday.toISOString()) : null;
+      let birthdayStr: string | null = null;
+      if (this.dialogBirthday) {
+        const d = this.dialogBirthday;
+        birthdayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      }
       this.api
         .updateUser(this.editingUser.id, {
           name: this.dialogName.trim(),
           age,
           gender: this.dialogGender,
           learned_timetables: this.dialogTimetables,
+          birthday: birthdayStr,
+          email: this.dialogEmail.trim() || null,
         })
         .subscribe({
           next: () => {

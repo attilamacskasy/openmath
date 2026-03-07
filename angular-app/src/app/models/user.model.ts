@@ -36,4 +36,5 @@ export interface UpdateUserRequest {
   gender: string | null;
   learned_timetables: number[];
   birthday?: string | null;
+  email?: string | null;
 }

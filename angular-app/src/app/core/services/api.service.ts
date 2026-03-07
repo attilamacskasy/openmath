@@ -170,6 +170,14 @@ export class ApiService {
     return this.http.get<any[]>(`${this.baseUrl}/teacher/reviews`);
   }
 
+  addTeacherStudent(email: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/teacher/students`, { email });
+  }
+
+  removeTeacherStudent(studentId: string): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/teacher/students/${studentId}`);
+  }
+
   // ── Parent ──────────────────────────────────────────────
   getParentChildren(): Observable<any[]> {
     return this.http.get<any[]>(`${this.baseUrl}/parent/children`);
@@ -185,6 +193,14 @@ export class ApiService {
 
   submitParentSignoff(sessionId: string, body: { comment?: string; status: string }): Observable<any> {
     return this.http.post<any>(`${this.baseUrl}/parent/sessions/${sessionId}/signoff`, body);
+  }
+
+  addParentChild(email: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/parent/children`, { email });
+  }
+
+  removeParentChild(childId: string): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/parent/children/${childId}`);
   }
 
   // ── Role Management (admin) ─────────────────────────────

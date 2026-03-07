@@ -77,6 +77,7 @@ async def patch_user(
         gender=body.gender,
         learned_timetables=body.learned_timetables,
         birthday=birthday,
+        email=body.email,
     )
     if not updated:
         raise HTTPException(status_code=404, detail="User not found")
