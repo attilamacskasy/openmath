@@ -778,6 +778,30 @@ async def list_sessions_for_user(user_id: str, quiz_type_code: str | None = None
     return [_row_to_dict(r) for r in rows]
 
 
+async def list_sessions_for_users(user_ids: list[str], quiz_type_code: str | None = None) -> list[dict[str, Any]]:
+    """List sessions for multiple user_ids (for teacher/parent viewing associated students)."""
+    if not user_ids:
+        return []
+    pool = await get_pool()
+    uuids = [UUID(uid) for uid in user_ids]
+    query = """SELECT qs.id, qs.user_id, qs.difficulty,
+                  qs.total_questions, qs.score_percent,
+                  qs.started_at, qs.finished_at,
+                  u.name AS user_name,
+                  qt.code AS quiz_type_code,
+                  qt.description AS quiz_type_description
+           FROM quiz_sessions qs
+           LEFT JOIN users u ON qs.user_id = u.id
+           LEFT JOIN quiz_types qt ON qs.quiz_type_id = qt.id
+           WHERE qs.user_id = ANY($1::uuid[])"""
+    params: list[Any] = [uuids]
+    if quiz_type_code:
+        query += " AND qt.code = $2"
+        params.append(quiz_type_code)
+    query += " ORDER BY qs.started_at DESC"
+    rows = await pool.fetch(query, *params)
+    return [_row_to_dict(r) for r in rows]
+
 # ── Roles (v2.3) ────────────────────────────────────
 
 async def get_user_roles(user_id: str) -> list[str]:
@@ -1087,3 +1111,133 @@ async def get_session_owner_id(session_id: str) -> str | None:
         UUID(session_id),
     )
     return str(row["user_id"]) if row else None
+
+
+# ── Review Templates (v2.5) ─────────────────────────
+
+async def list_review_templates(role: str) -> list[dict[str, Any]]:
+    """List all templates for a given reviewer role."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        "SELECT id, reviewer_role, sentiment, label, message FROM review_templates WHERE reviewer_role = $1 ORDER BY sort_order",
+        role,
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+# ── Notifications (v2.5) ────────────────────────────
+
+async def insert_notification(
+    user_id: str, ntype: str, title: str, message: str, metadata: dict | None = None,
+) -> dict[str, Any]:
+    """Insert a notification row."""
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """INSERT INTO notifications (user_id, type, title, message, metadata)
+           VALUES ($1, $2, $3, $4, $5::jsonb)
+           RETURNING id, user_id, type, title, message, metadata, is_read, created_at, read_at""",
+        UUID(user_id),
+        ntype,
+        title,
+        message,
+        json.dumps(metadata or {}),
+    )
+    return _row_to_dict(row)
+
+
+async def get_notifications(user_id: str, unread_only: bool = False) -> list[dict[str, Any]]:
+    pool = await get_pool()
+    query = """SELECT id, user_id, type, title, message, metadata, is_read, created_at, read_at
+               FROM notifications WHERE user_id = $1"""
+    if unread_only:
+        query += " AND is_read = false"
+    query += " ORDER BY created_at DESC LIMIT 100"
+    rows = await pool.fetch(query, UUID(user_id))
+    return [_row_to_dict(r) for r in rows]
+
+
+async def count_unread_notifications(user_id: str) -> int:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        "SELECT count(*)::int AS cnt FROM notifications WHERE user_id = $1 AND is_read = false",
+        UUID(user_id),
+    )
+    return row["cnt"] if row else 0
+
+
+async def mark_notification_read(notification_id: str, user_id: str) -> bool:
+    pool = await get_pool()
+    result = await pool.execute(
+        "UPDATE notifications SET is_read = true, read_at = now() WHERE id = $1 AND user_id = $2",
+        UUID(notification_id),
+        UUID(user_id),
+    )
+    return result == "UPDATE 1"
+
+
+async def mark_all_notifications_read(user_id: str) -> int:
+    pool = await get_pool()
+    result = await pool.execute(
+        "UPDATE notifications SET is_read = true, read_at = now() WHERE user_id = $1 AND is_read = false",
+        UUID(user_id),
+    )
+    # result is e.g. "UPDATE 5"
+    try:
+        return int(result.split()[-1])
+    except (ValueError, IndexError):
+        return 0
+
+
+async def get_teachers_for_student(student_id: str) -> list[dict[str, Any]]:
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT ts.teacher_id, u.name
+           FROM teacher_students ts
+           JOIN users u ON u.id = ts.teacher_id
+           WHERE ts.student_id = $1""",
+        UUID(student_id),
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+async def get_parents_for_student(student_id: str) -> list[dict[str, Any]]:
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT ps.parent_id, u.name
+           FROM parent_students ps
+           JOIN users u ON u.id = ps.parent_id
+           WHERE ps.student_id = $1""",
+        UUID(student_id),
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+# ── Student Associations (v2.5) ─────────────────────
+
+async def get_student_associations(user_id: str) -> list[dict[str, Any]]:
+    """Get all teachers and parents associated with a student."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        "SELECT * FROM student_associations WHERE student_id = $1 ORDER BY relationship, associated_at",
+        UUID(user_id),
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+# ── Session with quiz info (v2.5) ───────────────────
+
+async def get_session_with_quiz_info(session_id: str) -> dict[str, Any] | None:
+    """Get session with user name and quiz type info for notification messages."""
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """SELECT qs.id, qs.user_id, qs.score_percent,
+                  u.name AS user_name,
+                  qt.code AS quiz_type_code,
+                  qt.description AS quiz_type_description
+           FROM quiz_sessions qs
+           LEFT JOIN users u ON qs.user_id = u.id
+           LEFT JOIN quiz_types qt ON qs.quiz_type_id = qt.id
+           WHERE qs.id = $1""",
+        UUID(session_id),
+    )
+    return _row_to_dict(row) if row else None

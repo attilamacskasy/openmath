@@ -12,9 +12,11 @@ from app.queries import (
     create_teacher_student,
     delete_teacher_student_by_pair,
     find_user_by_email,
+    find_user_by_id,
     get_reviews_for_session,
     get_session_by_id,
     get_session_owner_id,
+    get_session_with_quiz_info,
     get_user_roles,
     is_teacher_of_student,
     list_reviews_by_reviewer,
@@ -22,6 +24,7 @@ from app.queries import (
     list_teacher_students,
 )
 from app.schemas.auth import AssociateByEmailRequest, ReviewRequest
+from app.services.notifications import create_notification, notify_parents_of_student
 
 router = APIRouter(prefix="/teacher", tags=["teacher"])
 
@@ -100,6 +103,25 @@ async def submit_review(
         status=body.status,
         comment=body.comment,
     )
+    # Notify student + parents
+    session_info = await get_session_with_quiz_info(session_id)
+    teacher_info = await find_user_by_id(user["sub"])
+    teacher_name = teacher_info["name"] if teacher_info else "A teacher"
+    quiz_desc = session_info["quiz_type_description"] if session_info else "quiz"
+    student_name = session_info["user_name"] if session_info else "Student"
+    if owner_id:
+        await create_notification(
+            owner_id,
+            "review_submitted",
+            "Session reviewed",
+            f"Teacher {teacher_name} reviewed your {quiz_desc} session",
+        )
+        await notify_parents_of_student(
+            owner_id,
+            "review_submitted",
+            "Session reviewed",
+            f"Teacher {teacher_name} reviewed {student_name}'s {quiz_desc} session",
+        )
     return review
 
 
@@ -127,6 +149,15 @@ async def associate_student(
         result = await create_teacher_student(user["sub"], str(student["id"]))
     except Exception:
         raise HTTPException(status_code=409, detail="This student is already in your class")
+    # Notify student
+    teacher_info = await find_user_by_id(user["sub"])
+    teacher_name = teacher_info["name"] if teacher_info else "A teacher"
+    await create_notification(
+        str(student["id"]),
+        "student_associated_teacher",
+        "Added to class",
+        f"Teacher {teacher_name} has added you to their class",
+    )
     return result
 
 
@@ -138,5 +169,14 @@ async def remove_student(
     """Teacher removes a student from their own class."""
     if not await is_teacher_of_student(user["sub"], student_id):
         raise HTTPException(status_code=404, detail="Student not found in your class")
+    # Notify student before removing
+    teacher_info = await find_user_by_id(user["sub"])
+    teacher_name = teacher_info["name"] if teacher_info else "A teacher"
+    await create_notification(
+        student_id,
+        "student_removed_teacher",
+        "Removed from class",
+        f"You have been removed from {teacher_name}'s class",
+    )
     await delete_teacher_student_by_pair(user["sub"], student_id)
     return {"ok": True}

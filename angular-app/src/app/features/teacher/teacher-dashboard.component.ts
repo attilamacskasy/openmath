@@ -1,7 +1,7 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
@@ -11,6 +11,8 @@ import { InputTextModule } from 'primeng/inputtext';
 import { InputTextareaModule } from 'primeng/inputtextarea';
 import { ListboxModule } from 'primeng/listbox';
 import { BadgeModule } from 'primeng/badge';
+import { DropdownModule } from 'primeng/dropdown';
+import { TooltipModule } from 'primeng/tooltip';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { ApiService } from '../../core/services/api.service';
@@ -31,6 +33,8 @@ import { ApiService } from '../../core/services/api.service';
     InputTextareaModule,
     ListboxModule,
     BadgeModule,
+    DropdownModule,
+    TooltipModule,
     ToastModule,
   ],
   providers: [MessageService],
@@ -66,6 +70,9 @@ import { ApiService } from '../../core/services/api.service';
                       @if (calculateAge(item.birthday) !== null) {
                         <p-badge [value]="calculateAge(item.birthday)!.toString()" severity="info"></p-badge>
                       }
+                      <p-button icon="pi pi-history" [rounded]="true" [text]="true" size="small"
+                        severity="info" pTooltip="View History"
+                        (onClick)="viewStudentHistory(item, $event)"></p-button>
                       <p-button icon="pi pi-times" [rounded]="true" [text]="true" size="small"
                         severity="danger" pTooltip="Remove"
                         (onClick)="removeStudent(item, $event)"></p-button>
@@ -225,6 +232,18 @@ import { ApiService } from '../../core/services/api.service';
         }
 
         <div class="flex flex-column gap-2 mt-3">
+          <label class="font-semibold">Quick Feedback</label>
+          <p-dropdown
+            [options]="reviewTemplates()"
+            optionLabel="label"
+            optionValue="message"
+            placeholder="Select a template response..."
+            [showClear]="true"
+            (onChange)="onTemplateSelect($event)"
+          ></p-dropdown>
+        </div>
+
+        <div class="flex flex-column gap-2 mt-3">
           <label class="font-semibold">Your Comment</label>
           <textarea
             pInputTextarea
@@ -273,6 +292,7 @@ import { ApiService } from '../../core/services/api.service';
 export class TeacherDashboardComponent implements OnInit {
   private api = inject(ApiService);
   private messageService = inject(MessageService);
+  private router = inject(Router);
 
   loading = signal(true);
   students = signal<any[]>([]);
@@ -285,6 +305,7 @@ export class TeacherDashboardComponent implements OnInit {
   reviewDetail = signal<any>(null);
   reviewComment = '';
   reviewSubmitting = signal(false);
+  reviewTemplates = signal<any[]>([]);
 
   addStudentDialogVisible = false;
   addStudentEmail = '';
@@ -330,6 +351,23 @@ export class TeacherDashboardComponent implements OnInit {
     this.api.getTeacherSession(session.id).subscribe({
       next: (d) => this.reviewDetail.set(d),
     });
+
+    // Load templates based on score
+    this.api.getReviewTemplates('teacher', session.score_percent).subscribe({
+      next: (t) => this.reviewTemplates.set(t),
+      error: () => this.reviewTemplates.set([]),
+    });
+  }
+
+  onTemplateSelect(event: any) {
+    if (event.value) {
+      this.reviewComment = event.value;
+    }
+  }
+
+  viewStudentHistory(student: any, event: Event) {
+    event.stopPropagation();
+    this.router.navigate(['/history/user', student.id]);
   }
 
   questionText(q: any): string {

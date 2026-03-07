@@ -9,6 +9,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { CheckboxModule } from 'primeng/checkbox';
 import { CalendarModule } from 'primeng/calendar';
 import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { ApiService } from '../../core/services/api.service';
@@ -33,6 +34,7 @@ import { MeResponse } from '../../models/auth.model';
     CheckboxModule,
     CalendarModule,
     TableModule,
+    TagModule,
     ToastModule,
   ],
   providers: [MessageService],
@@ -54,7 +56,10 @@ import { MeResponse } from '../../models/auth.model';
               <div class="flex flex-column gap-1">
                 <label class="font-semibold">Auth Provider</label>
                 <div class="flex align-items-center gap-2 py-2">
-                  <span class="border-round px-2 py-1 text-sm" [ngClass]="providerClass">{{ providerLabel }}</span>
+                  <p-tag
+                    [value]="providerTagLabel"
+                    [severity]="providerTagSeverity"
+                  ></p-tag>
                 </div>
               </div>
               <div class="flex flex-column gap-1">
@@ -141,6 +146,40 @@ import { MeResponse } from '../../models/auth.model';
           <div class="col-6">Avg Score:</div><div class="col-6 font-semibold">{{ b.average_score_percent }}%</div>
         </div>
       </ng-template>
+
+      <!-- Associations card (v2.5) -->
+      @if (associations().length > 0) {
+        <div class="col-12">
+          <p-card header="My Teachers & Parents">
+            <p-table [value]="associations()" styleClass="p-datatable-sm">
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>Relationship</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Since</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-a>
+                <tr>
+                  <td>
+                    <p-tag
+                      [value]="a.relationship === 'teacher' ? 'Teacher' : 'Parent'"
+                      [severity]="a.relationship === 'teacher' ? 'warning' : 'secondary'"
+                    ></p-tag>
+                  </td>
+                  <td>{{ a.related_name }}</td>
+                  <td>{{ a.related_email }}</td>
+                  <td>{{ a.associated_at | date:'mediumDate' }}</td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="4" class="text-center text-500">No associations found.</td></tr>
+              </ng-template>
+            </p-table>
+          </p-card>
+        </div>
+      }
     }
   `,
 })
@@ -153,6 +192,7 @@ export class ProfileComponent implements OnInit {
   saving = signal(false);
   profile = signal<UserProfile | null>(null);
   meData = signal<MeResponse | null>(null);
+  associations = signal<any[]>([]);
 
   name = '';
   birthday: Date | null = null;
@@ -179,14 +219,14 @@ export class ProfileComponent implements OnInit {
     return String(age);
   }
 
-  get providerLabel(): string {
+  get providerTagLabel(): string {
     const p = this.auth.currentUser()?.authProvider || 'local';
-    return p === 'google' ? '🔵 Google' : p === 'both' ? '🔗 Google + Local' : '🔑 Local';
+    return p === 'google' ? 'Google' : p === 'both' ? 'Google + Local' : 'Local';
   }
 
-  get providerClass(): string {
+  get providerTagSeverity(): 'success' | 'secondary' {
     const p = this.auth.currentUser()?.authProvider || 'local';
-    return p === 'google' ? 'bg-blue-100 text-blue-700' : p === 'both' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700';
+    return p === 'local' ? 'secondary' : 'success';
   }
 
   ngOnInit() {
@@ -215,6 +255,12 @@ export class ProfileComponent implements OnInit {
             this.loading.set(false);
           },
           error: () => this.loading.set(false),
+        });
+
+        // Load associations (v2.5)
+        this.api.getUserAssociations(user.id).subscribe({
+          next: (a) => this.associations.set(a),
+          error: () => {},
         });
       },
       error: () => this.loading.set(false),

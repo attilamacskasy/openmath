@@ -1,7 +1,7 @@
 import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TableModule } from 'primeng/table';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
@@ -37,7 +37,7 @@ import { DurationPipe } from '../../shared/pipes/duration.pipe';
     <p-toast></p-toast>
     <p-confirmDialog></p-confirmDialog>
 
-    <h2>Session History</h2>
+    <h2>{{ viewingUserName() ? viewingUserName() + "'s Session History" : 'Session History' }}</h2>
 
     <!-- Quiz Type Filter -->
     <div class="mb-3">
@@ -130,11 +130,14 @@ export class HistoryListComponent implements OnInit {
   protected auth = inject(AuthService);
   private confirm = inject(ConfirmationService);
   private messageService = inject(MessageService);
+  private route = inject(ActivatedRoute);
 
   loading = signal(true);
   allSessions = signal<SessionListItem[]>([]);
   quizTypes = signal<QuizType[]>([]);
   selectedQuizTypeCode = '';
+  viewingUserId = signal<string | null>(null);
+  viewingUserName = signal<string | null>(null);
 
   filteredSessions = computed(() => {
     const sessions = this.allSessions();
@@ -152,6 +155,15 @@ export class HistoryListComponent implements OnInit {
   });
 
   ngOnInit() {
+    const userId = this.route.snapshot.paramMap.get('userId');
+    if (userId) {
+      this.viewingUserId.set(userId);
+      // Fetch user name for display
+      this.api.getUser(userId).subscribe({
+        next: (u: any) => this.viewingUserName.set(u.name || u.email || 'Student'),
+        error: () => this.viewingUserName.set('Student'),
+      });
+    }
     this.api.getQuizTypes().subscribe((resp: QuizTypesResponse) => {
       this.quizTypes.set(resp.types);
       this.loadSessions();
@@ -159,7 +171,9 @@ export class HistoryListComponent implements OnInit {
   }
 
   loadSessions() {
-    this.api.getSessions().subscribe((sessions) => {
+    const userId = this.viewingUserId();
+    const obs = userId ? this.api.getUserSessions(userId) : this.api.getSessions();
+    obs.subscribe((sessions) => {
       this.allSessions.set(sessions);
       this.loading.set(false);
     });

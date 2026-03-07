@@ -132,28 +132,33 @@ interface FeedbackState {
                   </div>
                 }
                 @case ('tuple') {
-                  <div class="flex justify-content-center gap-2 align-items-center">
-                    <p-inputNumber
-                      #tupleInput1
-                      [(ngModel)]="tupleAnswer1"
-                      [showButtons]="false"
-                      [useGrouping]="false"
-                      [autofocus]="true"
-                      placeholder="?"
-                      [style]="{ 'font-size': '1.5rem', width: '100px' }"
-                      [inputStyle]="{ 'text-align': 'center', 'font-size': '1.5rem' }"
-                    ></p-inputNumber>
-                    <span class="text-xl">,</span>
-                    <p-inputNumber
-                      #tupleInput2
-                      [(ngModel)]="tupleAnswer2"
-                      [showButtons]="false"
-                      [useGrouping]="false"
-                      (keydown.enter)="submitAnswer()"
-                      placeholder="?"
-                      [style]="{ 'font-size': '1.5rem', width: '100px' }"
-                      [inputStyle]="{ 'text-align': 'center', 'font-size': '1.5rem' }"
-                    ></p-inputNumber>
+                  <div class="flex justify-content-center gap-4 align-items-end">
+                    <div class="flex flex-column align-items-center gap-1">
+                      <label class="text-sm text-500">Answer 1</label>
+                      <p-inputNumber
+                        #tupleInput1
+                        [(ngModel)]="tupleAnswer1"
+                        [showButtons]="false"
+                        [useGrouping]="false"
+                        [autofocus]="true"
+                        placeholder="?"
+                        [style]="{ 'font-size': '1.5rem', width: '120px' }"
+                        [inputStyle]="{ 'text-align': 'center', 'font-size': '1.5rem', width: '120px' }"
+                      ></p-inputNumber>
+                    </div>
+                    <div class="flex flex-column align-items-center gap-1">
+                      <label class="text-sm text-500">Answer 2</label>
+                      <p-inputNumber
+                        #tupleInput2
+                        [(ngModel)]="tupleAnswer2"
+                        [showButtons]="false"
+                        [useGrouping]="false"
+                        (keydown.enter)="submitAnswer()"
+                        placeholder="?"
+                        [style]="{ 'font-size': '1.5rem', width: '120px' }"
+                        [inputStyle]="{ 'text-align': 'center', 'font-size': '1.5rem', width: '120px' }"
+                      ></p-inputNumber>
+                    </div>
                   </div>
                 }
                 @case ('choice') {

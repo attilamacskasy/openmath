@@ -170,14 +170,14 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
 
         <div class="flex gap-3">
           <!-- Age Min -->
-          <div class="flex flex-column gap-1 flex-1">
+          <div class="flex flex-column gap-1" style="flex: 1; min-width: 0;">
             <label class="font-semibold">Age Min</label>
-            <p-inputNumber [(ngModel)]="formAgeMin" [min]="4" [max]="18" [showButtons]="true"></p-inputNumber>
+            <p-inputNumber [(ngModel)]="formAgeMin" [min]="4" [max]="18" [showButtons]="true" [inputStyle]="{ width: '100%' }" [style]="{ width: '100%' }"></p-inputNumber>
           </div>
           <!-- Age Max -->
-          <div class="flex flex-column gap-1 flex-1">
+          <div class="flex flex-column gap-1" style="flex: 1; min-width: 0;">
             <label class="font-semibold">Age Max</label>
-            <p-inputNumber [(ngModel)]="formAgeMax" [min]="4" [max]="18" [showButtons]="true"></p-inputNumber>
+            <p-inputNumber [(ngModel)]="formAgeMax" [min]="4" [max]="18" [showButtons]="true" [inputStyle]="{ width: '100%' }" [style]="{ width: '100%' }"></p-inputNumber>
           </div>
         </div>
 

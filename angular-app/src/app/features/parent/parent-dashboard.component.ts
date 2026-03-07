@@ -1,7 +1,7 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
@@ -10,6 +10,7 @@ import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputTextareaModule } from 'primeng/inputtextarea';
 import { DropdownModule } from 'primeng/dropdown';
+import { TooltipModule } from 'primeng/tooltip';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { ApiService } from '../../core/services/api.service';
@@ -29,6 +30,7 @@ import { ApiService } from '../../core/services/api.service';
     InputTextModule,
     InputTextareaModule,
     DropdownModule,
+    TooltipModule,
     ToastModule,
   ],
   providers: [MessageService],
@@ -58,6 +60,9 @@ import { ApiService } from '../../core/services/api.service';
             (onChange)="onChildSelect($event.value)"
           ></p-dropdown>
           @if (selectedChild) {
+            <p-button icon="pi pi-history" [rounded]="true" [text]="true" size="small"
+              severity="info" pTooltip="View Full History"
+              (click)="viewChildHistory()"></p-button>
             <p-button icon="pi pi-times" [rounded]="true" [text]="true" size="small"
               severity="danger" pTooltip="Remove child"
               (onClick)="removeChild(selectedChild)"></p-button>
@@ -66,6 +71,9 @@ import { ApiService } from '../../core/services/api.service';
       } @else if (selectedChild) {
         <div class="flex align-items-center gap-2 mb-3">
           <span class="font-semibold">{{ selectedChild.name }}</span>
+          <p-button icon="pi pi-history" [rounded]="true" [text]="true" size="small"
+            severity="info" pTooltip="View Full History"
+            (click)="viewChildHistory()"></p-button>
           <p-button icon="pi pi-times" [rounded]="true" [text]="true" size="small"
             severity="danger" pTooltip="Remove child"
             (onClick)="removeChild(selectedChild)"></p-button>
@@ -220,6 +228,18 @@ import { ApiService } from '../../core/services/api.service';
         }
 
         <div class="flex flex-column gap-2 mt-3">
+          <label class="font-semibold">Quick Feedback</label>
+          <p-dropdown
+            [options]="signoffTemplates()"
+            optionLabel="label"
+            optionValue="message"
+            placeholder="Select a template response..."
+            [showClear]="true"
+            (onChange)="onTemplateSelect($event)"
+          ></p-dropdown>
+        </div>
+
+        <div class="flex flex-column gap-2 mt-3">
           <label class="font-semibold">Your Comment (optional)</label>
           <textarea
             pInputTextarea
@@ -239,6 +259,8 @@ import { ApiService } from '../../core/services/api.service';
           severity="success"
           (onClick)="submitSignoff()"
           [loading]="signoffSubmitting()"
+          [disabled]="!hasTeacherReview()"
+          [pTooltip]="hasTeacherReview() ? '' : 'Waiting for teacher review'"
         ></p-button>
       </ng-template>
     </p-dialog>
@@ -269,6 +291,7 @@ import { ApiService } from '../../core/services/api.service';
 export class ParentDashboardComponent implements OnInit {
   private api = inject(ApiService);
   private messageService = inject(MessageService);
+  private router = inject(Router);
 
   loading = signal(true);
   children = signal<any[]>([]);
@@ -281,6 +304,7 @@ export class ParentDashboardComponent implements OnInit {
   sessionDetail = signal<any>(null);
   signoffComment = '';
   signoffSubmitting = signal(false);
+  signoffTemplates = signal<any[]>([]);
 
   addChildDialogVisible = false;
   addChildEmail = '';
@@ -324,6 +348,29 @@ export class ParentDashboardComponent implements OnInit {
     this.api.getParentSession(session.id).subscribe({
       next: (d) => this.sessionDetail.set(d),
     });
+
+    // Load templates based on score (v2.5)
+    this.api.getReviewTemplates('parent', session.score_percent).subscribe({
+      next: (t) => this.signoffTemplates.set(t),
+      error: () => this.signoffTemplates.set([]),
+    });
+  }
+
+  hasTeacherReview(): boolean {
+    const reviews = this.sessionDetail()?.reviews || [];
+    return reviews.some((r: any) => r.reviewer_role === 'teacher' && r.status === 'reviewed');
+  }
+
+  onTemplateSelect(event: any) {
+    if (event.value) {
+      this.signoffComment = event.value;
+    }
+  }
+
+  viewChildHistory() {
+    if (this.selectedChild) {
+      this.router.navigate(['/history/user', this.selectedChild.id]);
+    }
   }
 
   questionText(q: any): string {

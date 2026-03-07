@@ -25,6 +25,7 @@ import {
 } from '../../models/answer.model';
 import { DatabaseStats } from '../../models/stats.model';
 import { AdminCreateUserRequest } from '../../models/auth.model';
+import { Notification } from '../../models/notification.model';
 
 export interface QuizTypesResponse {
   types: QuizType[];
@@ -235,5 +236,40 @@ export class ApiService {
 
   deleteParentStudentAssignment(id: string): Observable<any> {
     return this.http.delete<any>(`${this.baseUrl}/admin/parent-students/${id}`);
+  }
+
+  // ── Review Templates (v2.5) ─────────────────────────────
+  getReviewTemplates(role: string, scorePercent?: number): Observable<any[]> {
+    let params = `role=${role}`;
+    if (scorePercent !== undefined && scorePercent !== null) params += `&score_percent=${scorePercent}`;
+    return this.http.get<any[]>(`${this.baseUrl}/review-templates?${params}`);
+  }
+
+  // ── Notifications (v2.5) ────────────────────────────────
+  getNotifications(unreadOnly = false): Observable<Notification[]> {
+    const params = unreadOnly ? '?unread_only=true' : '';
+    return this.http.get<Notification[]>(`${this.baseUrl}/notifications${params}`);
+  }
+
+  getUnreadNotificationCount(): Observable<{ count: number }> {
+    return this.http.get<{ count: number }>(`${this.baseUrl}/notifications/unread-count`);
+  }
+
+  markNotificationRead(id: string): Observable<any> {
+    return this.http.patch(`${this.baseUrl}/notifications/${id}/read`, {});
+  }
+
+  markAllNotificationsRead(): Observable<any> {
+    return this.http.patch(`${this.baseUrl}/notifications/read-all`, {});
+  }
+
+  // ── Student Associations (v2.5) ─────────────────────────
+  getUserAssociations(userId: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/users/${userId}/associations`);
+  }
+
+  // ── User Sessions (v2.5) ───────────────────────────────
+  getUserSessions(userId: string): Observable<SessionListItem[]> {
+    return this.http.get<SessionListItem[]>(`${this.baseUrl}/sessions?user_id=${userId}`);
   }
 }

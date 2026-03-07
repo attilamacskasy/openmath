@@ -13,6 +13,7 @@ from app.queries import (
     create_user_with_auth,
     delete_parent_student,
     delete_teacher_student,
+    get_student_associations,
     get_user_performance_stats,
     get_user_profile,
     get_user_roles,
@@ -28,6 +29,7 @@ from app.queries import (
 )
 from app.schemas.auth import AdminCreateUserRequest, RoleAssignment, RelationshipRequest
 from app.schemas.user import UserOut, UpdateUserRequest
+from app.services.notifications import create_notification
 
 router = APIRouter(tags=["users"])
 
@@ -141,6 +143,20 @@ async def reset_user_password(
     return {"success": True}
 
 
+# ── Student associations (v2.5) ─────────────────────
+
+@router.get("/users/{user_id}/associations")
+async def get_user_associations(
+    user_id: str,
+    user: dict[str, Any] = Depends(get_current_user),
+):
+    """Get teachers and parents associated with a student."""
+    user_roles = await get_user_roles(user["sub"])
+    if "admin" not in user_roles and user["sub"] != user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    return await get_student_associations(user_id)
+
+
 # ── Role management (admin) ─────────────────────────
 
 @router.get("/users/{user_id}/roles")
@@ -158,6 +174,13 @@ async def update_roles(
 ):
     """Set roles for a user (replaces all)."""
     roles = await set_user_roles(user_id, body.roles)
+    # Notify user of role change
+    await create_notification(
+        user_id,
+        "role_changed",
+        "Roles updated",
+        f"Your roles have been updated to: {', '.join(roles)}",
+    )
     return {"roles": roles}
 
 

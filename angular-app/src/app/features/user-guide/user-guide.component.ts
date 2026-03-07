@@ -44,6 +44,9 @@ import { AuthService } from '../../core/services/auth.service';
               questions.</li>
             <li><strong>Profile management</strong> — update your name, birthday, gender, and
               learned timetables.</li>
+            <li><strong>Notifications</strong> — receive alerts when a teacher reviews your
+              session, a parent signs off, or your roles change. The bell icon in the header
+              shows your unread count.</li>
           </ul>
         </section>
 
@@ -82,6 +85,28 @@ import { AuthService } from '../../core/services/auth.service';
             and which timetables you've learned. Your email and auth provider are shown as
             read-only. Age is computed from your birthday.
           </p>
+          <p>
+            The <strong>My Teachers &amp; Parents</strong> card shows which teachers and
+            parents are linked to your account.
+          </p>
+        </section>
+
+        <section>
+          <h3>Notifications</h3>
+          <p>
+            The bell icon in the header shows your unread notification count. Click it to
+            view recent notifications. You can mark individual notifications as read or
+            clear all at once.
+          </p>
+          <p>
+            You receive notifications when:
+          </p>
+          <ul>
+            <li>A teacher reviews one of your quiz sessions.</li>
+            <li>A parent signs off on a session.</li>
+            <li>A teacher or parent adds or removes you from their group.</li>
+            <li>An admin changes your roles.</li>
+          </ul>
         </section>
 
         <section>
@@ -108,7 +133,10 @@ import { AuthService } from '../../core/services/auth.service';
               <li><strong>Remove a student:</strong> Click the remove button (×) next to the
                 student's name in the sidebar.</li>
               <li><strong>Review a session:</strong> Click the eye icon on any session row to
-                view the full question list, add a comment, and mark it as "Reviewed".</li>
+                view the full question list, select a quick feedback template or add a
+                custom comment, and mark it as "Reviewed".</li>
+              <li><strong>View history:</strong> Click the history icon next to a student's
+                name to view their complete session list.</li>
               <li>Students can see your review comments and status on their own session
                 history.</li>
             </ul>
@@ -130,7 +158,9 @@ import { AuthService } from '../../core/services/auth.service';
               <li><strong>View sessions:</strong> See scores, difficulty, and the teacher's
                 review status for each session.</li>
               <li><strong>Sign off:</strong> Click the eye icon to view the session detail,
-                read the teacher's review, add an optional comment, and click "Sign Off".</li>
+                read the teacher's review, select a quick feedback template or add an
+                optional comment, and click "Sign Off". Sign-off is only available after
+                a teacher has reviewed the session.</li>
             </ul>
           </section>
         }
