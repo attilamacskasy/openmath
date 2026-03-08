@@ -35,6 +35,9 @@ importers:
       '@jsverse/transloco':
         specifier: ^8.2.1
         version: 8.2.1(@angular/core@18.2.14(rxjs@7.8.2)(zone.js@0.14.10))(rxjs@7.8.2)(typescript@5.5.4)
+      katex:
+        specifier: ^0.16.37
+        version: 0.16.37
       primeflex:
         specifier: ^3.3.0
         version: 3.3.1
@@ -2008,6 +2011,10 @@ packages:
   commander@2.20.3:
     resolution: {integrity: sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==}
 
+  commander@8.3.0:
+    resolution: {integrity: sha512-OkTL9umf+He2DZkUq8f8J9of7yL6RJKI24dVITBmNfZBmri9zYZQrKkuXiKhyfPSu8tUhnVBB1iKXevvnlR4Ww==}
+    engines: {node: '>= 12'}
+
   common-path-prefix@3.0.0:
     resolution: {integrity: sha512-QE33hToZseCH3jS0qN96O/bSh3kaw/h+Tq7ngyY9eWDUnTlTNUyqfqvCXioLe5Na5jFsL78ra/wuBU4iuEgd4w==}
 
@@ -2878,6 +2885,10 @@ packages:
   karma@6.4.4:
     resolution: {integrity: sha512-LrtUxbdvt1gOpo3gxG+VAJlJAEMhbWlM4YrFQgql98FwF7+K8K12LYO4hnDdUkNjeztYrOXEMqgTajSWgmtI/w==}
     engines: {node: '>= 10'}
+    hasBin: true
+
+  katex@0.16.37:
+    resolution: {integrity: sha512-TIGjO2cCGYono+uUzgkE7RFF329mLLWGuHUlSr6cwIVj9O8f0VQZ783rsanmJpFUo32vvtj7XT04NGRPh+SZFg==}
     hasBin: true
 
   kind-of@6.0.3:
@@ -6436,6 +6447,8 @@ snapshots:
 
   commander@2.20.3: {}
 
+  commander@8.3.0: {}
+
   common-path-prefix@3.0.0: {}
 
   compressible@2.0.18:
@@ -7400,6 +7413,10 @@ snapshots:
       - debug
       - supports-color
       - utf-8-validate
+
+  katex@0.16.37:
+    dependencies:
+      commander: 8.3.0
 
   kind-of@6.0.3: {}
 

@@ -75,6 +75,7 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
           <th pSortableColumn="category">{{ t('quizEditor.category') }} <p-sortIcon field="category"></p-sortIcon></th>
           <th>{{ t('quizEditor.template') }}</th>
           <th>{{ t('quizEditor.answer') }}</th>
+          <th>{{ t('quizEditor.renderMode') }}</th>
           <th pSortableColumn="recommended_age_min">{{ t('quizEditor.ages') }} <p-sortIcon field="recommended_age_min"></p-sortIcon></th>
           <th style="width:80px">{{ t('quizEditor.active') }}</th>
           <th style="width:120px">{{ t('admin.actions') }}</th>
@@ -92,6 +93,7 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
           </td>
           <td class="font-mono text-sm">{{ qt.template_kind }}</td>
           <td><p-tag [value]="qt.answer_type" [severity]="'info'" [rounded]="true"></p-tag></td>
+          <td><p-tag [value]="qt.render_mode || 'text'" [severity]="qt.render_mode === 'katex' ? 'warning' : 'secondary'" [rounded]="true"></p-tag></td>
           <td>
             @if (qt.recommended_age_min != null && qt.recommended_age_max != null) {
               {{ qt.recommended_age_min }}–{{ qt.recommended_age_max }}
@@ -115,7 +117,7 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
         </tr>
       </ng-template>
       <ng-template pTemplate="emptymessage">
-        <tr><td colspan="9" class="text-center text-500 p-4">{{ t('quizEditor.noQuizTypes') }}</td></tr>
+        <tr><td colspan="10" class="text-center text-500 p-4">{{ t('quizEditor.noQuizTypes') }}</td></tr>
       </ng-template>
     </p-table>
 
@@ -196,6 +198,15 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
           <p-inputSwitch [(ngModel)]="formIsActive"></p-inputSwitch>
         </div>
 
+        <!-- Render Mode -->
+        <div class="flex flex-column gap-1">
+          <label class="font-semibold">{{ t('quizEditor.renderMode') }}</label>
+          <p-dropdown
+            [options]="renderModeOptions"
+            [(ngModel)]="formRenderMode"
+          ></p-dropdown>
+        </div>
+
         <!-- Preview inside dialog -->
         @if (dialogPreview().length > 0) {
           <div class="surface-50 p-3 border-round">
@@ -268,16 +279,18 @@ export class QuizTypeEditorComponent implements OnInit {
   formAgeMax: number | null = null;
   formSortOrder = 0;
   formIsActive = true;
+  formRenderMode = 'text';
 
   templateKindOptions = [
     'axb', 'axb_plus_cxd', 'a_plus_b', 'a_minus_b',
     'round_tens_add', 'round_tens_sub', 'a_plus_b_100', 'a_minus_b_100',
     'two_plus_one', 'two_minus_one', 'times_table', 'a_div_b', 'a_div_b_rem',
     'double', 'count_by_n', 'roman_to_int', 'int_to_roman',
-    'dm_to_cm', 'm_to_cm', 'length_add',
+    'dm_to_cm', 'm_to_cm', 'length_add', 'basic_fractions',
   ];
 
   answerTypeOptions = ['int', 'text', 'tuple'];
+  renderModeOptions = ['text', 'katex'];
 
   filteredQuizTypes = computed(() => {
     const all = this.quizTypes();
@@ -325,6 +338,7 @@ export class QuizTypeEditorComponent implements OnInit {
     this.formAgeMax = null;
     this.formSortOrder = Math.max(0, ...this.quizTypes().map((qt) => qt.sort_order)) + 1;
     this.formIsActive = true;
+    this.formRenderMode = 'text';
     this.dialogPreview.set([]);
     this.dialogVisible = true;
   }
@@ -341,6 +355,7 @@ export class QuizTypeEditorComponent implements OnInit {
     this.formAgeMax = qt.recommended_age_max;
     this.formSortOrder = qt.sort_order;
     this.formIsActive = qt.is_active;
+    this.formRenderMode = qt.render_mode || 'text';
     this.dialogPreview.set([]);
     this.dialogVisible = true;
   }
@@ -361,6 +376,7 @@ export class QuizTypeEditorComponent implements OnInit {
         recommended_age_max: this.formAgeMax,
         is_active: this.formIsActive,
         sort_order: this.formSortOrder,
+        render_mode: this.formRenderMode,
       };
       this.api.updateQuizType(this.editingId, data).subscribe({
         next: () => {
@@ -381,6 +397,7 @@ export class QuizTypeEditorComponent implements OnInit {
         recommended_age_max: this.formAgeMax,
         is_active: this.formIsActive,
         sort_order: this.formSortOrder,
+        render_mode: this.formRenderMode,
       };
       this.api.createQuizType(data).subscribe({
         next: () => {

@@ -28,6 +28,7 @@ export interface CreateSessionResponse {
   quizTypeCode: string;
   quizTypeDescription: string;
   quizTypeCategory: string;
+  renderMode?: string;
   questions: QuestionOut[];
 }
 
@@ -76,6 +77,7 @@ export interface SessionDetailSession {
   finished_at: string | null;
   userName: string | null;
   quizTypeCode: string | null;
+  renderMode?: string;
 }
 
 export interface SessionDetail {

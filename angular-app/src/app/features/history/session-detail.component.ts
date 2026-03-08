@@ -1,22 +1,26 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { CardModule } from 'primeng/card';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { ToastModule } from 'primeng/toast';
+import { SelectButtonModule } from 'primeng/selectbutton';
+import { CheckboxModule } from 'primeng/checkbox';
 import { MessageService } from 'primeng/api';
 import { ApiService } from '../../core/services/api.service';
 import { SessionDetail } from '../../models/session.model';
 import { DurationPipe } from '../../shared/pipes/duration.pipe';
 import { LocalDatePipe } from '../../shared/pipes/local-date.pipe';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
+import { ExamPaperViewComponent, ExamPaperQuestion } from '../../shared/components/exam-paper-view.component';
 
 @Component({
   selector: 'app-session-detail',
   standalone: true,
-  imports: [CommonModule, CardModule, TableModule, TagModule, ButtonModule, ToastModule, DurationPipe, LocalDatePipe, TranslocoModule],
+  imports: [CommonModule, FormsModule, CardModule, TableModule, TagModule, ButtonModule, ToastModule, SelectButtonModule, CheckboxModule, DurationPipe, LocalDatePipe, TranslocoModule, ExamPaperViewComponent],
   providers: [MessageService],
   template: `
     <ng-container *transloco="let t">
@@ -65,62 +69,91 @@ import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
         </div>
       </p-card>
 
-      <!-- Questions table -->
-      <p-table [value]="detail()!.questions" styleClass="p-datatable-sm">
-        <ng-template pTemplate="header">
-          <tr>
-            <th style="width: 60px">#</th>
-            <th>{{ t('session.question') }}</th>
-            <th style="width: 100px">{{ t('session.correct') }}</th>
-            <th style="width: 100px">{{ t('session.answer') }}</th>
-            <th style="width: 100px">{{ t('session.status') }}</th>
-          </tr>
-        </ng-template>
-        <ng-template pTemplate="body" let-q>
-          <tr>
-            <td>{{ q.position }}</td>
-            <td>
-              @if (q.prompt?.render_html) {
-                <span [innerHTML]="q.prompt.render_html"></span>
-              } @else {
-                {{ questionText(q) }}
-              }
-            </td>
-            <td class="font-semibold">{{ q.correct }}</td>
-            <td>{{ answerText(q) }}</td>
-            <td>
-              @if (!q.answer) {
-                <p-tag value="—" severity="info"></p-tag>
-              } @else if (q.answer.is_correct) {
-                <p-tag [value]="t('quiz.correct')" severity="success"></p-tag>
-              } @else {
-                <p-tag [value]="t('quiz.wrong')" severity="danger"></p-tag>
-              }
-            </td>
-          </tr>
-        </ng-template>
-      </p-table>
+      <!-- View toggle + KaTeX checkbox -->
+      <div class="flex align-items-center gap-3 mb-3">
+        <p-selectButton
+          [options]="viewOptions"
+          [(ngModel)]="viewMode"
+          optionLabel="label"
+          optionValue="value"
+        ></p-selectButton>
+        <div class="flex align-items-center gap-2">
+          <p-checkbox
+            [(ngModel)]="katexEnabled"
+            [binary]="true"
+            inputId="katexToggle"
+          ></p-checkbox>
+          <label for="katexToggle">{{ t('examPaper.enableKatex') }}</label>
+        </div>
+      </div>
 
-      <!-- Reviews panel -->
-      @if (reviews().length > 0) {
-        <h3 class="mt-4 mb-2">{{ t('session.reviews') }}</h3>
-        @for (rev of reviews(); track rev.id) {
-          <div class="surface-100 border-round p-3 mb-2">
-            <div class="flex justify-content-between">
-              <span class="font-semibold">
-                {{ rev.reviewer_role === 'teacher' ? t('session.teacherReview') : t('session.parentSignoff') }}
-                — {{ rev.reviewer_name }}
-              </span>
-              <p-tag
-                [value]="rev.status === 'signed' ? t('session.signed') : t('session.reviewed')"
-                [severity]="rev.status === 'signed' ? 'success' : 'info'"
-              ></p-tag>
+      @if (viewMode === 'exam') {
+        <!-- Exam Paper View -->
+        <app-exam-paper-view
+          [questions]="examPaperQuestions()"
+          [katexEnabled]="katexEnabled"
+          [startedAt]="detail()!.session.started_at"
+          [finishedAt]="detail()!.session.finished_at"
+          [reviews]="reviews()"
+        ></app-exam-paper-view>
+      } @else {
+        <!-- Table View (existing) -->
+        <p-table [value]="detail()!.questions" styleClass="p-datatable-sm">
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width: 60px">#</th>
+              <th>{{ t('session.question') }}</th>
+              <th style="width: 100px">{{ t('session.correct') }}</th>
+              <th style="width: 100px">{{ t('session.answer') }}</th>
+              <th style="width: 100px">{{ t('session.status') }}</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-q>
+            <tr>
+              <td>{{ q.position }}</td>
+              <td>
+                @if (q.prompt?.render_html) {
+                  <span [innerHTML]="q.prompt.render_html"></span>
+                } @else {
+                  {{ questionText(q) }}
+                }
+              </td>
+              <td class="font-semibold">{{ q.correct }}</td>
+              <td>{{ answerText(q) }}</td>
+              <td>
+                @if (!q.answer) {
+                  <p-tag value="—" severity="info"></p-tag>
+                } @else if (q.answer.is_correct) {
+                  <p-tag [value]="t('quiz.correct')" severity="success"></p-tag>
+                } @else {
+                  <p-tag [value]="t('quiz.wrong')" severity="danger"></p-tag>
+                }
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+
+        <!-- Reviews panel -->
+        @if (reviews().length > 0) {
+          <h3 class="mt-4 mb-2">{{ t('session.reviews') }}</h3>
+          @for (rev of reviews(); track rev.id) {
+            <div class="surface-100 border-round p-3 mb-2">
+              <div class="flex justify-content-between">
+                <span class="font-semibold">
+                  {{ rev.reviewer_role === 'teacher' ? t('session.teacherReview') : t('session.parentSignoff') }}
+                  — {{ rev.reviewer_name }}
+                </span>
+                <p-tag
+                  [value]="rev.status === 'signed' ? t('session.signed') : t('session.reviewed')"
+                  [severity]="rev.status === 'signed' ? 'success' : 'info'"
+                ></p-tag>
+              </div>
+              @if (rev.comment) {
+                <p class="mt-2 mb-1">{{ rev.comment }}</p>
+              }
+              <span class="text-xs text-500">{{ (rev.updated_at || rev.created_at) | localDate:'short' }}</span>
             </div>
-            @if (rev.comment) {
-              <p class="mt-2 mb-1">{{ rev.comment }}</p>
-            }
-            <span class="text-xs text-500">{{ (rev.updated_at || rev.created_at) | localDate:'short' }}</span>
-          </div>
+          }
         }
       }
     }
@@ -138,6 +171,13 @@ export class SessionDetailComponent implements OnInit {
   detail = signal<SessionDetail | null>(null);
   reviews = signal<any[]>([]);
 
+  viewMode = 'exam';
+  katexEnabled = false;
+  viewOptions = [
+    { label: '📝 Exam Paper', value: 'exam' },
+    { label: '📊 Table', value: 'table' },
+  ];
+
   ngOnInit() {
     const id = this.route.snapshot.paramMap.get('sessionId') || '';
     this.api.getSession(id).subscribe({
@@ -146,10 +186,26 @@ export class SessionDetailComponent implements OnInit {
         if (d.reviews) {
           this.reviews.set(d.reviews);
         }
+        // Default KaTeX enabled based on quiz type render_mode
+        this.katexEnabled = d.session?.renderMode === 'katex';
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
     });
+  }
+
+  examPaperQuestions(): ExamPaperQuestion[] {
+    const d = this.detail();
+    if (!d) return [];
+    return d.questions.map(q => ({
+      position: q.position,
+      expression: q.prompt?.render || this.questionText(q),
+      correct: q.correct,
+      answer: q.answer ? {
+        value: this.answerValue(q),
+        is_correct: q.answer.is_correct,
+      } : undefined,
+    }));
   }
 
   questionText(q: any): string {
@@ -163,6 +219,13 @@ export class SessionDetailComponent implements OnInit {
     if (q.answer.response?.parsed?.value !== undefined)
       return String(q.answer.response.parsed.value);
     if (q.answer.value !== undefined) return String(q.answer.value);
+    return '—';
+  }
+
+  answerValue(q: any): number | string {
+    if (q.answer?.response?.parsed?.value !== undefined)
+      return q.answer.response.parsed.value;
+    if (q.answer?.value !== undefined) return q.answer.value;
     return '—';
   }
 

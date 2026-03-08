@@ -14,11 +14,14 @@ import { BadgeModule } from 'primeng/badge';
 import { DropdownModule } from 'primeng/dropdown';
 import { TooltipModule } from 'primeng/tooltip';
 import { ToastModule } from 'primeng/toast';
+import { SelectButtonModule } from 'primeng/selectbutton';
+import { CheckboxModule } from 'primeng/checkbox';
 import { MessageService } from 'primeng/api';
 import { ApiService } from '../../core/services/api.service';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { LocalDatePipe } from '../../shared/pipes/local-date.pipe';
 import { LocaleService } from '../../core/services/locale.service';
+import { ExamPaperViewComponent, ExamPaperQuestion } from '../../shared/components/exam-paper-view.component';
 
 @Component({
   selector: 'app-teacher-dashboard',
@@ -39,8 +42,11 @@ import { LocaleService } from '../../core/services/locale.service';
     DropdownModule,
     TooltipModule,
     ToastModule,
+    SelectButtonModule,
+    CheckboxModule,
     TranslocoModule,
     LocalDatePipe,
+    ExamPaperViewComponent,
   ],
   providers: [MessageService],
   template: `
@@ -185,6 +191,31 @@ import { LocaleService } from '../../core/services/locale.service';
         </div>
 
         @if (reviewDetail()) {
+          <!-- View toggle + KaTeX checkbox -->
+          <div class="flex align-items-center gap-3 mb-2">
+            <p-selectButton
+              [options]="reviewViewOptions"
+              [(ngModel)]="reviewViewMode"
+              optionLabel="label"
+              optionValue="value"
+            ></p-selectButton>
+            <div class="flex align-items-center gap-2">
+              <p-checkbox
+                [(ngModel)]="reviewKatexEnabled"
+                [binary]="true"
+                inputId="teacherKatexToggle"
+              ></p-checkbox>
+              <label for="teacherKatexToggle">{{ t('examPaper.enableKatex') }}</label>
+            </div>
+          </div>
+
+          @if (reviewViewMode === 'exam') {
+            <app-exam-paper-view
+              [questions]="reviewExamPaperQuestions()"
+              [katexEnabled]="reviewKatexEnabled"
+              [reviews]="reviewDetail()!.reviews || []"
+            ></app-exam-paper-view>
+          } @else {
           <h4 class="mt-0 mb-2">Questions</h4>
           <p-table [value]="reviewDetail()!.questions" styleClass="p-datatable-sm mb-3">
             <ng-template pTemplate="header">
@@ -239,6 +270,7 @@ import { LocaleService } from '../../core/services/locale.service';
               }
               <span class="text-xs text-500">{{ (rev.updated_at || rev.created_at) | localDate:'short' }}</span>
             </div>
+          }
           }
         }
 
@@ -322,6 +354,13 @@ export class TeacherDashboardComponent implements OnInit {
   reviewSubmitting = signal(false);
   reviewTemplates = signal<any[]>([]);
 
+  reviewViewMode = 'exam';
+  reviewKatexEnabled = false;
+  reviewViewOptions = [
+    { label: '📝 Exam Paper', value: 'exam' },
+    { label: '📊 Table', value: 'table' },
+  ];
+
   addStudentDialogVisible = false;
   addStudentEmail = '';
   addStudentLoading = signal(false);
@@ -377,10 +416,15 @@ export class TeacherDashboardComponent implements OnInit {
     this.reviewSession = session;
     this.reviewComment = '';
     this.reviewDetail.set(null);
+    this.reviewViewMode = 'exam';
     this.reviewDialogVisible = true;
 
     this.api.getTeacherSession(session.id).subscribe({
-      next: (d) => this.reviewDetail.set(d),
+      next: (d) => {
+        this.reviewDetail.set(d);
+        // Default KaTeX based on quiz type render_mode
+        this.reviewKatexEnabled = d?.session?.renderMode === 'katex';
+      },
     });
 
     // Load templates based on score
@@ -402,6 +446,20 @@ export class TeacherDashboardComponent implements OnInit {
     this.router.navigate(['/history/user', student.id]);
   }
 
+  reviewExamPaperQuestions(): ExamPaperQuestion[] {
+    const d = this.reviewDetail();
+    if (!d) return [];
+    return (d.questions || []).map((q: any) => ({
+      position: q.position,
+      expression: q.prompt?.render || this.questionText(q),
+      correct: q.correct,
+      answer: q.answer ? {
+        value: this.answerValue(q),
+        is_correct: q.answer.is_correct,
+      } : undefined,
+    }));
+  }
+
   questionText(q: any): string {
     if (q.prompt?.render) return q.prompt.render;
     if (q.c != null) return `(${q.a} × ${q.b}) + (${q.c} × ${q.d})`;
@@ -412,6 +470,12 @@ export class TeacherDashboardComponent implements OnInit {
     if (!q.answer) return '—';
     if (q.answer.response?.parsed?.value !== undefined) return String(q.answer.response.parsed.value);
     if (q.answer.value !== undefined) return String(q.answer.value);
+    return '—';
+  }
+
+  answerValue(q: any): number | string {
+    if (q.answer?.response?.parsed?.value !== undefined) return q.answer.response.parsed.value;
+    if (q.answer?.value !== undefined) return q.answer.value;
     return '—';
   }
 

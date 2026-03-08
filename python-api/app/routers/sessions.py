@@ -150,6 +150,7 @@ async def post_session(body: CreateSessionRequest, user: dict[str, Any] = Depend
         "quizTypeCode": quiz_type_code,
         "quizTypeDescription": quiz_type.get("description", ""),
         "quizTypeCategory": quiz_type.get("category", ""),
+        "renderMode": quiz_type.get("render_mode", "text"),
         "questions": [
             {
                 "id": q["id"],

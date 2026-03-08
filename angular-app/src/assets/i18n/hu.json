@@ -342,6 +342,11 @@
   "quizEditor.toggleFailed": "Az aktív állapot váltása sikertelen",
   "quizEditor.previewFailed": "Az előnézet sikertelen",
 
+  "examPaper.score": "Pontszám",
+  "examPaper.time": "Idő",
+  "examPaper.enableKatex": "Matematikai jelölés megjelenítése",
+  "quizEditor.renderMode": "Megjelenítési mód",
+
   "footer.version": "OpenMath v2.6",
   "footer.techStack": "Angular + FastAPI + PrimeNG + PostgreSQL",
   "footer.source": "Forráskód",

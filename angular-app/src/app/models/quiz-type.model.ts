@@ -9,6 +9,7 @@ export interface QuizType {
   recommended_age_max: number | null;
   is_active: boolean;
   sort_order: number;
+  render_mode: string;
 }
 
 export interface QuizTypeCreate {
@@ -21,6 +22,7 @@ export interface QuizTypeCreate {
   recommended_age_max?: number | null;
   is_active?: boolean;
   sort_order?: number;
+  render_mode?: string;
 }
 
 export interface QuizTypeUpdate {
@@ -32,6 +34,7 @@ export interface QuizTypeUpdate {
   recommended_age_max?: number | null;
   is_active?: boolean;
   sort_order?: number;
+  render_mode?: string;
 }
 
 export interface PreviewQuestion {

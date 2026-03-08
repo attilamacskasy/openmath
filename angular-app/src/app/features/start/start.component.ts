@@ -293,6 +293,7 @@ export class StartComponent implements OnInit {
             quizTypeCode: res.quizTypeCode,
             quizTypeDescription: res.quizTypeDescription || qt?.description || '',
             quizTypeCategory: res.quizTypeCategory || qt?.category || '',
+            renderMode: res.renderMode || qt?.render_mode || 'text',
             questions: res.questions,
           });
           this.submitting.set(false);

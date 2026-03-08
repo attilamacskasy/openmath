@@ -12,11 +12,14 @@ import { InputTextareaModule } from 'primeng/inputtextarea';
 import { DropdownModule } from 'primeng/dropdown';
 import { TooltipModule } from 'primeng/tooltip';
 import { ToastModule } from 'primeng/toast';
+import { SelectButtonModule } from 'primeng/selectbutton';
+import { CheckboxModule } from 'primeng/checkbox';
 import { MessageService } from 'primeng/api';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService } from '../../core/services/api.service';
 import { LocalDatePipe } from '../../shared/pipes/local-date.pipe';
 import { LocaleService } from '../../core/services/locale.service';
+import { ExamPaperViewComponent, ExamPaperQuestion } from '../../shared/components/exam-paper-view.component';
 
 @Component({
   selector: 'app-parent-dashboard',
@@ -35,8 +38,11 @@ import { LocaleService } from '../../core/services/locale.service';
     DropdownModule,
     TooltipModule,
     ToastModule,
+    SelectButtonModule,
+    CheckboxModule,
     TranslocoModule,
     LocalDatePipe,
+    ExamPaperViewComponent,
   ],
   providers: [MessageService],
   template: `
@@ -181,6 +187,31 @@ import { LocaleService } from '../../core/services/locale.service';
         </div>
 
         @if (sessionDetail()) {
+          <!-- View toggle + KaTeX checkbox -->
+          <div class="flex align-items-center gap-3 mb-2">
+            <p-selectButton
+              [options]="detailViewOptions"
+              [(ngModel)]="detailViewMode"
+              optionLabel="label"
+              optionValue="value"
+            ></p-selectButton>
+            <div class="flex align-items-center gap-2">
+              <p-checkbox
+                [(ngModel)]="detailKatexEnabled"
+                [binary]="true"
+                inputId="parentKatexToggle"
+              ></p-checkbox>
+              <label for="parentKatexToggle">{{ t('examPaper.enableKatex') }}</label>
+            </div>
+          </div>
+
+          @if (detailViewMode === 'exam') {
+            <app-exam-paper-view
+              [questions]="detailExamPaperQuestions()"
+              [katexEnabled]="detailKatexEnabled"
+              [reviews]="sessionDetail()!.reviews || []"
+            ></app-exam-paper-view>
+          } @else {
           <h4 class="mt-0 mb-2">{{ t('session.questions') }}</h4>
           <p-table [value]="sessionDetail()!.questions" styleClass="p-datatable-sm mb-3">
             <ng-template pTemplate="header">
@@ -235,6 +266,7 @@ import { LocaleService } from '../../core/services/locale.service';
               }
               <span class="text-xs text-500">{{ (rev.updated_at || rev.created_at) | localDate:'short' }}</span>
             </div>
+          }
           }
         }
 
@@ -321,6 +353,13 @@ export class ParentDashboardComponent implements OnInit {
   signoffSubmitting = signal(false);
   signoffTemplates = signal<any[]>([]);
 
+  detailViewMode = 'exam';
+  detailKatexEnabled = false;
+  detailViewOptions = [
+    { label: '📝 Exam Paper', value: 'exam' },
+    { label: '📊 Table', value: 'table' },
+  ];
+
   addChildDialogVisible = false;
   addChildEmail = '';
   addChildLoading = signal(false);
@@ -371,10 +410,14 @@ export class ParentDashboardComponent implements OnInit {
     this.detailSession = session;
     this.signoffComment = '';
     this.sessionDetail.set(null);
+    this.detailViewMode = 'exam';
     this.detailDialogVisible = true;
 
     this.api.getParentSession(session.id).subscribe({
-      next: (d) => this.sessionDetail.set(d),
+      next: (d) => {
+        this.sessionDetail.set(d);
+        this.detailKatexEnabled = d?.session?.renderMode === 'katex';
+      },
     });
 
     // Load templates based on score (v2.5)
@@ -402,6 +445,20 @@ export class ParentDashboardComponent implements OnInit {
     }
   }
 
+  detailExamPaperQuestions(): ExamPaperQuestion[] {
+    const d = this.sessionDetail();
+    if (!d) return [];
+    return (d.questions || []).map((q: any) => ({
+      position: q.position,
+      expression: q.prompt?.render || this.questionText(q),
+      correct: q.correct,
+      answer: q.answer ? {
+        value: this.answerValue(q),
+        is_correct: q.answer.is_correct,
+      } : undefined,
+    }));
+  }
+
   questionText(q: any): string {
     if (q.prompt?.render) return q.prompt.render;
     if (q.c != null) return `(${q.a} × ${q.b}) + (${q.c} × ${q.d})`;
@@ -412,6 +469,12 @@ export class ParentDashboardComponent implements OnInit {
     if (!q.answer) return '—';
     if (q.answer.response?.parsed?.value !== undefined) return String(q.answer.response.parsed.value);
     if (q.answer.value !== undefined) return String(q.answer.value);
+    return '—';
+  }
+
+  answerValue(q: any): number | string {
+    if (q.answer?.response?.parsed?.value !== undefined) return q.answer.response.parsed.value;
+    if (q.answer?.value !== undefined) return q.answer.value;
     return '—';
   }
 

@@ -47,7 +47,7 @@ async def list_quiz_types() -> list[dict[str, Any]]:
                   COALESCE(answer_type, 'int') AS answer_type,
                   template_kind, category,
                   recommended_age_min, recommended_age_max,
-                  is_active, sort_order
+                  is_active, sort_order, render_mode
            FROM quiz_types ORDER BY sort_order, code"""
     )
     return [_row_to_dict(r) for r in rows]
@@ -81,7 +81,7 @@ async def list_active_quiz_types(
                    COALESCE(answer_type, 'int') AS answer_type,
                    template_kind, category,
                    recommended_age_min, recommended_age_max,
-                   is_active, sort_order
+                   is_active, sort_order, render_mode
             FROM quiz_types WHERE {where}
             ORDER BY sort_order, code""",
         *params,
@@ -96,7 +96,7 @@ async def get_quiz_type_by_id(qt_id: str) -> dict[str, Any] | None:
                   COALESCE(answer_type, 'int') AS answer_type,
                   template_kind, category,
                   recommended_age_min, recommended_age_max,
-                  is_active, sort_order, created_at
+                  is_active, sort_order, render_mode, created_at
            FROM quiz_types WHERE id = $1""",
         UUID(qt_id),
     )
@@ -118,7 +118,7 @@ async def get_quiz_type_by_code(code: str) -> dict[str, Any] | None:
                   COALESCE(answer_type, 'int') AS answer_type,
                   template_kind, category,
                   recommended_age_min, recommended_age_max,
-                  is_active, sort_order
+                  is_active, sort_order, render_mode
            FROM quiz_types WHERE code = $1""",
         code,
     )
@@ -130,11 +130,11 @@ async def create_quiz_type(data: dict[str, Any]) -> dict[str, Any]:
     row = await pool.fetchrow(
         """INSERT INTO quiz_types (code, description, template_kind, answer_type,
                                     category, recommended_age_min, recommended_age_max,
-                                    is_active, sort_order)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                                    is_active, sort_order, render_mode)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
            RETURNING id, code, description, answer_type, template_kind,
                      category, recommended_age_min, recommended_age_max,
-                     is_active, sort_order, created_at""",
+                     is_active, sort_order, render_mode, created_at""",
         data["code"],
         data["description"],
         data["template_kind"],
@@ -144,6 +144,7 @@ async def create_quiz_type(data: dict[str, Any]) -> dict[str, Any]:
         data.get("recommended_age_max"),
         data.get("is_active", True),
         data.get("sort_order", 0),
+        data.get("render_mode", "text"),
     )
     return _row_to_dict(row)
 
@@ -157,6 +158,7 @@ async def update_quiz_type(qt_id: str, data: dict[str, Any]) -> dict[str, Any] |
     allowed = [
         "description", "template_kind", "answer_type", "category",
         "recommended_age_min", "recommended_age_max", "is_active", "sort_order",
+        "render_mode",
     ]
     for key in allowed:
         if key in data:
@@ -172,7 +174,7 @@ async def update_quiz_type(qt_id: str, data: dict[str, Any]) -> dict[str, Any] |
         f"""UPDATE quiz_types SET {set_clause} WHERE id = $1
             RETURNING id, code, description, answer_type, template_kind,
                       category, recommended_age_min, recommended_age_max,
-                      is_active, sort_order, created_at""",
+                      is_active, sort_order, render_mode, created_at""",
         *params,
     )
     return _row_to_dict(row) if row else None
@@ -412,10 +414,13 @@ async def get_session_by_id(session_id: str) -> dict[str, Any] | None:
         user_name = user_row["name"] if user_row else None
 
     qt_code: str | None = None
+    qt_render_mode: str = "text"
     qt_row = await pool.fetchrow(
-        "SELECT code FROM quiz_types WHERE id = $1", session["quiz_type_id"]
+        "SELECT code, render_mode FROM quiz_types WHERE id = $1", session["quiz_type_id"]
     )
-    qt_code = qt_row["code"] if qt_row else None
+    if qt_row:
+        qt_code = qt_row["code"]
+        qt_render_mode = qt_row.get("render_mode") or "text"
 
     question_rows = await pool.fetch(
         "SELECT * FROM questions WHERE session_id = $1 ORDER BY position", sid
@@ -442,6 +447,7 @@ async def get_session_by_id(session_id: str) -> dict[str, Any] | None:
     session_dict = _row_to_dict(session)
     session_dict["userName"] = user_name
     session_dict["quizTypeCode"] = qt_code
+    session_dict["renderMode"] = qt_render_mode
 
     questions_out = []
     for q in question_rows:

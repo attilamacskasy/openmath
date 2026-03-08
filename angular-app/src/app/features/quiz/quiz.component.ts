@@ -25,6 +25,7 @@ import { QuizService } from '../../core/services/quiz.service';
 import { LocaleService } from '../../core/services/locale.service';
 import { QuestionOut } from '../../models/session.model';
 import { BadgeSummary } from '../../models/badge.model';
+import { KatexPipe } from '../../shared/pipes/katex.pipe';
 
 interface FeedbackState {
   show: boolean;
@@ -47,6 +48,7 @@ interface FeedbackState {
     TagModule,
     ToastModule,
     TranslocoModule,
+    KatexPipe,
   ],
   providers: [MessageService],
   template: `
@@ -108,7 +110,11 @@ interface FeedbackState {
           <p-card>
             <ng-template pTemplate="header">
               <h2 class="text-center m-0 p-3">
-                {{ currentQuestion()!.prompt.render }}
+                @if (quizRenderMode === 'katex') {
+                  <span [innerHTML]="currentQuestion()!.prompt.render | katex:true"></span>
+                } @else {
+                  {{ currentQuestion()!.prompt.render }}
+                }
               </h2>
             </ng-template>
 
@@ -223,6 +229,7 @@ export class QuizComponent implements OnInit, AfterViewChecked {
   needsFocus = false;
   quizTypeDescription = '';
   quizTypeCategory = '';
+  quizRenderMode = 'text';
 
   intAnswer: number | null = null;
   textAnswer = '';
@@ -257,6 +264,7 @@ export class QuizComponent implements OnInit, AfterViewChecked {
       this.questions.set(active.questions);
       this.quizTypeDescription = active.quizTypeDescription || '';
       this.quizTypeCategory = active.quizTypeCategory || '';
+      this.quizRenderMode = active.renderMode || 'text';
       this.loading.set(false);
       this.needsFocus = true;
     } else {
@@ -284,6 +292,7 @@ export class QuizComponent implements OnInit, AfterViewChecked {
           this.answeredCount.set(answered);
           this.sessionCorrect.set(correct);
           this.sessionWrong.set(answered - correct);
+          this.quizRenderMode = detail.session?.renderMode || 'text';
           this.loading.set(false);
           this.needsFocus = true;
         },

@@ -8,6 +8,7 @@ export interface ActiveQuiz {
   quizTypeCode: string;
   quizTypeDescription: string;
   quizTypeCategory: string;
+  renderMode: string;
   questions: QuestionOut[];
 }
 

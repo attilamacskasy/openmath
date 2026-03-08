@@ -170,6 +170,65 @@ def _gen_length_add(quiz_type_code: str, difficulty: str, learned: list[int], fo
     return {"prompt": _make_prompt("length_add", "int", f"{a} cm + {b} cm = ? cm", a=a, b=b), "correct": a + b, "a": a, "b": b, "c": None, "d": None}
 
 
+def _gen_basic_fractions(quiz_type_code: str, difficulty: str, learned: list[int], focus: list[int]) -> dict[str, Any]:
+    """Generate basic fraction arithmetic questions with KaTeX-ready expressions."""
+    from math import gcd
+
+    denominators = [2, 3, 4, 5, 6, 8, 10]
+    op = random.choice(["add", "sub", "mul_whole"])
+
+    if op == "add":
+        d = random.choice(denominators)
+        max_n = d - 1
+        n1 = random.randint(1, max(1, max_n))
+        n2 = random.randint(1, max(1, d - n1))
+        result_n = n1 + n2
+        render = rf"\frac{{{n1}}}{{{d}}} + \frac{{{n2}}}{{{d}}}"
+        if result_n == d:
+            correct_str = "1"
+            render_katex = render
+        else:
+            g = gcd(result_n, d)
+            sn, sd = result_n // g, d // g
+            correct_str = f"{sn}/{sd}" if sd != 1 else str(sn)
+            render_katex = render
+        return {
+            "prompt": _make_prompt("basic_fractions", "text", render_katex, op="add", n1=n1, n2=n2, d=d),
+            "correct": correct_str,
+            "a": n1, "b": d, "c": n2, "d": d,
+        }
+
+    elif op == "sub":
+        d = random.choice(denominators)
+        n1 = random.randint(2, d - 1) if d > 2 else 2
+        n2 = random.randint(1, n1 - 1)
+        result_n = n1 - n2
+        render = rf"\frac{{{n1}}}{{{d}}} - \frac{{{n2}}}{{{d}}}"
+        g = gcd(result_n, d)
+        sn, sd = result_n // g, d // g
+        correct_str = f"{sn}/{sd}" if sd != 1 else str(sn)
+        return {
+            "prompt": _make_prompt("basic_fractions", "text", render, op="sub", n1=n1, n2=n2, d=d),
+            "correct": correct_str,
+            "a": n1, "b": d, "c": n2, "d": d,
+        }
+
+    else:  # mul_whole
+        d = random.choice(denominators)
+        n = random.randint(1, d - 1) if d > 1 else 1
+        whole = random.randint(2, 5)
+        result_n = n * whole
+        render = rf"\frac{{{n}}}{{{d}}} \times {whole}"
+        g = gcd(result_n, d)
+        sn, sd = result_n // g, d // g
+        correct_str = f"{sn}/{sd}" if sd != 1 else str(sn)
+        return {
+            "prompt": _make_prompt("basic_fractions", "text", render, op="mul_whole", n=n, d=d, whole=whole),
+            "correct": correct_str,
+            "a": n, "b": d, "c": whole, "d": None,
+        }
+
+
 # ── Generator registry ──────────────────────────────────────
 
 GENERATORS: dict[str, Callable[..., dict[str, Any]]] = {
@@ -193,6 +252,7 @@ GENERATORS: dict[str, Callable[..., dict[str, Any]]] = {
     "dm_to_cm": _gen_dm_to_cm,
     "m_to_cm": _gen_m_to_cm,
     "length_add": _gen_length_add,
+    "basic_fractions": _gen_basic_fractions,
 }
 
 

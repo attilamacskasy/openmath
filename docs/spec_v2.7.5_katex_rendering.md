@@ -1,7 +1,7 @@
-# OpenMath Specification — v2.75
+# OpenMath Specification — v2.7.5
 ## KaTeX Rendering for Quiz Types, Session Review, and Fraction-Based Quizzes
 
-**Version:** 2.75  
+**Version:** 2.7.5  
 **Status:** Draft Specification  
 **Module:** Quiz Rendering / Review UX / Math Formatting
 

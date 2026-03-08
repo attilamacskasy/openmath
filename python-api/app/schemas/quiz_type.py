@@ -16,6 +16,7 @@ class QuizTypeOut(BaseModel):
     recommended_age_max: int | None = None
     is_active: bool = True
     sort_order: int = 0
+    render_mode: str = "text"
 
 
 class QuizTypeCreate(BaseModel):
@@ -28,6 +29,7 @@ class QuizTypeCreate(BaseModel):
     recommended_age_max: int | None = Field(default=None, ge=4, le=18)
     is_active: bool = True
     sort_order: int = 0
+    render_mode: str = "text"
 
 
 class QuizTypeUpdate(BaseModel):
@@ -39,6 +41,7 @@ class QuizTypeUpdate(BaseModel):
     recommended_age_max: int | None = Field(default=None, ge=4, le=18)
     is_active: bool | None = None
     sort_order: int | None = None
+    render_mode: str | None = None
 
 
 class PreviewQuestion(BaseModel):
