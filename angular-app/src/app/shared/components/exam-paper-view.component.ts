@@ -36,7 +36,7 @@ export interface ExamPaperReview {
           <span class="exam-question-number">{{ q.position }}.</span>
           <span class="exam-expression">
             @if (katexEnabled) {
-              <span [innerHTML]="q.expression | katex:true"></span>
+              <span class="katex-inline" [innerHTML]="q.expression | katex:true"></span>
             } @else {
               {{ q.expression }}
             }
@@ -49,7 +49,7 @@ export interface ExamPaperReview {
             } @else if (q.answer.is_correct) {
               <!-- Correct -->
               @if (katexEnabled && isKatexExpr(String(q.answer.value))) {
-                <span [innerHTML]="String(q.answer.value) | katex:true"></span>
+                <span class="katex-inline" [innerHTML]="toKatex(String(q.answer.value)) | katex:true"></span>
               } @else {
                 <span>{{ q.answer.value }}</span>
               }
@@ -58,14 +58,14 @@ export interface ExamPaperReview {
               <!-- Wrong -->
               <span class="exam-wrong-answer">
                 @if (katexEnabled && isKatexExpr(String(q.answer.value))) {
-                  <span [innerHTML]="String(q.answer.value) | katex:true"></span>
+                  <span class="katex-inline" [innerHTML]="toKatex(String(q.answer.value)) | katex:true"></span>
                 } @else {
                   {{ q.answer.value }}
                 }
               </span>
               <span class="exam-correct-answer">
                 @if (katexEnabled && isKatexExpr(String(q.correct))) {
-                  <span [innerHTML]="String(q.correct) | katex:true"></span>
+                  <span class="katex-inline" [innerHTML]="toKatex(String(q.correct)) | katex:true"></span>
                 } @else {
                   {{ q.correct }}
                 }
@@ -119,9 +119,10 @@ export interface ExamPaperReview {
 
     .exam-question {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       gap: 0.75rem;
       margin-bottom: 0.5rem;
+      min-height: 2.5em;
     }
 
     .exam-question-number {
@@ -132,9 +133,14 @@ export interface ExamPaperReview {
 
     .exam-expression {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       gap: 0.4rem;
       flex-wrap: wrap;
+    }
+
+    .katex-inline {
+      display: inline-flex;
+      align-items: center;
     }
 
     .exam-equals {
@@ -148,10 +154,17 @@ export interface ExamPaperReview {
     }
 
     .exam-wrong-answer {
-      text-decoration: line-through;
-      text-decoration-color: #e53935;
-      text-decoration-thickness: 2px;
+      position: relative;
       color: #999;
+    }
+
+    .exam-wrong-answer::after {
+      content: '';
+      position: absolute;
+      left: -2px;
+      right: -2px;
+      top: 50%;
+      border-bottom: 2px solid #e53935;
     }
 
     .exam-correct-answer {
@@ -209,7 +222,22 @@ export class ExamPaperViewComponent {
       : 0;
   }
 
+  /** Check whether a value should be rendered via KaTeX. */
   isKatexExpr(value: string): boolean {
-    return value.includes('\\frac') || value.includes('\\times') || value.includes('\\');
+    if (value.includes('\\frac') || value.includes('\\times') || value.includes('\\')) {
+      return true;
+    }
+    // Detect plain fractions like "1/2", "7/2"
+    return /^\d+\/\d+$/.test(value.trim());
+  }
+
+  /** Convert plain fractions (e.g. "1/2") to KaTeX \frac{}{} notation. */
+  toKatex(value: string): string {
+    // Already contains KaTeX markup — return as-is
+    if (value.includes('\\')) return value;
+    // Plain fraction like "3/4"
+    const m = value.trim().match(/^(\d+)\/(\d+)$/);
+    if (m) return `\\frac{${m[1]}}{${m[2]}}`;
+    return value;
   }
 }

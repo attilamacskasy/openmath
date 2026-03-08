@@ -22,6 +22,7 @@ import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { LocalDatePipe } from '../../shared/pipes/local-date.pipe';
 import { LocaleService } from '../../core/services/locale.service';
 import { ExamPaperViewComponent, ExamPaperQuestion } from '../../shared/components/exam-paper-view.component';
+import { KatexPipe } from '../../shared/pipes/katex.pipe';
 
 @Component({
   selector: 'app-teacher-dashboard',
@@ -47,6 +48,7 @@ import { ExamPaperViewComponent, ExamPaperQuestion } from '../../shared/componen
     TranslocoModule,
     LocalDatePipe,
     ExamPaperViewComponent,
+    KatexPipe,
   ],
   providers: [MessageService],
   template: `
@@ -231,14 +233,28 @@ import { ExamPaperViewComponent, ExamPaperQuestion } from '../../shared/componen
               <tr>
                 <td>{{ q.position }}</td>
                 <td>
-                  @if (q.prompt?.render_html) {
+                  @if (reviewKatexEnabled && q.prompt?.render) {
+                    <span [innerHTML]="q.prompt.render | katex:true"></span>
+                  } @else if (q.prompt?.render_html) {
                     <span [innerHTML]="q.prompt.render_html"></span>
                   } @else {
                     {{ q.prompt?.render || questionText(q) }}
                   }
                 </td>
-                <td class="font-semibold">{{ q.correct }}</td>
-                <td>{{ answerText(q) }}</td>
+                <td class="font-semibold">
+                  @if (reviewKatexEnabled && isFraction('' + q.correct)) {
+                    <span [innerHTML]="fractionToKatex('' + q.correct) | katex:true"></span>
+                  } @else {
+                    {{ q.correct }}
+                  }
+                </td>
+                <td>
+                  @if (reviewKatexEnabled && isFraction(answerText(q))) {
+                    <span [innerHTML]="fractionToKatex(answerText(q)) | katex:true"></span>
+                  } @else {
+                    {{ answerText(q) }}
+                  }
+                </td>
                 <td>
                   @if (!q.answer) {
                     <p-tag value="—" severity="info"></p-tag>
@@ -356,16 +372,17 @@ export class TeacherDashboardComponent implements OnInit {
 
   reviewViewMode = 'exam';
   reviewKatexEnabled = false;
-  reviewViewOptions = [
-    { label: '📝 Exam Paper', value: 'exam' },
-    { label: '📊 Table', value: 'table' },
-  ];
+  reviewViewOptions: { label: string; value: string }[] = [];
 
   addStudentDialogVisible = false;
   addStudentEmail = '';
   addStudentLoading = signal(false);
 
   ngOnInit() {
+    this.reviewViewOptions = [
+      { label: this.translocoService.translate('examPaper.viewExam'), value: 'exam' },
+      { label: this.translocoService.translate('examPaper.viewTable'), value: 'table' },
+    ];
     this.loadStudents();
   }
 
@@ -477,6 +494,15 @@ export class TeacherDashboardComponent implements OnInit {
     if (q.answer?.response?.parsed?.value !== undefined) return q.answer.response.parsed.value;
     if (q.answer?.value !== undefined) return q.answer.value;
     return '—';
+  }
+
+  isFraction(value: string): boolean {
+    return /^\d+\/\d+$/.test(value.trim());
+  }
+
+  fractionToKatex(value: string): string {
+    const m = value.trim().match(/^(\d+)\/(\d+)$/);
+    return m ? `\\frac{${m[1]}}{${m[2]}}` : value;
   }
 
   submitReview() {

@@ -16,11 +16,12 @@ import { DurationPipe } from '../../shared/pipes/duration.pipe';
 import { LocalDatePipe } from '../../shared/pipes/local-date.pipe';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ExamPaperViewComponent, ExamPaperQuestion } from '../../shared/components/exam-paper-view.component';
+import { KatexPipe } from '../../shared/pipes/katex.pipe';
 
 @Component({
   selector: 'app-session-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, CardModule, TableModule, TagModule, ButtonModule, ToastModule, SelectButtonModule, CheckboxModule, DurationPipe, LocalDatePipe, TranslocoModule, ExamPaperViewComponent],
+  imports: [CommonModule, FormsModule, CardModule, TableModule, TagModule, ButtonModule, ToastModule, SelectButtonModule, CheckboxModule, DurationPipe, LocalDatePipe, TranslocoModule, ExamPaperViewComponent, KatexPipe],
   providers: [MessageService],
   template: `
     <ng-container *transloco="let t">
@@ -112,14 +113,28 @@ import { ExamPaperViewComponent, ExamPaperQuestion } from '../../shared/componen
             <tr>
               <td>{{ q.position }}</td>
               <td>
-                @if (q.prompt?.render_html) {
+                @if (katexEnabled && q.prompt?.render) {
+                  <span [innerHTML]="q.prompt.render | katex:true"></span>
+                } @else if (q.prompt?.render_html) {
                   <span [innerHTML]="q.prompt.render_html"></span>
                 } @else {
                   {{ questionText(q) }}
                 }
               </td>
-              <td class="font-semibold">{{ q.correct }}</td>
-              <td>{{ answerText(q) }}</td>
+              <td class="font-semibold">
+                @if (katexEnabled && isFraction('' + q.correct)) {
+                  <span [innerHTML]="fractionToKatex('' + q.correct) | katex:true"></span>
+                } @else {
+                  {{ q.correct }}
+                }
+              </td>
+              <td>
+                @if (katexEnabled && isFraction(answerText(q))) {
+                  <span [innerHTML]="fractionToKatex(answerText(q)) | katex:true"></span>
+                } @else {
+                  {{ answerText(q) }}
+                }
+              </td>
               <td>
                 @if (!q.answer) {
                   <p-tag value="—" severity="info"></p-tag>
@@ -173,12 +188,13 @@ export class SessionDetailComponent implements OnInit {
 
   viewMode = 'exam';
   katexEnabled = false;
-  viewOptions = [
-    { label: '📝 Exam Paper', value: 'exam' },
-    { label: '📊 Table', value: 'table' },
-  ];
+  viewOptions: { label: string; value: string }[] = [];
 
   ngOnInit() {
+    this.viewOptions = [
+      { label: this.transloco.translate('examPaper.viewExam'), value: 'exam' },
+      { label: this.transloco.translate('examPaper.viewTable'), value: 'table' },
+    ];
     const id = this.route.snapshot.paramMap.get('sessionId') || '';
     this.api.getSession(id).subscribe({
       next: (d: any) => {
@@ -227,6 +243,15 @@ export class SessionDetailComponent implements OnInit {
       return q.answer.response.parsed.value;
     if (q.answer?.value !== undefined) return q.answer.value;
     return '—';
+  }
+
+  isFraction(value: string): boolean {
+    return /^\d+\/\d+$/.test(value.trim());
+  }
+
+  fractionToKatex(value: string): string {
+    const m = value.trim().match(/^(\d+)\/(\d+)$/);
+    return m ? `\\frac{${m[1]}}{${m[2]}}` : value;
   }
 
   exportPdf(): void {

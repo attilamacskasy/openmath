@@ -345,6 +345,8 @@
   "examPaper.score": "Score",
   "examPaper.time": "Time",
   "examPaper.enableKatex": "Render maths notation",
+  "examPaper.viewExam": "Exam Paper",
+  "examPaper.viewTable": "Table",
   "quizEditor.renderMode": "Render Mode",
 
   "footer.version": "OpenMath v2.6",
