@@ -14,6 +14,7 @@ import { ApiService, QuizTypesResponse } from '../../core/services/api.service';
 import { QuizService } from '../../core/services/quiz.service';
 import { AuthService } from '../../core/services/auth.service';
 import { QuizType, PreviewQuestion } from '../../models/quiz-type.model';
+import { KatexPipe } from '../../shared/pipes/katex.pipe';
 
 interface DropdownGroup {
   label: string;
@@ -35,6 +36,7 @@ interface DropdownGroup {
     CheckboxModule,
     ProgressSpinnerModule,
     TranslocoModule,
+    KatexPipe,
   ],
   template: `
     <ng-container *transloco="let t">
@@ -102,9 +104,14 @@ interface DropdownGroup {
               <div class="font-semibold mb-2 text-sm">{{ t('quiz.exampleQuestions') }}</div>
               <div class="flex flex-column gap-2">
                 @for (p of previewQuestions(); track p.render) {
-                  <div class="surface-50 p-3 border-round flex justify-content-between">
-                    <span class="font-semibold">{{ p.render }}</span>
-                    <span class="text-green-600">= {{ p.correct }}</span>
+                  <div class="surface-50 p-3 border-round flex justify-content-between align-items-center">
+                    @if (selectedRenderMode() === 'katex') {
+                      <span class="font-semibold" [innerHTML]="p.render | katex:true"></span>
+                      <span class="text-green-600">= <span [innerHTML]="p.correct | katex:true"></span></span>
+                    } @else {
+                      <span class="font-semibold">{{ p.render }}</span>
+                      <span class="text-green-600">= {{ p.correct }}</span>
+                    }
                   </div>
                 }
               </div>
@@ -303,6 +310,11 @@ export class StartComponent implements OnInit {
           this.submitting.set(false);
         },
       });
+  }
+
+  selectedRenderMode(): string {
+    const qt = this.allQuizTypes().find(t => t.code === this.quizTypeCode);
+    return qt?.render_mode || 'text';
   }
 
   private formatCategory(cat: string): string {

@@ -16,6 +16,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService } from '../../core/services/api.service';
 import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../../models/quiz-type.model';
+import { KatexPipe } from '../../shared/pipes/katex.pipe';
 
 @Component({
   selector: 'app-quiz-type-editor',
@@ -35,6 +36,7 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
     ToastModule,
     ConfirmDialogModule,
     TranslocoModule,
+    KatexPipe,
   ],
   providers: [ConfirmationService, MessageService],
   template: `
@@ -212,7 +214,15 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
           <div class="surface-50 p-3 border-round">
             <div class="font-semibold mb-2">{{ t('quizEditor.preview') }}:</div>
             @for (p of dialogPreview(); track p.render) {
-              <div class="text-sm mb-1">• {{ p.render }} = {{ p.correct }}</div>
+              <div class="text-sm mb-1 flex align-items-center gap-1">
+                <span>•</span>
+                @if (formRenderMode === 'katex') {
+                  <span [innerHTML]="p.render | katex:true"></span>
+                  <span>= <span [innerHTML]="p.correct | katex:true"></span></span>
+                } @else {
+                  <span>{{ p.render }} = {{ p.correct }}</span>
+                }
+              </div>
             }
           </div>
         }
@@ -241,9 +251,14 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
       } @else {
         <div class="flex flex-column gap-2">
           @for (p of previewQuestions(); track p.render) {
-            <div class="surface-50 p-3 border-round flex justify-content-between">
-              <span class="font-semibold">{{ p.render }}</span>
-              <span class="text-green-600">= {{ p.correct }}</span>
+            <div class="surface-50 p-3 border-round flex justify-content-between align-items-center">
+              @if (previewRenderMode === 'katex') {
+                <span class="font-semibold" [innerHTML]="p.render | katex:true"></span>
+                <span class="text-green-600">= <span [innerHTML]="p.correct | katex:true"></span></span>
+              } @else {
+                <span class="font-semibold">{{ p.render }}</span>
+                <span class="text-green-600">= {{ p.correct }}</span>
+              }
             </div>
           }
         </div>
@@ -268,6 +283,7 @@ export class QuizTypeEditorComponent implements OnInit {
   previewLoading = signal(false);
   previewQuestions = signal<PreviewQuestion[]>([]);
   dialogPreview = signal<PreviewQuestion[]>([]);
+  previewRenderMode = 'text';
 
   // Form fields
   formCode = '';
@@ -440,6 +456,7 @@ export class QuizTypeEditorComponent implements OnInit {
   showPreview(qt: QuizType) {
     this.previewLoading.set(true);
     this.previewQuestions.set([]);
+    this.previewRenderMode = qt.render_mode || 'text';
     this.previewDialogVisible = true;
     this.api.previewQuizType(qt.id).subscribe({
       next: (questions) => {
