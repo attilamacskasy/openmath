@@ -17,6 +17,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TagModule } from 'primeng/tag';
+import { TranslocoModule } from '@jsverse/transloco';
 import { ApiService } from '../../core/services/api.service';
 import { QuizService } from '../../core/services/quiz.service';
 import { QuestionOut } from '../../models/session.model';
@@ -40,14 +41,16 @@ interface FeedbackState {
     ProgressBarModule,
     SelectButtonModule,
     TagModule,
+    TranslocoModule,
   ],
   template: `
+    <ng-container *transloco="let t">
     <div class="flex justify-content-center">
       <div style="max-width: 700px; width: 100%">
         @if (loading()) {
-          <p class="text-center text-500">Loading quiz...</p>
+          <p class="text-center text-500">{{ t('quiz.loadingQuiz') }}</p>
         } @else if (!currentQuestion()) {
-          <p class="text-center text-500">No questions available.</p>
+          <p class="text-center text-500">{{ t('quiz.noQuestions') }}</p>
         } @else {
           <!-- Quiz type banner -->
           @if (quizTypeDescription) {
@@ -64,10 +67,10 @@ interface FeedbackState {
           <div class="mb-3">
             <div class="flex justify-content-between mb-1">
               <span class="text-sm text-500">
-                Question {{ answeredCount() + 1 }} of {{ totalQuestions() }}
+                {{ t('quiz.question') }} {{ answeredCount() + 1 }} {{ t('quiz.of') }} {{ totalQuestions() }}
               </span>
               <span class="text-sm text-500">
-                Score: {{ sessionCorrect() }}/{{ answeredCount() }}
+                {{ t('quiz.score') }}: {{ sessionCorrect() }}/{{ answeredCount() }}
               </span>
             </div>
             <p-progressBar
@@ -87,9 +90,9 @@ interface FeedbackState {
               [class.text-red-800]="!feedback().isCorrect"
             >
               @if (feedback().isCorrect) {
-                Correct! &#10003;
+                {{ t('quiz.correctFeedback') }} &#10003;
               } @else {
-                Wrong — correct answer is {{ feedback().correctValue }}
+                {{ t('quiz.wrongFeedback') }} {{ feedback().correctValue }}
               }
             </div>
           }
@@ -113,7 +116,7 @@ interface FeedbackState {
                       [useGrouping]="false"
                       [autofocus]="true"
                       (keydown.enter)="submitAnswer()"
-                      placeholder="Your answer"
+                      [placeholder]="t('quiz.yourAnswer')"
                       [style]="{ 'font-size': '1.5rem', width: '200px' }"
                       [inputStyle]="{ 'text-align': 'center', 'font-size': '1.5rem' }"
                     ></p-inputNumber>
@@ -126,7 +129,7 @@ interface FeedbackState {
                       #textInput
                       [(ngModel)]="textAnswer"
                       (keydown.enter)="submitAnswer()"
-                      placeholder="Your answer"
+                      [placeholder]="t('quiz.yourAnswer')"
                       [style]="{ 'font-size': '1.5rem', width: '250px', 'text-align': 'center' }"
                     />
                   </div>
@@ -134,7 +137,7 @@ interface FeedbackState {
                 @case ('tuple') {
                   <div class="flex justify-content-center gap-4 align-items-end">
                     <div class="flex flex-column align-items-center gap-1">
-                      <label class="text-sm text-500">Answer 1</label>
+                      <label class="text-sm text-500">{{ t('quiz.answer1') }}</label>
                       <p-inputNumber
                         #tupleInput1
                         [(ngModel)]="tupleAnswer1"
@@ -147,7 +150,7 @@ interface FeedbackState {
                       ></p-inputNumber>
                     </div>
                     <div class="flex flex-column align-items-center gap-1">
-                      <label class="text-sm text-500">Answer 2</label>
+                      <label class="text-sm text-500">{{ t('quiz.answer2') }}</label>
                       <p-inputNumber
                         #tupleInput2
                         [(ngModel)]="tupleAnswer2"
@@ -175,7 +178,7 @@ interface FeedbackState {
             <ng-template pTemplate="footer">
               <div class="flex justify-content-center">
                 <p-button
-                  label="Submit"
+                  [label]="t('quiz.submit')"
                   icon="pi pi-check"
                   (onClick)="submitAnswer()"
                   [disabled]="!hasAnswer() || submitting()"
@@ -186,6 +189,7 @@ interface FeedbackState {
         }
       </div>
     </div>
+    </ng-container>
   `,
 })
 export class QuizComponent implements OnInit, AfterViewChecked {

@@ -11,6 +11,7 @@ import {
   GoogleAuthRequest,
   MeResponse,
 } from '../../models/auth.model';
+import { LocaleService } from './locale.service';
 
 const ACCESS_TOKEN_KEY = 'openmath_access_token';
 const REFRESH_TOKEN_KEY = 'openmath_refresh_token';
@@ -20,6 +21,7 @@ const USER_KEY = 'openmath_user';
 export class AuthService {
   private http = inject(HttpClient);
   private router = inject(Router);
+  private localeService = inject(LocaleService);
   private baseUrl = environment.apiUrl;
 
   private _currentUser = signal<AuthUser | null>(null);
@@ -77,7 +79,13 @@ export class AuthService {
   }
 
   getMe(): Observable<MeResponse> {
-    return this.http.get<MeResponse>(`${this.baseUrl}/auth/me`);
+    return this.http.get<MeResponse>(`${this.baseUrl}/auth/me`).pipe(
+      tap((me) => {
+        if (me.locale) {
+          this.localeService.initFromProfile(me.locale);
+        }
+      })
+    );
   }
 
   logout(): void {

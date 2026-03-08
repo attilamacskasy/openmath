@@ -13,6 +13,7 @@ import { TagModule } from 'primeng/tag';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService } from '../../core/services/api.service';
 import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../../models/quiz-type.model';
 
@@ -33,15 +34,17 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
     TagModule,
     ToastModule,
     ConfirmDialogModule,
+    TranslocoModule,
   ],
   providers: [ConfirmationService, MessageService],
   template: `
+    <ng-container *transloco="let t">
     <p-toast></p-toast>
     <p-confirmDialog></p-confirmDialog>
 
     <div class="flex justify-content-between align-items-center mb-3">
-      <h2 class="m-0">Quiz Types</h2>
-      <p-button label="New Quiz Type" icon="pi pi-plus" (onClick)="openNew()"></p-button>
+      <h2 class="m-0">{{ t('quizEditor.title') }}</h2>
+      <p-button [label]="t('quizEditor.newQuizType')" icon="pi pi-plus" (onClick)="openNew()"></p-button>
     </div>
 
     <!-- Category filter -->
@@ -51,7 +54,7 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
         [(ngModel)]="categoryFilter"
         optionLabel="label"
         optionValue="value"
-        placeholder="All Categories"
+        [placeholder]="t('quizEditor.allCategories')"
         [style]="{ 'min-width': '200px' }"
       ></p-dropdown>
     </div>
@@ -67,14 +70,14 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
       <ng-template pTemplate="header">
         <tr>
           <th pSortableColumn="sort_order" style="width:60px"># <p-sortIcon field="sort_order"></p-sortIcon></th>
-          <th pSortableColumn="code">Code <p-sortIcon field="code"></p-sortIcon></th>
-          <th pSortableColumn="description">Description <p-sortIcon field="description"></p-sortIcon></th>
-          <th pSortableColumn="category">Category <p-sortIcon field="category"></p-sortIcon></th>
-          <th>Template</th>
-          <th>Answer</th>
-          <th pSortableColumn="recommended_age_min">Ages <p-sortIcon field="recommended_age_min"></p-sortIcon></th>
-          <th style="width:80px">Active</th>
-          <th style="width:120px">Actions</th>
+          <th pSortableColumn="code">{{ t('quizEditor.code') }} <p-sortIcon field="code"></p-sortIcon></th>
+          <th pSortableColumn="description">{{ t('quizEditor.description') }} <p-sortIcon field="description"></p-sortIcon></th>
+          <th pSortableColumn="category">{{ t('quizEditor.category') }} <p-sortIcon field="category"></p-sortIcon></th>
+          <th>{{ t('quizEditor.template') }}</th>
+          <th>{{ t('quizEditor.answer') }}</th>
+          <th pSortableColumn="recommended_age_min">{{ t('quizEditor.ages') }} <p-sortIcon field="recommended_age_min"></p-sortIcon></th>
+          <th style="width:80px">{{ t('quizEditor.active') }}</th>
+          <th style="width:120px">{{ t('admin.actions') }}</th>
         </tr>
       </ng-template>
       <ng-template pTemplate="body" let-qt>
@@ -112,14 +115,14 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
         </tr>
       </ng-template>
       <ng-template pTemplate="emptymessage">
-        <tr><td colspan="9" class="text-center text-500 p-4">No quiz types found.</td></tr>
+        <tr><td colspan="9" class="text-center text-500 p-4">{{ t('quizEditor.noQuizTypes') }}</td></tr>
       </ng-template>
     </p-table>
 
     <!-- Create / Edit Dialog -->
     <p-dialog
       [(visible)]="dialogVisible"
-      [header]="isEditing ? 'Edit Quiz Type' : 'New Quiz Type'"
+      [header]="isEditing ? t('quizEditor.editQuizType') : t('quizEditor.newQuizType')"
       [modal]="true"
       [style]="{ width: '550px' }"
       [closable]="true"
@@ -127,30 +130,30 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
       <div class="flex flex-column gap-3 pt-2">
         <!-- Code -->
         <div class="flex flex-column gap-1">
-          <label class="font-semibold">Code</label>
-          <input pInputText [(ngModel)]="formCode" [disabled]="isEditing" placeholder="e.g. add_within_50" />
+          <label class="font-semibold">{{ t('quizEditor.code') }}</label>
+          <input pInputText [(ngModel)]="formCode" [disabled]="isEditing" [placeholder]="t('quizEditor.codePlaceholder')" />
         </div>
 
         <!-- Description -->
         <div class="flex flex-column gap-1">
-          <label class="font-semibold">Description</label>
-          <input pInputText [(ngModel)]="formDescription" placeholder="e.g. Addition within 50" />
+          <label class="font-semibold">{{ t('quizEditor.description') }}</label>
+          <input pInputText [(ngModel)]="formDescription" [placeholder]="t('quizEditor.descPlaceholder')" />
         </div>
 
         <!-- Template Kind -->
         <div class="flex flex-column gap-1">
-          <label class="font-semibold">Template Kind</label>
+          <label class="font-semibold">{{ t('quizEditor.templateKind') }}</label>
           <p-dropdown
             [options]="templateKindOptions"
             [(ngModel)]="formTemplateKind"
             [editable]="true"
-            placeholder="Select or type"
+            [placeholder]="t('quizEditor.selectOrType')"
           ></p-dropdown>
         </div>
 
         <!-- Answer Type -->
         <div class="flex flex-column gap-1">
-          <label class="font-semibold">Answer Type</label>
+          <label class="font-semibold">{{ t('quizEditor.answerType') }}</label>
           <p-dropdown
             [options]="answerTypeOptions"
             [(ngModel)]="formAnswerType"
@@ -159,44 +162,44 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
 
         <!-- Category -->
         <div class="flex flex-column gap-1">
-          <label class="font-semibold">Category</label>
+          <label class="font-semibold">{{ t('quizEditor.category') }}</label>
           <p-dropdown
             [options]="existingCategories()"
             [(ngModel)]="formCategory"
             [editable]="true"
-            placeholder="Select or type"
+            [placeholder]="t('quizEditor.selectOrType')"
           ></p-dropdown>
         </div>
 
         <div class="flex gap-3">
           <!-- Age Min -->
           <div class="flex flex-column gap-1" style="flex: 1; min-width: 0;">
-            <label class="font-semibold">Age Min</label>
+            <label class="font-semibold">{{ t('quizEditor.ageMin') }}</label>
             <p-inputNumber [(ngModel)]="formAgeMin" [min]="4" [max]="18" [showButtons]="true" [inputStyle]="{ width: '100%' }" [style]="{ width: '100%' }"></p-inputNumber>
           </div>
           <!-- Age Max -->
           <div class="flex flex-column gap-1" style="flex: 1; min-width: 0;">
-            <label class="font-semibold">Age Max</label>
+            <label class="font-semibold">{{ t('quizEditor.ageMax') }}</label>
             <p-inputNumber [(ngModel)]="formAgeMax" [min]="4" [max]="18" [showButtons]="true" [inputStyle]="{ width: '100%' }" [style]="{ width: '100%' }"></p-inputNumber>
           </div>
         </div>
 
         <!-- Sort Order -->
         <div class="flex flex-column gap-1">
-          <label class="font-semibold">Sort Order</label>
+          <label class="font-semibold">{{ t('quizEditor.sortOrder') }}</label>
           <p-inputNumber [(ngModel)]="formSortOrder" [min]="0" [showButtons]="true"></p-inputNumber>
         </div>
 
         <!-- Active -->
         <div class="flex align-items-center gap-2">
-          <label class="font-semibold">Active</label>
+          <label class="font-semibold">{{ t('quizEditor.active') }}</label>
           <p-inputSwitch [(ngModel)]="formIsActive"></p-inputSwitch>
         </div>
 
         <!-- Preview inside dialog -->
         @if (dialogPreview().length > 0) {
           <div class="surface-50 p-3 border-round">
-            <div class="font-semibold mb-2">Preview:</div>
+            <div class="font-semibold mb-2">{{ t('quizEditor.preview') }}:</div>
             @for (p of dialogPreview(); track p.render) {
               <div class="text-sm mb-1">• {{ p.render }} = {{ p.correct }}</div>
             }
@@ -206,10 +209,10 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
 
       <ng-template pTemplate="footer">
         <div class="flex gap-2 justify-content-between">
-          <p-button label="Preview" icon="pi pi-eye" severity="info" [text]="true" (onClick)="previewInDialog()"></p-button>
+          <p-button [label]="t('quizEditor.preview')" icon="pi pi-eye" severity="info" [text]="true" (onClick)="previewInDialog()"></p-button>
           <div class="flex gap-2">
-            <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="dialogVisible = false"></p-button>
-            <p-button [label]="isEditing ? 'Save' : 'Create'" icon="pi pi-check" (onClick)="saveQuizType()"></p-button>
+            <p-button [label]="t('common.cancel')" severity="secondary" [text]="true" (onClick)="dialogVisible = false"></p-button>
+            <p-button [label]="isEditing ? t('common.save') : t('common.create')" icon="pi pi-check" (onClick)="saveQuizType()"></p-button>
           </div>
         </div>
       </ng-template>
@@ -218,12 +221,12 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
     <!-- Preview Dialog -->
     <p-dialog
       [(visible)]="previewDialogVisible"
-      header="Preview Questions"
+      [header]="t('quizEditor.previewQuestions')"
       [modal]="true"
       [style]="{ width: '400px' }"
     >
       @if (previewLoading()) {
-        <p class="text-500">Generating preview...</p>
+        <p class="text-500">{{ t('quizEditor.generatingPreview') }}</p>
       } @else {
         <div class="flex flex-column gap-2">
           @for (p of previewQuestions(); track p.render) {
@@ -235,12 +238,14 @@ import { QuizType, QuizTypeCreate, QuizTypeUpdate, PreviewQuestion } from '../..
         </div>
       }
     </p-dialog>
+    </ng-container>
   `,
 })
 export class QuizTypeEditorComponent implements OnInit {
   private api = inject(ApiService);
   private confirm = inject(ConfirmationService);
   private msg = inject(MessageService);
+  private translocoService = inject(TranslocoService);
 
   quizTypes = signal<QuizType[]>([]);
   categoryFilter = '';
@@ -282,7 +287,7 @@ export class QuizTypeEditorComponent implements OnInit {
 
   categoryFilterOptions = computed(() => {
     const cats = [...new Set(this.quizTypes().map((qt) => qt.category).filter(Boolean))];
-    return [{ label: 'All Categories', value: '' }, ...cats.map((c) => ({ label: c!, value: c! }))];
+    return [{ label: this.translocoService.translate('quizEditor.allCategories'), value: '' }, ...cats.map((c) => ({ label: c!, value: c! }))];
   });
 
   existingCategories = computed(() => {
@@ -342,7 +347,7 @@ export class QuizTypeEditorComponent implements OnInit {
 
   saveQuizType() {
     if (!this.formCode || !this.formDescription || !this.formTemplateKind) {
-      this.msg.add({ severity: 'warn', summary: 'Validation', detail: 'Code, Description, and Template Kind are required.' });
+      this.msg.add({ severity: 'warn', summary: this.translocoService.translate('common.error'), detail: this.translocoService.translate('quizEditor.validationRequired') });
       return;
     }
 
@@ -359,11 +364,11 @@ export class QuizTypeEditorComponent implements OnInit {
       };
       this.api.updateQuizType(this.editingId, data).subscribe({
         next: () => {
-          this.msg.add({ severity: 'success', summary: 'Updated', detail: 'Quiz type updated.' });
+          this.msg.add({ severity: 'success', summary: this.translocoService.translate('common.success'), detail: this.translocoService.translate('quizEditor.quizTypeUpdated') });
           this.dialogVisible = false;
           this.loadQuizTypes();
         },
-        error: (err) => this.msg.add({ severity: 'error', summary: 'Error', detail: err.error?.detail || 'Update failed' }),
+        error: (err) => this.msg.add({ severity: 'error', summary: this.translocoService.translate('common.error'), detail: err.error?.detail || 'Update failed' }),
       });
     } else {
       const data: QuizTypeCreate = {
@@ -379,11 +384,11 @@ export class QuizTypeEditorComponent implements OnInit {
       };
       this.api.createQuizType(data).subscribe({
         next: () => {
-          this.msg.add({ severity: 'success', summary: 'Created', detail: 'Quiz type created.' });
+          this.msg.add({ severity: 'success', summary: this.translocoService.translate('common.success'), detail: this.translocoService.translate('quizEditor.quizTypeCreated') });
           this.dialogVisible = false;
           this.loadQuizTypes();
         },
-        error: (err) => this.msg.add({ severity: 'error', summary: 'Error', detail: err.error?.detail || 'Create failed' }),
+        error: (err) => this.msg.add({ severity: 'error', summary: this.translocoService.translate('common.error'), detail: err.error?.detail || 'Create failed' }),
       });
     }
   }
@@ -392,24 +397,24 @@ export class QuizTypeEditorComponent implements OnInit {
     this.api.updateQuizType(qt.id, { is_active: qt.is_active }).subscribe({
       error: () => {
         qt.is_active = !qt.is_active;
-        this.msg.add({ severity: 'error', summary: 'Error', detail: 'Failed to toggle active state' });
+        this.msg.add({ severity: 'error', summary: this.translocoService.translate('common.error'), detail: this.translocoService.translate('quizEditor.toggleFailed') });
       },
     });
   }
 
   confirmDelete(qt: QuizType) {
     this.confirm.confirm({
-      message: `Are you sure you want to delete "${qt.description}"?`,
-      header: 'Confirm Delete',
+      message: this.translocoService.translate('quizEditor.confirmDeleteMessage', { name: qt.description }),
+      header: this.translocoService.translate('quizEditor.confirmDelete'),
       icon: 'pi pi-exclamation-triangle',
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => {
         this.api.deleteQuizType(qt.id).subscribe({
           next: () => {
-            this.msg.add({ severity: 'success', summary: 'Deleted', detail: 'Quiz type deleted.' });
+            this.msg.add({ severity: 'success', summary: this.translocoService.translate('common.success'), detail: this.translocoService.translate('quizEditor.quizTypeDeleted') });
             this.loadQuizTypes();
           },
-          error: (err) => this.msg.add({ severity: 'error', summary: 'Cannot Delete', detail: err.error?.detail || 'Delete failed' }),
+          error: (err) => this.msg.add({ severity: 'error', summary: this.translocoService.translate('common.error'), detail: err.error?.detail || 'Delete failed' }),
         });
       },
     });
@@ -426,7 +431,7 @@ export class QuizTypeEditorComponent implements OnInit {
       },
       error: () => {
         this.previewLoading.set(false);
-        this.msg.add({ severity: 'error', summary: 'Error', detail: 'Preview failed' });
+        this.msg.add({ severity: 'error', summary: this.translocoService.translate('common.error'), detail: this.translocoService.translate('quizEditor.previewFailed') });
       },
     });
   }
@@ -435,7 +440,7 @@ export class QuizTypeEditorComponent implements OnInit {
     if (!this.formTemplateKind) return;
     this.api.previewByTemplate(this.formTemplateKind, this.formAnswerType, this.formCode).subscribe({
       next: (questions) => this.dialogPreview.set(questions),
-      error: () => this.msg.add({ severity: 'error', summary: 'Error', detail: 'Preview failed' }),
+      error: () => this.msg.add({ severity: 'error', summary: this.translocoService.translate('common.error'), detail: this.translocoService.translate('quizEditor.previewFailed') }),
     });
   }
 }

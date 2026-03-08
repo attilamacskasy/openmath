@@ -239,9 +239,10 @@ export class ApiService {
   }
 
   // ── Review Templates (v2.5) ─────────────────────────────
-  getReviewTemplates(role: string, scorePercent?: number): Observable<any[]> {
+  getReviewTemplates(role: string, scorePercent?: number, locale?: string): Observable<any[]> {
     let params = `role=${role}`;
     if (scorePercent !== undefined && scorePercent !== null) params += `&score_percent=${scorePercent}`;
+    if (locale) params += `&locale=${locale}`;
     return this.http.get<any[]>(`${this.baseUrl}/review-templates?${params}`);
   }
 

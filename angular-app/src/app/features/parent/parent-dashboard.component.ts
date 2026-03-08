@@ -13,7 +13,10 @@ import { DropdownModule } from 'primeng/dropdown';
 import { TooltipModule } from 'primeng/tooltip';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService } from '../../core/services/api.service';
+import { LocalDatePipe } from '../../shared/pipes/local-date.pipe';
+import { LocaleService } from '../../core/services/locale.service';
 
 @Component({
   selector: 'app-parent-dashboard',
@@ -32,21 +35,24 @@ import { ApiService } from '../../core/services/api.service';
     DropdownModule,
     TooltipModule,
     ToastModule,
+    TranslocoModule,
+    LocalDatePipe,
   ],
   providers: [MessageService],
   template: `
+    <ng-container *transloco="let t">
     <p-toast></p-toast>
     <div class="flex align-items-center justify-content-between mb-3">
-      <h2 class="mt-0 mb-0">My Child</h2>
-      <p-button label="Add Child" icon="pi pi-plus" size="small"
+      <h2 class="mt-0 mb-0">{{ t('parent.myChild') }}</h2>
+      <p-button [label]="t('parent.addChild')" icon="pi pi-plus" size="small"
         (onClick)="addChildDialogVisible = true"></p-button>
     </div>
 
     @if (loading()) {
-      <p class="text-500">Loading...</p>
+      <p class="text-500">{{ t('common.loading') }}</p>
     } @else if (children().length === 0) {
       <p-card>
-        <p class="text-500">No children assigned to your account.</p>
+        <p class="text-500">{{ t('parent.noChildren') }}</p>
       </p-card>
     } @else {
       <!-- Child selector (if multiple) -->
@@ -56,15 +62,15 @@ import { ApiService } from '../../core/services/api.service';
             [options]="children()"
             [(ngModel)]="selectedChild"
             optionLabel="name"
-            placeholder="Select child"
+            [placeholder]="t('parent.selectChild')"
             (onChange)="onChildSelect($event.value)"
           ></p-dropdown>
           @if (selectedChild) {
             <p-button icon="pi pi-history" [rounded]="true" [text]="true" size="small"
-              severity="info" pTooltip="View Full History"
+              severity="info" [pTooltip]="t('parent.viewFullHistory')"
               (click)="viewChildHistory()"></p-button>
             <p-button icon="pi pi-times" [rounded]="true" [text]="true" size="small"
-              severity="danger" pTooltip="Remove child"
+              severity="danger" [pTooltip]="t('parent.removeChild')"
               (onClick)="removeChild(selectedChild)"></p-button>
           }
         </div>
@@ -72,18 +78,18 @@ import { ApiService } from '../../core/services/api.service';
         <div class="flex align-items-center gap-2 mb-3">
           <span class="font-semibold">{{ selectedChild.name }}</span>
           <p-button icon="pi pi-history" [rounded]="true" [text]="true" size="small"
-            severity="info" pTooltip="View Full History"
+            severity="info" [pTooltip]="t('parent.viewFullHistory')"
             (click)="viewChildHistory()"></p-button>
           <p-button icon="pi pi-times" [rounded]="true" [text]="true" size="small"
-            severity="danger" pTooltip="Remove child"
+            severity="danger" [pTooltip]="t('parent.removeChild')"
             (onClick)="removeChild(selectedChild)"></p-button>
         </div>
       }
 
       @if (selectedChild) {
-        <p-card [header]="selectedChild.name + '\\'s Sessions'">
+        <p-card [header]="selectedChild.name + t('parent.sessions')">
           @if (sessionsLoading()) {
-            <p class="text-500">Loading sessions...</p>
+            <p class="text-500">{{ t('common.loading') }}</p>
           } @else {
             <p-table
               [value]="sessions()"
@@ -93,19 +99,19 @@ import { ApiService } from '../../core/services/api.service';
             >
               <ng-template pTemplate="header">
                 <tr>
-                  <th>Quiz Type</th>
-                  <th>Difficulty</th>
-                  <th style="width: 80px">Score</th>
-                  <th>Date</th>
-                  <th style="width: 100px">Review</th>
-                  <th style="width: 100px">Sign-off</th>
-                  <th style="width: 80px">Actions</th>
+                  <th>{{ t('history.quizType') }}</th>
+                  <th>{{ t('history.difficulty') }}</th>
+                  <th style="width: 80px">{{ t('history.score') }}</th>
+                  <th>{{ t('history.date') }}</th>
+                  <th style="width: 100px">{{ t('teacher.review') }}</th>
+                  <th style="width: 100px">{{ t('parent.signoff') }}</th>
+                  <th style="width: 80px">{{ t('admin.actions') }}</th>
                 </tr>
               </ng-template>
               <ng-template pTemplate="body" let-s>
                 <tr>
                   <td>{{ s.quiz_type_description || s.quiz_type_code }}</td>
-                  <td>{{ s.difficulty }}</td>
+                  <td>{{ t('difficulty.' + s.difficulty) }}</td>
                   <td>
                     @if (s.score_percent !== null && s.score_percent !== undefined) {
                       {{ s.score_percent }}%
@@ -113,23 +119,23 @@ import { ApiService } from '../../core/services/api.service';
                       —
                     }
                   </td>
-                  <td>{{ s.started_at | date:'short' }}</td>
+                  <td>{{ s.started_at | localDate:'short' }}</td>
                   <td>
                     @switch (s.review_status) {
                       @case ('reviewed') {
-                        <p-tag value="Reviewed" severity="info"></p-tag>
+                        <p-tag [value]="t('session.reviewed')" severity="info"></p-tag>
                       }
                       @case ('signed') {
-                        <p-tag value="Signed" severity="success"></p-tag>
+                        <p-tag [value]="t('session.signed')" severity="success"></p-tag>
                       }
                       @default {
-                        <p-tag value="Pending" severity="secondary"></p-tag>
+                        <p-tag [value]="t('teacher.pending')" severity="secondary"></p-tag>
                       }
                     }
                   </td>
                   <td>
                     @if (s.signoff_status === 'signed') {
-                      <p-tag value="Signed" severity="success"></p-tag>
+                      <p-tag [value]="t('session.signed')" severity="success"></p-tag>
                     } @else {
                       <p-tag value="—" severity="secondary"></p-tag>
                     }
@@ -140,14 +146,14 @@ import { ApiService } from '../../core/services/api.service';
                       [rounded]="true"
                       [text]="true"
                       size="small"
-                      pTooltip="View & Sign off"
+                      [pTooltip]="t('parent.viewAndSign')"
                       (onClick)="openSessionDialog(s)"
                     ></p-button>
                   </td>
                 </tr>
               </ng-template>
               <ng-template pTemplate="emptymessage">
-                <tr><td colspan="7" class="text-center text-500">No sessions found.</td></tr>
+                <tr><td colspan="7" class="text-center text-500">{{ t('history.noSessions') }}</td></tr>
               </ng-template>
             </p-table>
           }
@@ -158,27 +164,27 @@ import { ApiService } from '../../core/services/api.service';
     <!-- Session Detail + Sign-off Dialog -->
     <p-dialog
       [(visible)]="detailDialogVisible"
-      header="Session Detail"
+      [header]="t('parent.sessionDetail')"
       [modal]="true"
       [style]="{ width: '650px' }"
     >
       @if (detailSession) {
         <div class="mb-3">
-          <strong>Quiz:</strong> {{ detailSession.quiz_type_description || detailSession.quiz_type_code }}<br>
-          <strong>Score:</strong> {{ detailSession.score_percent }}%<br>
-          <strong>Date:</strong> {{ detailSession.started_at | date:'short' }}
+          <strong>{{ t('history.quizType') }}:</strong> {{ detailSession.quiz_type_description || detailSession.quiz_type_code }}<br>
+          <strong>{{ t('history.score') }}:</strong> {{ detailSession.score_percent }}%<br>
+          <strong>{{ t('history.date') }}:</strong> {{ detailSession.started_at | localDate:'short' }}
         </div>
 
         @if (sessionDetail()) {
-          <h4 class="mt-0 mb-2">Questions</h4>
+          <h4 class="mt-0 mb-2">{{ t('session.questions') }}</h4>
           <p-table [value]="sessionDetail()!.questions" styleClass="p-datatable-sm mb-3">
             <ng-template pTemplate="header">
               <tr>
                 <th style="width: 40px">#</th>
-                <th>Question</th>
-                <th style="width: 80px">Correct</th>
-                <th style="width: 80px">Answer</th>
-                <th style="width: 80px">Status</th>
+                <th>{{ t('session.question') }}</th>
+                <th style="width: 80px">{{ t('session.correct') }}</th>
+                <th style="width: 80px">{{ t('session.answer') }}</th>
+                <th style="width: 80px">{{ t('session.status') }}</th>
               </tr>
             </ng-template>
             <ng-template pTemplate="body" let-q>
@@ -211,7 +217,7 @@ import { ApiService } from '../../core/services/api.service';
             <div class="surface-100 border-round p-3 mb-2">
               <div class="flex justify-content-between">
                 <span class="font-semibold">
-                  {{ rev.reviewer_role === 'teacher' ? 'Teacher review' : 'Parent sign-off' }}
+                  {{ rev.reviewer_role === 'teacher' ? t('session.teacherReview') : t('session.parentSignoff') }}
                   — {{ rev.reviewer_name }}
                 </span>
                 <p-tag
@@ -222,45 +228,45 @@ import { ApiService } from '../../core/services/api.service';
               @if (rev.comment) {
                 <p class="mt-2 mb-1">{{ rev.comment }}</p>
               }
-              <span class="text-xs text-500">{{ (rev.updated_at || rev.created_at) | date:'short' }}</span>
+              <span class="text-xs text-500">{{ (rev.updated_at || rev.created_at) | localDate:'short' }}</span>
             </div>
           }
         }
 
         <div class="flex flex-column gap-2 mt-3">
-          <label class="font-semibold">Quick Feedback</label>
+          <label class="font-semibold">{{ t('review.quickFeedback') }}</label>
           <p-dropdown
             [options]="signoffTemplates()"
             optionLabel="label"
             optionValue="message"
-            placeholder="Select a template response..."
+            [placeholder]="t('review.selectTemplate')"
             [showClear]="true"
             (onChange)="onTemplateSelect($event)"
           ></p-dropdown>
         </div>
 
         <div class="flex flex-column gap-2 mt-3">
-          <label class="font-semibold">Your Comment (optional)</label>
+          <label class="font-semibold">{{ t('review.commentOptional') }}</label>
           <textarea
             pInputTextarea
             [(ngModel)]="signoffComment"
             rows="3"
             class="w-full"
-            placeholder="Add a comment..."
+            [placeholder]="t('review.addComment')"
           ></textarea>
         </div>
       }
 
       <ng-template pTemplate="footer">
-        <p-button label="Cancel" severity="secondary" (onClick)="detailDialogVisible = false"></p-button>
+        <p-button [label]="t('common.cancel')" severity="secondary" (onClick)="detailDialogVisible = false"></p-button>
         <p-button
-          label="Sign Off"
+          [label]="t('parent.signOff')"
           icon="pi pi-check-circle"
           severity="success"
           (onClick)="submitSignoff()"
           [loading]="signoffSubmitting()"
           [disabled]="!hasTeacherReview()"
-          [pTooltip]="hasTeacherReview() ? '' : 'Waiting for teacher review'"
+          [pTooltip]="hasTeacherReview() ? '' : t('parent.waitingForTeacher')"
         ></p-button>
       </ng-template>
     </p-dialog>
@@ -268,30 +274,33 @@ import { ApiService } from '../../core/services/api.service';
     <!-- Add Child Dialog -->
     <p-dialog
       [(visible)]="addChildDialogVisible"
-      header="Add Child"
+      [header]="t('parent.addChild')"
       [modal]="true"
       [style]="{ width: '400px' }"
     >
-      <p class="mb-3">Enter the email address of your child to add them to your account.</p>
+      <p class="mb-3">{{ t('parent.addChildDesc') }}</p>
       <div class="flex flex-column gap-1">
-        <label class="font-semibold">Child's Email *</label>
+        <label class="font-semibold">{{ t('parent.childEmail') }}</label>
         <input pInputText [(ngModel)]="addChildEmail" class="w-full" type="email"
-          placeholder="child@example.com" />
+          [placeholder]="t('parent.childEmailPlaceholder')" />
       </div>
       <ng-template pTemplate="footer">
-        <p-button label="Cancel" severity="secondary"
+        <p-button [label]="t('common.cancel')" severity="secondary"
           (onClick)="addChildDialogVisible = false"></p-button>
-        <p-button label="Add" icon="pi pi-plus"
+        <p-button [label]="t('parent.addChild')" icon="pi pi-plus"
           (onClick)="addChild()" [disabled]="!addChildEmail"
           [loading]="addChildLoading()"></p-button>
       </ng-template>
     </p-dialog>
+    </ng-container>
   `,
 })
 export class ParentDashboardComponent implements OnInit {
   private api = inject(ApiService);
   private messageService = inject(MessageService);
   private router = inject(Router);
+  private translocoService = inject(TranslocoService);
+  localeService = inject(LocaleService);
 
   loading = signal(true);
   children = signal<any[]>([]);
@@ -350,7 +359,8 @@ export class ParentDashboardComponent implements OnInit {
     });
 
     // Load templates based on score (v2.5)
-    this.api.getReviewTemplates('parent', session.score_percent).subscribe({
+    const locale = this.localeService.getLocale();
+    this.api.getReviewTemplates('parent', session.score_percent, locale).subscribe({
       next: (t) => this.signoffTemplates.set(t),
       error: () => this.signoffTemplates.set([]),
     });
@@ -396,12 +406,12 @@ export class ParentDashboardComponent implements OnInit {
       next: () => {
         this.signoffSubmitting.set(false);
         this.detailDialogVisible = false;
-        this.messageService.add({ severity: 'success', summary: 'Signed', detail: 'Session signed off' });
+        this.messageService.add({ severity: 'success', summary: this.translocoService.translate('session.signed'), detail: this.translocoService.translate('parent.sessionSignedOff') });
         if (this.selectedChild) this.onChildSelect(this.selectedChild);
       },
       error: () => {
         this.signoffSubmitting.set(false);
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to sign off' });
+        this.messageService.add({ severity: 'error', summary: this.translocoService.translate('common.error'), detail: this.translocoService.translate('parent.signoffFailed') });
       },
     });
   }
@@ -413,12 +423,12 @@ export class ParentDashboardComponent implements OnInit {
         this.addChildLoading.set(false);
         this.addChildDialogVisible = false;
         this.addChildEmail = '';
-        this.messageService.add({ severity: 'success', summary: 'Added', detail: 'Child added to your account' });
+        this.messageService.add({ severity: 'success', summary: this.translocoService.translate('common.success'), detail: this.translocoService.translate('parent.childAdded') });
         this.loadChildren();
       },
       error: (err: any) => {
         this.addChildLoading.set(false);
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: err.error?.detail || 'Failed to add child' });
+        this.messageService.add({ severity: 'error', summary: this.translocoService.translate('common.error'), detail: err.error?.detail || this.translocoService.translate('parent.addChildFailed') });
       },
     });
   }
@@ -426,14 +436,14 @@ export class ParentDashboardComponent implements OnInit {
   removeChild(child: any) {
     this.api.removeParentChild(child.id).subscribe({
       next: () => {
-        this.messageService.add({ severity: 'success', summary: 'Removed', detail: `${child.name} removed` });
+        this.messageService.add({ severity: 'success', summary: this.translocoService.translate('common.success'), detail: child.name + ' ' + this.translocoService.translate('parent.childRemoved') });
         this.loadChildren();
         if (this.selectedChild?.id === child.id) {
           this.selectedChild = null;
           this.sessions.set([]);
         }
       },
-      error: () => this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to remove child' }),
+      error: () => this.messageService.add({ severity: 'error', summary: this.translocoService.translate('common.error'), detail: this.translocoService.translate('parent.removeChildFailed') }),
     });
   }
 }

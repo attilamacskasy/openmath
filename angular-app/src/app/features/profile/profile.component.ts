@@ -12,8 +12,11 @@ import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
+import { LocaleService } from '../../core/services/locale.service';
+import { LocalDatePipe } from '../../shared/pipes/local-date.pipe';
 import {
   UserProfile,
   PerformanceBucket,
@@ -36,25 +39,28 @@ import { MeResponse } from '../../models/auth.model';
     TableModule,
     TagModule,
     ToastModule,
+    TranslocoModule,
+    LocalDatePipe,
   ],
   providers: [MessageService],
   template: `
+    <ng-container *transloco="let t">
     <p-toast></p-toast>
 
     @if (loading()) {
-      <p class="text-500">Loading profile...</p>
+      <p class="text-500">{{ t('common.loading') }}</p>
     } @else if (profile()) {
       <div class="grid">
         <!-- Edit form -->
         <div class="col-12 md:col-6">
-          <p-card header="Edit Profile">
+          <p-card [header]="t('profile.editProfile')">
             <div class="flex flex-column gap-3">
               <div class="flex flex-column gap-1">
-                <label class="font-semibold">Email</label>
+                <label class="font-semibold">{{ t('auth.email') }}</label>
                 <input pInputText [value]="meData()?.email || ''" class="w-full" [disabled]="true" />
               </div>
               <div class="flex flex-column gap-1">
-                <label class="font-semibold">Auth Provider</label>
+                <label class="font-semibold">{{ t('profile.authProvider') }}</label>
                 <div class="flex align-items-center gap-2 py-2">
                   <p-tag
                     [value]="providerTagLabel"
@@ -63,39 +69,48 @@ import { MeResponse } from '../../models/auth.model';
                 </div>
               </div>
               <div class="flex flex-column gap-1">
-                <label class="font-semibold">Name</label>
+                <label class="font-semibold">{{ t('auth.name') }}</label>
                 <input pInputText [(ngModel)]="name" class="w-full" />
               </div>
               <div class="flex gap-3">
                 <div class="flex flex-column gap-1 flex-1">
-                  <label class="font-semibold">Birthday</label>
+                  <label class="font-semibold">{{ t('auth.birthday') }}</label>
                   <p-calendar
                     [(ngModel)]="birthday"
                     [showIcon]="true"
-                    dateFormat="yy-mm-dd"
+                    [dateFormat]="localeService.getCalendarDateFormat()"
                     [maxDate]="maxDate"
-                    placeholder="Select date"
+                    [placeholder]="t('profile.selectDate')"
                     styleClass="w-full"
                   ></p-calendar>
                 </div>
                 <div class="flex flex-column gap-1 flex-1">
-                  <label class="font-semibold">Age</label>
+                  <label class="font-semibold">{{ t('profile.age') }}</label>
                   <input pInputText [value]="computedAge" class="w-full" [disabled]="true" />
                 </div>
               </div>
               <div class="flex flex-column gap-1">
-                <label class="font-semibold">Gender</label>
+                <label class="font-semibold">{{ t('auth.gender') }}</label>
                 <p-dropdown
                   [options]="genderOptions"
                   [(ngModel)]="gender"
                   optionLabel="label"
                   optionValue="value"
-                  placeholder="—"
+                  placeholder="\u2014"
                   [showClear]="true"
                 ></p-dropdown>
               </div>
               <div class="flex flex-column gap-1">
-                <label class="font-semibold">Learned Timetables</label>
+                <label class="font-semibold">{{ t('profile.language') }}</label>
+                <p-dropdown
+                  [options]="localeOptions"
+                  [(ngModel)]="locale"
+                  optionLabel="label"
+                  optionValue="value"
+                ></p-dropdown>
+              </div>
+              <div class="flex flex-column gap-1">
+                <label class="font-semibold">{{ t('auth.timetablesLearned') }}</label>
                 <div class="flex flex-wrap gap-2">
                   @for (n of timetableRange; track n) {
                     <div class="flex align-items-center gap-1">
@@ -110,7 +125,7 @@ import { MeResponse } from '../../models/auth.model';
                 </div>
               </div>
               <p-button
-                label="Save"
+                [label]="t('common.save')"
                 icon="pi pi-save"
                 (onClick)="save()"
                 [disabled]="saving() || !name.trim() || learnedTimetables.length === 0"
@@ -122,9 +137,9 @@ import { MeResponse } from '../../models/auth.model';
 
         <!-- Performance stats -->
         <div class="col-12 md:col-6">
-          <p-card header="Performance">
+          <p-card [header]="t('profile.performance')">
             @if (profile()!.stats) {
-              <h4 class="mt-0">Overall</h4>
+              <h4 class="mt-0">{{ t('profile.overall') }}</h4>
               <ng-container *ngTemplateOutlet="bucketTpl; context: { $implicit: profile()!.stats.overall }"></ng-container>
 
               @for (bucket of profile()!.stats.by_quiz_type; track bucket.quiz_type_code) {
@@ -138,55 +153,58 @@ import { MeResponse } from '../../models/auth.model';
 
       <ng-template #bucketTpl let-b>
         <div class="grid text-sm">
-          <div class="col-6">Sessions:</div><div class="col-6 font-semibold">{{ b.sessions }}</div>
-          <div class="col-6">Completed:</div><div class="col-6 font-semibold">{{ b.completed_sessions }}</div>
-          <div class="col-6">Questions:</div><div class="col-6 font-semibold">{{ b.total_questions }}</div>
-          <div class="col-6">Correct:</div><div class="col-6 font-semibold text-green-600">{{ b.correct_answers }}</div>
-          <div class="col-6">Wrong:</div><div class="col-6 font-semibold text-red-600">{{ b.wrong_answers }}</div>
-          <div class="col-6">Avg Score:</div><div class="col-6 font-semibold">{{ b.average_score_percent }}%</div>
+          <div class="col-6">{{ t('profile.sessions') }}:</div><div class="col-6 font-semibold">{{ b.sessions }}</div>
+          <div class="col-6">{{ t('profile.completed') }}:</div><div class="col-6 font-semibold">{{ b.completed_sessions }}</div>
+          <div class="col-6">{{ t('profile.questions') }}:</div><div class="col-6 font-semibold">{{ b.total_questions }}</div>
+          <div class="col-6">{{ t('profile.correct') }}:</div><div class="col-6 font-semibold text-green-600">{{ b.correct_answers }}</div>
+          <div class="col-6">{{ t('profile.wrong') }}:</div><div class="col-6 font-semibold text-red-600">{{ b.wrong_answers }}</div>
+          <div class="col-6">{{ t('profile.avgScore') }}:</div><div class="col-6 font-semibold">{{ b.average_score_percent }}%</div>
         </div>
       </ng-template>
 
       <!-- Associations card (v2.5) -->
       @if (associations().length > 0) {
         <div class="col-12">
-          <p-card header="My Teachers & Parents">
+          <p-card [header]="t('profile.associations')">
             <p-table [value]="associations()" styleClass="p-datatable-sm">
               <ng-template pTemplate="header">
                 <tr>
-                  <th>Relationship</th>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Since</th>
+                  <th>{{ t('profile.relationship') }}</th>
+                  <th>{{ t('auth.name') }}</th>
+                  <th>{{ t('auth.email') }}</th>
+                  <th>{{ t('profile.since') }}</th>
                 </tr>
               </ng-template>
               <ng-template pTemplate="body" let-a>
                 <tr>
                   <td>
                     <p-tag
-                      [value]="a.relationship === 'teacher' ? 'Teacher' : 'Parent'"
+                      [value]="a.relationship === 'teacher' ? t('role.teacher') : t('role.parent')"
                       [severity]="a.relationship === 'teacher' ? 'warning' : 'secondary'"
                     ></p-tag>
                   </td>
                   <td>{{ a.related_name }}</td>
                   <td>{{ a.related_email }}</td>
-                  <td>{{ a.associated_at | date:'mediumDate' }}</td>
+                  <td>{{ a.associated_at | localDate:'mediumDate' }}</td>
                 </tr>
               </ng-template>
               <ng-template pTemplate="emptymessage">
-                <tr><td colspan="4" class="text-center text-500">No associations found.</td></tr>
+                <tr><td colspan="4" class="text-center text-500">{{ t('profile.noAssociations') }}</td></tr>
               </ng-template>
             </p-table>
           </p-card>
         </div>
       }
     }
+    </ng-container>
   `,
 })
 export class ProfileComponent implements OnInit {
   private api = inject(ApiService);
   private auth = inject(AuthService);
   private messageService = inject(MessageService);
+  private translocoService = inject(TranslocoService);
+  localeService = inject(LocaleService);
 
   loading = signal(true);
   saving = signal(false);
@@ -197,16 +215,26 @@ export class ProfileComponent implements OnInit {
   name = '';
   birthday: Date | null = null;
   gender: string | null = null;
+  locale = 'en';
   learnedTimetables: number[] = [];
   maxDate = new Date();
 
   timetableRange = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-  genderOptions = [
-    { label: 'Female', value: 'female' },
-    { label: 'Male', value: 'male' },
-    { label: 'Other', value: 'other' },
-    { label: 'Prefer not to say', value: 'prefer_not_say' },
+
+  localeOptions = [
+    { label: 'English', value: 'en' },
+    { label: 'Magyar', value: 'hu' },
   ];
+
+  get genderOptions() {
+    const t = (key: string) => this.translocoService.translate(key);
+    return [
+      { label: t('gender.female'), value: 'female' },
+      { label: t('gender.male'), value: 'male' },
+      { label: t('gender.other'), value: 'other' },
+      { label: t('gender.preferNotToSay'), value: 'prefer_not_say' },
+    ];
+  }
 
   get computedAge(): string {
     if (!this.birthday) return '—';
@@ -251,6 +279,7 @@ export class ProfileComponent implements OnInit {
             this.profile.set(p);
             this.name = p.name;
             this.gender = p.gender;
+            this.locale = me.locale || 'en';
             this.learnedTimetables = [...p.learned_timetables];
             this.loading.set(false);
           },
@@ -285,16 +314,18 @@ export class ProfileComponent implements OnInit {
         name: this.name.trim(),
         age,
         gender: this.gender,
+        locale: this.locale,
         learned_timetables: this.learnedTimetables,
         birthday: birthdayStr,
       })
       .subscribe({
         next: () => {
           this.saving.set(false);
+          this.localeService.setLocale(this.locale as 'en' | 'hu');
           this.messageService.add({
             severity: 'success',
-            summary: 'Saved',
-            detail: 'Profile updated successfully.',
+            summary: this.translocoService.translate('profile.saved'),
+            detail: this.translocoService.translate('profile.profileUpdated'),
           });
           this.loadProfile();
         },
@@ -302,8 +333,8 @@ export class ProfileComponent implements OnInit {
           this.saving.set(false);
           this.messageService.add({
             severity: 'error',
-            summary: 'Error',
-            detail: 'Failed to update profile.',
+            summary: this.translocoService.translate('common.error'),
+            detail: this.translocoService.translate('profile.updateFailed'),
           });
         },
       });

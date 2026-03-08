@@ -7,39 +7,42 @@ import { TagModule } from 'primeng/tag';
 import { ApiService } from '../../core/services/api.service';
 import { SessionDetail } from '../../models/session.model';
 import { DurationPipe } from '../../shared/pipes/duration.pipe';
+import { LocalDatePipe } from '../../shared/pipes/local-date.pipe';
+import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   selector: 'app-session-detail',
   standalone: true,
-  imports: [CommonModule, CardModule, TableModule, TagModule, DurationPipe],
+  imports: [CommonModule, CardModule, TableModule, TagModule, DurationPipe, LocalDatePipe, TranslocoModule],
   template: `
+    <ng-container *transloco="let t">
     @if (loading()) {
-      <p class="text-500">Loading session...</p>
+      <p class="text-500">{{ t('session.loading') }}</p>
     } @else if (!detail()) {
-      <p class="text-500">Session not found.</p>
+      <p class="text-500">{{ t('session.notFound') }}</p>
     } @else {
-      <h2>Session Detail</h2>
+      <h2>{{ t('session.detail') }}</h2>
 
       <!-- Summary -->
       <p-card styleClass="mb-3">
         <div class="grid">
           <div class="col-6 md:col-3">
-            <div class="text-500 text-sm">User</div>
+            <div class="text-500 text-sm">{{ t('session.user') }}</div>
             <div class="font-semibold">{{ detail()!.session.userName || '—' }}</div>
           </div>
           <div class="col-6 md:col-3">
-            <div class="text-500 text-sm">Difficulty</div>
-            <div class="font-semibold capitalize">{{ detail()!.session.difficulty }}</div>
+            <div class="text-500 text-sm">{{ t('session.difficulty') }}</div>
+            <div class="font-semibold capitalize">{{ t('difficulty.' + detail()!.session.difficulty) }}</div>
           </div>
           <div class="col-6 md:col-3">
-            <div class="text-500 text-sm">Score</div>
+            <div class="text-500 text-sm">{{ t('session.score') }}</div>
             <div class="font-semibold">
               {{ detail()!.session.correct_count }}/{{ detail()!.session.total_questions }}
               ({{ detail()!.session.score_percent }}%)
             </div>
           </div>
           <div class="col-6 md:col-3">
-            <div class="text-500 text-sm">Duration</div>
+            <div class="text-500 text-sm">{{ t('session.duration') }}</div>
             <div class="font-semibold">
               {{ detail()!.session.started_at | duration : detail()!.session.finished_at }}
             </div>
@@ -52,10 +55,10 @@ import { DurationPipe } from '../../shared/pipes/duration.pipe';
         <ng-template pTemplate="header">
           <tr>
             <th style="width: 60px">#</th>
-            <th>Question</th>
-            <th style="width: 100px">Correct</th>
-            <th style="width: 100px">Answer</th>
-            <th style="width: 100px">Status</th>
+            <th>{{ t('session.question') }}</th>
+            <th style="width: 100px">{{ t('session.correct') }}</th>
+            <th style="width: 100px">{{ t('session.answer') }}</th>
+            <th style="width: 100px">{{ t('session.status') }}</th>
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-q>
@@ -74,9 +77,9 @@ import { DurationPipe } from '../../shared/pipes/duration.pipe';
               @if (!q.answer) {
                 <p-tag value="—" severity="info"></p-tag>
               } @else if (q.answer.is_correct) {
-                <p-tag value="Correct" severity="success"></p-tag>
+                <p-tag [value]="t('quiz.correct')" severity="success"></p-tag>
               } @else {
-                <p-tag value="Wrong" severity="danger"></p-tag>
+                <p-tag [value]="t('quiz.wrong')" severity="danger"></p-tag>
               }
             </td>
           </tr>
@@ -85,27 +88,28 @@ import { DurationPipe } from '../../shared/pipes/duration.pipe';
 
       <!-- Reviews panel -->
       @if (reviews().length > 0) {
-        <h3 class="mt-4 mb-2">Reviews</h3>
+        <h3 class="mt-4 mb-2">{{ t('session.reviews') }}</h3>
         @for (rev of reviews(); track rev.id) {
           <div class="surface-100 border-round p-3 mb-2">
             <div class="flex justify-content-between">
               <span class="font-semibold">
-                {{ rev.reviewer_role === 'teacher' ? 'Teacher review' : 'Parent sign-off' }}
+                {{ rev.reviewer_role === 'teacher' ? t('session.teacherReview') : t('session.parentSignoff') }}
                 — {{ rev.reviewer_name }}
               </span>
               <p-tag
-                [value]="rev.status === 'signed' ? 'Signed' : 'Reviewed'"
+                [value]="rev.status === 'signed' ? t('session.signed') : t('session.reviewed')"
                 [severity]="rev.status === 'signed' ? 'success' : 'info'"
               ></p-tag>
             </div>
             @if (rev.comment) {
               <p class="mt-2 mb-1">{{ rev.comment }}</p>
             }
-            <span class="text-xs text-500">{{ (rev.updated_at || rev.created_at) | date:'short' }}</span>
+            <span class="text-xs text-500">{{ (rev.updated_at || rev.created_at) | localDate:'short' }}</span>
           </div>
         }
       }
     }
+    </ng-container>
   `,
 })
 export class SessionDetailComponent implements OnInit {

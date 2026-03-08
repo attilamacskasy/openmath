@@ -45,6 +45,7 @@ class UpdateUserRequest(BaseModel):
     learned_timetables: list[int] = Field(min_length=1)
     birthday: str | None = None  # ISO date string YYYY-MM-DD
     email: str | None = None
+    locale: str | None = Field(default=None, pattern=r"^(en|hu)$")
 
 
 class UserOut(BaseModel):

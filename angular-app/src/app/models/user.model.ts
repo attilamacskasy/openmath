@@ -37,4 +37,5 @@ export interface UpdateUserRequest {
   learned_timetables: number[];
   birthday?: string | null;
   email?: string | null;
+  locale?: string;
 }

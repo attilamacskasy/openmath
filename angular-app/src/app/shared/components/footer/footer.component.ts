@@ -1,10 +1,12 @@
 import { Component } from '@angular/core';
+import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   selector: 'app-footer',
   standalone: true,
+  imports: [TranslocoModule],
   template: `
-    <footer class="surface-card border-top-1 border-300 px-4 py-3 mt-4">
+    <footer class="surface-card border-top-1 border-300 px-4 py-3 mt-4" *transloco="let t">
       <div class="flex align-items-center justify-content-between text-sm text-500">
         <div class="flex align-items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="20" height="20">
@@ -25,14 +27,14 @@ import { Component } from '@angular/core';
             </g>
             <path d="M176 300 Q256 380 336 300" fill="none" stroke="#fff" stroke-width="26" stroke-linecap="round" />
           </svg>
-          <span>OpenMath v2.5</span>
+          <span>{{ t('footer.version') }}</span>
           <span>&mdash;</span>
-          <span>Angular + FastAPI + PrimeNG + PostgreSQL</span>
+          <span>{{ t('footer.techStack') }}</span>
         </div>
         <a href="https://github.com/attilamacskasy/openmath" target="_blank"
           class="text-500 no-underline hover:text-primary flex align-items-center gap-1">
           <i class="pi pi-github"></i>
-          Source
+          {{ t('footer.source') }}
         </a>
       </div>
     </footer>

@@ -8,6 +8,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { PasswordModule } from 'primeng/password';
 import { MessageModule } from 'primeng/message';
 import { DividerModule } from 'primeng/divider';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { AuthService } from '../../core/services/auth.service';
 import { environment } from '../../../environments/environment';
 
@@ -26,8 +27,10 @@ declare const google: any;
     PasswordModule,
     MessageModule,
     DividerModule,
+    TranslocoModule,
   ],
   template: `
+    <ng-container *transloco="let t">
     <div class="flex justify-content-center align-items-center" style="min-height: 80vh">
       <p-card [style]="{ width: '400px' }">
         <ng-template pTemplate="header">
@@ -56,7 +59,7 @@ declare const google: any;
           </div>
         </ng-template>
 
-        <h3 class="text-center mt-0">Sign in to OpenMath</h3>
+        <h3 class="text-center mt-0">{{ t('auth.signInTo') }}</h3>
 
         @if (errorMessage()) {
           <p-message severity="error" [text]="errorMessage()" styleClass="w-full mb-3"></p-message>
@@ -64,7 +67,7 @@ declare const google: any;
 
         <div class="flex flex-column gap-3">
           <div class="flex flex-column gap-1">
-            <label for="email" class="font-semibold">Email</label>
+            <label for="email" class="font-semibold">{{ t('auth.email') }}</label>
             <input
               id="email"
               type="email"
@@ -77,7 +80,7 @@ declare const google: any;
           </div>
 
           <div class="flex flex-column gap-1">
-            <label for="password" class="font-semibold">Password</label>
+            <label for="password" class="font-semibold">{{ t('auth.password') }}</label>
             <p-password
               id="password"
               [(ngModel)]="password"
@@ -90,7 +93,7 @@ declare const google: any;
           </div>
 
           <p-button
-            label="Sign In"
+            [label]="t('auth.signIn')"
             icon="pi pi-sign-in"
             (onClick)="login()"
             [disabled]="!email || !password || submitting()"
@@ -99,11 +102,11 @@ declare const google: any;
           ></p-button>
 
           <p-divider align="center">
-            <span class="text-500 text-sm">or</span>
+            <span class="text-500 text-sm">{{ t('auth.orSeparator') }}</span>
           </p-divider>
 
           <p-button
-            label="Sign in with Google"
+            [label]="t('auth.signInWithGoogle')"
             icon="pi pi-google"
             severity="secondary"
             (onClick)="loginWithGoogle()"
@@ -112,17 +115,19 @@ declare const google: any;
           ></p-button>
 
           <div class="text-center text-sm">
-            Don't have an account?
-            <a routerLink="/register" class="text-primary no-underline font-semibold">Register</a>
+            {{ t('auth.noAccount') }}
+            <a routerLink="/register" class="text-primary no-underline font-semibold">{{ t('auth.register') }}</a>
           </div>
         </div>
       </p-card>
     </div>
+    </ng-container>
   `,
 })
 export class LoginComponent {
   private auth = inject(AuthService);
   private router = inject(Router);
+  private translocoService = inject(TranslocoService);
 
   email = '';
   password = '';
@@ -142,7 +147,7 @@ export class LoginComponent {
       error: (err) => {
         this.submitting.set(false);
         this.errorMessage.set(
-          err.error?.detail || 'Invalid email or password'
+          err.error?.detail || this.translocoService.translate('auth.loginFailed')
         );
       },
     });

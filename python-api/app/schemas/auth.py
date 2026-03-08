@@ -10,6 +10,7 @@ class RegisterRequest(BaseModel):
     birthday: str | None = None  # ISO date string YYYY-MM-DD
     gender: str | None = Field(default=None, pattern=r"^(female|male|other|prefer_not_say)$")
     learnedTimetables: list[int] | None = Field(default=None, alias="learnedTimetables")
+    locale: str = Field(default="en", pattern=r"^(en|hu)$")
 
     model_config = {"populate_by_name": True}
 
@@ -59,6 +60,7 @@ class AdminCreateUserRequest(BaseModel):
     gender: str | None = Field(default=None, pattern=r"^(female|male|other|prefer_not_say)$")
     role: str = Field(default="student", pattern=r"^(student|admin|teacher|parent)$")
     learnedTimetables: list[int] | None = Field(default=None, alias="learnedTimetables")
+    locale: str = Field(default="en", pattern=r"^(en|hu)$")
 
     model_config = {"populate_by_name": True}
 

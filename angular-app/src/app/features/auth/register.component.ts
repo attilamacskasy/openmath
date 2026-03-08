@@ -10,7 +10,9 @@ import { DropdownModule } from 'primeng/dropdown';
 import { CheckboxModule } from 'primeng/checkbox';
 import { CalendarModule } from 'primeng/calendar';
 import { MessageModule } from 'primeng/message';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { AuthService } from '../../core/services/auth.service';
+import { LocaleService } from '../../core/services/locale.service';
 
 @Component({
   selector: 'app-register',
@@ -27,8 +29,10 @@ import { AuthService } from '../../core/services/auth.service';
     CheckboxModule,
     CalendarModule,
     MessageModule,
+    TranslocoModule,
   ],
   template: `
+    <ng-container *transloco="let t">
     <div class="flex justify-content-center align-items-center" style="min-height: 80vh">
       <p-card [style]="{ width: '450px' }">
         <ng-template pTemplate="header">
@@ -57,7 +61,7 @@ import { AuthService } from '../../core/services/auth.service';
           </div>
         </ng-template>
 
-        <h3 class="text-center mt-0">Create your account</h3>
+        <h3 class="text-center mt-0">{{ t('auth.createAccount') }}</h3>
 
         @if (errorMessage()) {
           <p-message severity="error" [text]="errorMessage()" styleClass="w-full mb-3"></p-message>
@@ -65,19 +69,19 @@ import { AuthService } from '../../core/services/auth.service';
 
         <div class="flex flex-column gap-3">
           <div class="flex flex-column gap-1">
-            <label for="name" class="font-semibold">Name *</label>
+            <label for="name" class="font-semibold">{{ t('auth.name') }} *</label>
             <input
               id="name"
               type="text"
               pInputText
               [(ngModel)]="name"
-              placeholder="Your name"
+              [placeholder]="t('auth.namePlaceholder')"
               class="w-full"
             />
           </div>
 
           <div class="flex flex-column gap-1">
-            <label for="reg-email" class="font-semibold">Email *</label>
+            <label for="reg-email" class="font-semibold">{{ t('auth.email') }} *</label>
             <input
               id="reg-email"
               type="email"
@@ -89,7 +93,7 @@ import { AuthService } from '../../core/services/auth.service';
           </div>
 
           <div class="flex flex-column gap-1">
-            <label for="reg-password" class="font-semibold">Password * (min 6 characters)</label>
+            <label for="reg-password" class="font-semibold">{{ t('auth.password') }} *</label>
             <p-password
               id="reg-password"
               [(ngModel)]="password"
@@ -102,19 +106,19 @@ import { AuthService } from '../../core/services/auth.service';
 
           <div class="flex gap-3">
             <div class="flex flex-column gap-1 flex-1">
-              <label for="birthday" class="font-semibold">Birthday (optional)</label>
+              <label for="birthday" class="font-semibold">{{ t('auth.birthday') }}</label>
               <p-calendar
                 id="birthday"
                 [(ngModel)]="birthday"
                 [showIcon]="true"
-                dateFormat="yy-mm-dd"
+                [dateFormat]="localeService.getCalendarDateFormat()"
                 [maxDate]="maxDate"
                 placeholder="YYYY-MM-DD"
                 styleClass="w-full"
               ></p-calendar>
             </div>
             <div class="flex flex-column gap-1 flex-1">
-              <label for="gender" class="font-semibold">Gender (optional)</label>
+              <label for="gender" class="font-semibold">{{ t('auth.gender') }}</label>
               <p-dropdown
                 id="gender"
                 [options]="genderOptions"
@@ -128,7 +132,18 @@ import { AuthService } from '../../core/services/auth.service';
           </div>
 
           <div class="flex flex-column gap-1">
-            <label class="font-semibold">Timetables learned</label>
+            <label for="locale" class="font-semibold">{{ t('auth.language') }}</label>
+            <p-dropdown
+              id="locale"
+              [options]="localeOptions"
+              [(ngModel)]="locale"
+              optionLabel="label"
+              optionValue="value"
+            ></p-dropdown>
+          </div>
+
+          <div class="flex flex-column gap-1">
+            <label class="font-semibold">{{ t('auth.timetablesLearned') }}</label>
             <div class="flex flex-wrap gap-2">
               @for (n of timetableRange; track n) {
                 <div class="flex align-items-center gap-1">
@@ -144,7 +159,7 @@ import { AuthService } from '../../core/services/auth.service';
           </div>
 
           <p-button
-            label="Register"
+            [label]="t('auth.register')"
             icon="pi pi-user-plus"
             (onClick)="register()"
             [disabled]="!canRegister() || submitting()"
@@ -153,35 +168,48 @@ import { AuthService } from '../../core/services/auth.service';
           ></p-button>
 
           <div class="text-center text-sm">
-            Already have an account?
-            <a routerLink="/login" class="text-primary no-underline font-semibold">Sign in</a>
+            {{ t('auth.alreadyHaveAccount') }}
+            <a routerLink="/login" class="text-primary no-underline font-semibold">{{ t('auth.signIn') }}</a>
           </div>
         </div>
       </p-card>
     </div>
+    </ng-container>
   `,
 })
 export class RegisterComponent {
   private auth = inject(AuthService);
   private router = inject(Router);
+  private translocoService = inject(TranslocoService);
+  localeService = inject(LocaleService);
 
   name = '';
   email = '';
   password = '';
   birthday: Date | null = null;
   gender: string | null = null;
+  locale = 'en';
   learnedTimetables: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   submitting = signal(false);
   errorMessage = signal('');
 
   maxDate = new Date();
   timetableRange = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-  genderOptions = [
-    { label: 'Female', value: 'female' },
-    { label: 'Male', value: 'male' },
-    { label: 'Other', value: 'other' },
-    { label: 'Prefer not to say', value: 'prefer_not_say' },
+
+  localeOptions = [
+    { label: 'English', value: 'en' },
+    { label: 'Magyar', value: 'hu' },
   ];
+
+  get genderOptions() {
+    const t = (key: string) => this.translocoService.translate(key);
+    return [
+      { label: t('gender.female'), value: 'female' },
+      { label: t('gender.male'), value: 'male' },
+      { label: t('gender.other'), value: 'other' },
+      { label: t('gender.preferNotToSay'), value: 'prefer_not_say' },
+    ];
+  }
 
   canRegister(): boolean {
     return !!(
@@ -210,6 +238,7 @@ export class RegisterComponent {
         password: this.password,
         birthday: birthdayStr,
         gender: this.gender,
+        locale: this.locale,
         learnedTimetables: this.learnedTimetables,
       })
       .subscribe({
@@ -220,7 +249,7 @@ export class RegisterComponent {
         error: (err) => {
           this.submitting.set(false);
           this.errorMessage.set(
-            err.error?.detail || 'Registration failed'
+            err.error?.detail || this.translocoService.translate('auth.registrationFailed')
           );
         },
       });

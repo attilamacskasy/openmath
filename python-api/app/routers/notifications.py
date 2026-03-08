@@ -53,14 +53,40 @@ async def mark_all_read(user: dict[str, Any] = Depends(get_current_user)):
     return {"count": count}
 
 
+# ── Locale-aware notification messages (v2.6) ────────
+NOTIFICATION_MESSAGES = {
+    "en": {
+        "student_associated_teacher": ("New Teacher", "Teacher {name} has added you to their class"),
+        "student_associated_parent": ("New Parent", "Parent {name} has linked your account"),
+        "quiz_completed": ("Quiz Completed", "Student {name} completed {quiz_type} — Score: {score}%"),
+        "review_submitted": ("New Review", "Teacher {name} reviewed your {quiz_type} session"),
+        "signoff_submitted": ("Signed Off", "Parent {name} signed off on your {quiz_type} session"),
+        "role_changed": ("Roles Updated", "Your roles have been updated to: {roles}"),
+        "student_removed_teacher": ("Teacher Removed", "You have been removed from {name}'s class"),
+        "student_removed_parent": ("Parent Removed", "Parent {name} has unlinked your account"),
+    },
+    "hu": {
+        "student_associated_teacher": ("Új tanár", "{name} tanár hozzáadott az osztályához"),
+        "student_associated_parent": ("Új szülő", "{name} szülő összekapcsolta a fiókodat"),
+        "quiz_completed": ("Kvíz kész", "{name} tanuló teljesítette: {quiz_type} — Eredmény: {score}%"),
+        "review_submitted": ("Új értékelés", "{name} tanár értékelte a(z) {quiz_type} feladatsorodat"),
+        "signoff_submitted": ("Jóváhagyva", "{name} szülő jóváhagyta a(z) {quiz_type} feladatsorodat"),
+        "role_changed": ("Szerepkörök frissítve", "A szerepköreid frissítve lettek: {roles}"),
+        "student_removed_teacher": ("Tanár eltávolítva", "Eltávolítottak {name} tanár osztályából"),
+        "student_removed_parent": ("Szülő eltávolítva", "{name} szülő leválasztotta a fiókodat"),
+    },
+}
+
+
 @router.get("/review-templates")
 async def get_review_templates(
     role: str = Query(pattern=r"^(teacher|parent)$"),
     score_percent: int | None = Query(default=None, ge=0, le=100),
+    locale: str = Query(default="en", pattern=r"^(en|hu)$"),
     user: dict[str, Any] = Depends(get_current_user),
 ):
-    """Return template responses filtered by role and score-based sentiment."""
-    templates = await list_review_templates(role)
+    """Return template responses filtered by role, locale, and score-based sentiment."""
+    templates = await list_review_templates(role, locale=locale)
     if score_percent is not None:
         if score_percent >= 70:
             sentiment = "positive"

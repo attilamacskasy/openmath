@@ -1,5 +1,6 @@
 import { Component, DestroyRef, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
@@ -7,18 +8,23 @@ import { OverlayPanelModule, OverlayPanel } from 'primeng/overlaypanel';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService } from 'primeng/api';
 import { TooltipModule } from 'primeng/tooltip';
+import { DropdownModule } from 'primeng/dropdown';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { interval } from 'rxjs';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { AuthService } from '../../../core/services/auth.service';
 import { ApiService } from '../../../core/services/api.service';
+import { LocaleService } from '../../../core/services/locale.service';
 import { Notification } from '../../../models/notification.model';
+import { LocalDatePipe } from '../../pipes/local-date.pipe';
 
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterLinkActive, ButtonModule, TagModule, OverlayPanelModule, TooltipModule, ConfirmDialogModule],
+  imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive, ButtonModule, TagModule, OverlayPanelModule, TooltipModule, ConfirmDialogModule, DropdownModule, TranslocoModule, LocalDatePipe],
   providers: [ConfirmationService],
   template: `
+    <ng-container *transloco="let t">
     <header class="surface-card shadow-2 px-4 py-2 flex align-items-center justify-content-between">
       <nav class="flex gap-3 align-items-center">
         <a routerLink="/" class="no-underline flex align-items-center">
@@ -41,20 +47,20 @@ import { Notification } from '../../../models/notification.model';
             <path d="M176 300 Q256 380 336 300" fill="none" stroke="#fff" stroke-width="26" stroke-linecap="round" />
           </svg>
         </a>
-        <a routerLink="/" routerLinkActive="font-bold" [routerLinkActiveOptions]="{exact: true}" class="no-underline text-primary text-lg">Start</a>
-        <a routerLink="/profile" routerLinkActive="font-bold" class="no-underline text-primary">Profile</a>
-        <a routerLink="/history" routerLinkActive="font-bold" class="no-underline text-primary">History</a>
+        <a routerLink="/" routerLinkActive="font-bold" [routerLinkActiveOptions]="{exact: true}" class="no-underline text-primary text-lg">{{ t('nav.start') }}</a>
+        <a routerLink="/profile" routerLinkActive="font-bold" class="no-underline text-primary">{{ t('nav.profile') }}</a>
+        <a routerLink="/history" routerLinkActive="font-bold" class="no-underline text-primary">{{ t('nav.history') }}</a>
         @if (auth.isTeacher()) {
-          <a routerLink="/teacher" routerLinkActive="font-bold" class="no-underline text-primary">My Students</a>
+          <a routerLink="/teacher" routerLinkActive="font-bold" class="no-underline text-primary">{{ t('nav.myStudents') }}</a>
         }
         @if (auth.isParent()) {
-          <a routerLink="/parent" routerLinkActive="font-bold" class="no-underline text-primary">My Child</a>
+          <a routerLink="/parent" routerLinkActive="font-bold" class="no-underline text-primary">{{ t('nav.myChild') }}</a>
         }
-        <a routerLink="/user-guide" routerLinkActive="font-bold" class="no-underline text-primary">User Guide</a>
+        <a routerLink="/user-guide" routerLinkActive="font-bold" class="no-underline text-primary">{{ t('nav.userGuide') }}</a>
         @if (auth.isAdmin()) {
-          <a routerLink="/users" routerLinkActive="font-bold" class="no-underline text-primary">Users</a>
-          <a routerLink="/admin/quiz-types" routerLinkActive="font-bold" class="no-underline text-primary">Quiz Types</a>
-          <a routerLink="/admin" routerLinkActive="font-bold" [routerLinkActiveOptions]="{exact: true}" class="no-underline text-primary">Admin</a>
+          <a routerLink="/users" routerLinkActive="font-bold" class="no-underline text-primary">{{ t('nav.users') }}</a>
+          <a routerLink="/admin/quiz-types" routerLinkActive="font-bold" class="no-underline text-primary">{{ t('nav.quizTypes') }}</a>
+          <a routerLink="/admin" routerLinkActive="font-bold" [routerLinkActiveOptions]="{exact: true}" class="no-underline text-primary">{{ t('nav.admin') }}</a>
         }
       </nav>
       <div class="flex align-items-center gap-2">
@@ -70,6 +76,15 @@ import { Notification } from '../../../models/notification.model';
             <p-tag [value]="role" [severity]="roleSeverity(role)"></p-tag>
           }
           <span class="text-300">|</span>
+          <p-dropdown
+            [options]="languageOptions"
+            [(ngModel)]="selectedLanguage"
+            (onChange)="onLanguageChange($event)"
+            [style]="{ minWidth: '80px' }"
+            optionLabel="label"
+            optionValue="value">
+          </p-dropdown>
+          <span class="text-300">|</span>
           <div class="relative cursor-pointer" (click)="toggleNotifications($event)">
             <i class="pi pi-bell text-xl"></i>
             @if (unreadCount() > 0) {
@@ -84,7 +99,7 @@ import { Notification } from '../../../models/notification.model';
           </div>
           <span class="text-300">|</span>
           <p-button
-            label="Logout"
+            [label]="t('header.logout')"
             icon="pi pi-sign-out"
             severity="secondary"
             [text]="true"
@@ -99,9 +114,9 @@ import { Notification } from '../../../models/notification.model';
 
     <p-overlayPanel #notifPanel [style]="{ width: '400px' }">
       <div class="flex justify-content-between align-items-center mb-2">
-        <span class="font-semibold text-lg">Notifications</span>
+        <span class="font-semibold text-lg">{{ t('header.notifications') }}</span>
         @if (unreadCount() > 0) {
-          <p-button label="Accept All" icon="pi pi-check-circle" size="small"
+          <p-button [label]="t('header.acceptAll')" icon="pi pi-check-circle" size="small"
             severity="secondary" [text]="true" (onClick)="acceptAll()"></p-button>
         }
       </div>
@@ -112,20 +127,21 @@ import { Notification } from '../../../models/notification.model';
             <div class="flex-1">
               <div class="font-semibold text-sm">{{ notif.title }}</div>
               <div class="text-sm text-700">{{ notif.message }}</div>
-              <div class="text-xs text-500 mt-1">{{ notif.created_at | date:'short' }}</div>
+              <div class="text-xs text-500 mt-1">{{ notif.created_at | localDate:'short' }}</div>
             </div>
             @if (!notif.is_read) {
               <p-button icon="pi pi-check" [rounded]="true" [text]="true" size="small"
-                severity="success" pTooltip="Accept"
+                severity="success" [pTooltip]="t('header.accept')"
                 (onClick)="acceptNotification(notif)"></p-button>
             }
           </div>
         }
         @if (notifications().length === 0) {
-          <div class="text-center text-500 py-3">No notifications</div>
+          <div class="text-center text-500 py-3">{{ t('header.noNotifications') }}</div>
         }
       </div>
     </p-overlayPanel>
+    </ng-container>
   `,
   styles: [`
     nav a {
@@ -143,9 +159,17 @@ export class HeaderComponent implements OnInit {
   private api = inject(ApiService);
   private destroyRef = inject(DestroyRef);
   private confirmService = inject(ConfirmationService);
+  private translocoService = inject(TranslocoService);
+  localeService = inject(LocaleService);
 
   unreadCount = signal(0);
   notifications = signal<Notification[]>([]);
+
+  languageOptions = [
+    { label: 'EN', value: 'en' },
+    { label: 'HU', value: 'hu' },
+  ];
+  selectedLanguage = this.localeService.getLocale();
 
   @ViewChild('notifPanel') notifPanel!: OverlayPanel;
 
@@ -199,11 +223,17 @@ export class HeaderComponent implements OnInit {
   }
 
   confirmLogout(event: Event) {
+    const t = (key: string) => this.translocoService.translate(key);
     this.confirmService.confirm({
-      message: 'Are you sure you want to log out?',
-      header: 'Confirm Logout',
+      message: t('header.logoutConfirm'),
+      header: t('header.confirmLogout'),
       icon: 'pi pi-sign-out',
       accept: () => this.auth.logout(),
     });
+  }
+
+  onLanguageChange(event: any) {
+    this.localeService.setLocale(event.value);
+    this.selectedLanguage = event.value;
   }
 }

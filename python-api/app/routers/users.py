@@ -80,6 +80,7 @@ async def patch_user(
         learned_timetables=body.learned_timetables,
         birthday=birthday,
         email=body.email,
+        locale=body.locale,
     )
     if not updated:
         raise HTTPException(status_code=404, detail="User not found")
@@ -111,6 +112,7 @@ async def create_user(
         birthday=birthday,
         gender=body.gender,
         learned_timetables=timetables,
+        locale=body.locale,
     )
 
     # Assign role in user_roles table

@@ -101,6 +101,7 @@ async def register(body: RegisterRequest) -> AuthResponse:
         birthday=birthday,
         gender=body.gender,
         learned_timetables=timetables,
+        locale=body.locale,
     )
 
     # Assign student role in user_roles table
@@ -239,4 +240,5 @@ async def me(user: dict = Depends(get_current_user)) -> dict:
         "gender": user_record.get("gender"),
         "authProvider": user_record.get("auth_provider", "local"),
         "learnedTimetables": user_record.get("learned_timetables", []),
+        "locale": user_record.get("locale", "en"),
     }

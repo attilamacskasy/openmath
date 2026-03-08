@@ -27,6 +27,7 @@ export interface RegisterRequest {
   birthday?: string | null;
   gender?: string | null;
   learnedTimetables?: number[];
+  locale?: string;
 }
 
 export interface GoogleAuthRequest {
@@ -46,6 +47,7 @@ export interface AdminCreateUserRequest {
   gender?: string | null;
   role?: string;
   learnedTimetables?: number[];
+  locale?: string;
 }
 
 export interface MeResponse {
@@ -59,4 +61,5 @@ export interface MeResponse {
   gender: string | null;
   authProvider: string;
   learnedTimetables: number[];
+  locale: string;
 }

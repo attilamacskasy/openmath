@@ -13,9 +13,12 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { CalendarModule } from 'primeng/calendar';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { TooltipModule } from 'primeng/tooltip';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmationService, MessageService } from 'primeng/api';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService } from '../../core/services/api.service';
+import { LocaleService } from '../../core/services/locale.service';
 
 interface UserRow {
   id: string;
@@ -49,24 +52,27 @@ interface UserRow {
     CalendarModule,
     MultiSelectModule,
     ConfirmDialogModule,
+    TooltipModule,
     ToastModule,
+    TranslocoModule,
   ],
   providers: [ConfirmationService, MessageService],
   template: `
+    <ng-container *transloco="let t">
     <p-toast></p-toast>
     <p-confirmDialog></p-confirmDialog>
 
     <div class="flex justify-content-between align-items-center mb-3">
-      <h2 class="m-0">User Administration</h2>
+      <h2 class="m-0">{{ t('admin.userAdmin') }}</h2>
       <p-button
-        label="New User"
+        [label]="t('admin.newUser')"
         icon="pi pi-plus"
         (onClick)="openCreateDialog()"
       ></p-button>
     </div>
 
     @if (loading()) {
-      <p class="text-500">Loading...</p>
+      <p class="text-500">{{ t('common.loading') }}</p>
     } @else {
       <p-table
         [value]="users()"
@@ -78,12 +84,12 @@ interface UserRow {
       >
         <ng-template pTemplate="header">
           <tr>
-            <th pSortableColumn="name">Name <p-sortIcon field="name"></p-sortIcon></th>
-            <th pSortableColumn="email">Email <p-sortIcon field="email"></p-sortIcon></th>
-            <th>Age</th>
-            <th>Roles</th>
-            <th>Provider</th>
-            <th>Actions</th>
+            <th pSortableColumn="name">{{ t('admin.name') }} <p-sortIcon field="name"></p-sortIcon></th>
+            <th pSortableColumn="email">{{ t('admin.email') }} <p-sortIcon field="email"></p-sortIcon></th>
+            <th>{{ t('admin.age') }}</th>
+            <th>{{ t('admin.roles') }}</th>
+            <th>{{ t('admin.provider') }}</th>
+            <th>{{ t('admin.actions') }}</th>
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-s>
@@ -121,7 +127,7 @@ interface UserRow {
                     [text]="true"
                     size="small"
                     severity="warning"
-                    pTooltip="Reset password"
+                    [pTooltip]="t('admin.resetPassword')"
                     (onClick)="openResetPasswordDialog(s)"
                   ></p-button>
                 }
@@ -130,7 +136,7 @@ interface UserRow {
           </tr>
         </ng-template>
         <ng-template pTemplate="emptymessage">
-          <tr><td colspan="6" class="text-center text-500">No users found.</td></tr>
+          <tr><td colspan="6" class="text-center text-500">{{ t('admin.noUsers') }}</td></tr>
         </ng-template>
       </p-table>
     }
@@ -138,26 +144,26 @@ interface UserRow {
     <!-- Create / Edit Dialog -->
     <p-dialog
       [(visible)]="dialogVisible"
-      [header]="editingUser ? 'Edit User' : 'Create User'"
+      [header]="editingUser ? t('admin.editUser') : t('admin.createUser')"
       [modal]="true"
       [style]="{ width: '450px' }"
     >
       <div class="flex flex-column gap-3">
         <div class="flex flex-column gap-1">
-          <label class="font-semibold">Name *</label>
+          <label class="font-semibold">{{ t('admin.name') }} *</label>
           <input pInputText [(ngModel)]="dialogName" class="w-full" />
         </div>
         <div class="flex flex-column gap-1">
-          <label class="font-semibold">Email *</label>
+          <label class="font-semibold">{{ t('admin.email') }} *</label>
           <input pInputText [(ngModel)]="dialogEmail" class="w-full" type="email"
             [disabled]="editingUser !== null && editingUser.auth_provider === 'google'" />
           @if (editingUser?.auth_provider === 'google') {
-            <small class="text-500">Email cannot be changed for Google SSO accounts.</small>
+            <small class="text-500">{{ t('admin.googleEmailNote') }}</small>
           }
         </div>
         @if (!editingUser) {
           <div class="flex flex-column gap-1">
-            <label class="font-semibold">Password * (min 6)</label>
+            <label class="font-semibold">{{ t('admin.password') }}</label>
             <p-password
               [(ngModel)]="dialogPassword"
               [feedback]="false"
@@ -169,18 +175,18 @@ interface UserRow {
         }
         <div class="flex gap-3">
           <div class="flex flex-column gap-1 flex-1">
-            <label class="font-semibold">Birthday</label>
+            <label class="font-semibold">{{ t('profile.birthday') }}</label>
             <p-calendar
               [(ngModel)]="dialogBirthday"
               [showIcon]="true"
-              dateFormat="yy-mm-dd"
+              [dateFormat]="localeService.getCalendarDateFormat()"
               [maxDate]="maxDate"
-              placeholder="YYYY-MM-DD"
+              [placeholder]="t('profile.dateFormat')"
               styleClass="w-full"
             ></p-calendar>
           </div>
           <div class="flex flex-column gap-1 flex-1">
-            <label class="font-semibold">Gender</label>
+            <label class="font-semibold">{{ t('profile.gender') }}</label>
             <p-dropdown
               [options]="genderOptions"
               [(ngModel)]="dialogGender"
@@ -192,19 +198,19 @@ interface UserRow {
           </div>
         </div>
         <div class="flex flex-column gap-1">
-          <label class="font-semibold">Roles</label>
+          <label class="font-semibold">{{ t('admin.roles') }}</label>
           <p-multiSelect
             [options]="roleOptions"
             [(ngModel)]="dialogRoles"
             optionLabel="label"
             optionValue="value"
-            placeholder="Select roles"
+            [placeholder]="t('admin.selectRoles')"
             display="chip"
             styleClass="w-full"
           ></p-multiSelect>
         </div>
         <div class="flex flex-column gap-1">
-          <label class="font-semibold">Timetables</label>
+          <label class="font-semibold">{{ t('profile.timetables') }}</label>
           <div class="flex flex-wrap gap-2">
             @for (n of timetableRange; track n) {
               <div class="flex align-items-center gap-1">
@@ -221,9 +227,9 @@ interface UserRow {
       </div>
 
       <ng-template pTemplate="footer">
-        <p-button label="Cancel" severity="secondary" (onClick)="dialogVisible = false"></p-button>
+        <p-button [label]="t('common.cancel')" severity="secondary" (onClick)="dialogVisible = false"></p-button>
         <p-button
-          [label]="editingUser ? 'Save' : 'Create'"
+          [label]="editingUser ? t('common.save') : t('common.create')"
           icon="pi pi-check"
           (onClick)="saveUser()"
           [loading]="dialogSaving()"
@@ -234,23 +240,23 @@ interface UserRow {
     <!-- Reset Password Dialog -->
     <p-dialog
       [(visible)]="resetPwVisible"
-      header="Reset Password"
+      [header]="t('admin.resetPassword')"
       [modal]="true"
       [style]="{ width: '350px' }"
     >
-      <p class="mb-3">Set a new password for <strong>{{ resetPwUserName }}</strong></p>
+      <p class="mb-3">{{ t('admin.setNewPasswordFor') }} <strong>{{ resetPwUserName }}</strong></p>
       <p-password
         [(ngModel)]="newPassword"
         [feedback]="false"
         [toggleMask]="true"
         styleClass="w-full"
         inputStyleClass="w-full"
-        placeholder="New password (min 6)"
+        [placeholder]="t('admin.newPasswordPlaceholder')"
       ></p-password>
       <ng-template pTemplate="footer">
-        <p-button label="Cancel" severity="secondary" (onClick)="resetPwVisible = false"></p-button>
+        <p-button [label]="t('common.cancel')" severity="secondary" (onClick)="resetPwVisible = false"></p-button>
         <p-button
-          label="Reset Password"
+          [label]="t('admin.resetPassword')"
           icon="pi pi-key"
           severity="warning"
           (onClick)="resetPassword()"
@@ -258,11 +264,14 @@ interface UserRow {
         ></p-button>
       </ng-template>
     </p-dialog>
+    </ng-container>
   `,
 })
 export class UserAdminComponent implements OnInit {
   private api = inject(ApiService);
   private messageService = inject(MessageService);
+  private translocoService = inject(TranslocoService);
+  localeService = inject(LocaleService);
 
   loading = signal(true);
   users = signal<UserRow[]>([]);
@@ -286,18 +295,22 @@ export class UserAdminComponent implements OnInit {
 
   maxDate = new Date();
   timetableRange = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-  genderOptions = [
-    { label: 'Female', value: 'female' },
-    { label: 'Male', value: 'male' },
-    { label: 'Other', value: 'other' },
-    { label: 'Prefer not to say', value: 'prefer_not_say' },
-  ];
-  roleOptions = [
-    { label: 'Student', value: 'student' },
-    { label: 'Teacher', value: 'teacher' },
-    { label: 'Parent', value: 'parent' },
-    { label: 'Admin', value: 'admin' },
-  ];
+  get genderOptions() {
+    return [
+      { label: this.translocoService.translate('gender.female'), value: 'female' },
+      { label: this.translocoService.translate('gender.male'), value: 'male' },
+      { label: this.translocoService.translate('gender.other'), value: 'other' },
+      { label: this.translocoService.translate('gender.preferNotToSay'), value: 'prefer_not_say' },
+    ];
+  }
+  get roleOptions() {
+    return [
+      { label: this.translocoService.translate('role.student'), value: 'student' },
+      { label: this.translocoService.translate('role.teacher'), value: 'teacher' },
+      { label: this.translocoService.translate('role.parent'), value: 'parent' },
+      { label: this.translocoService.translate('role.admin'), value: 'admin' },
+    ];
+  }
 
   ngOnInit() {
     this.loadUsers();
@@ -378,20 +391,20 @@ export class UserAdminComponent implements OnInit {
               next: () => {
                 this.dialogSaving.set(false);
                 this.dialogVisible = false;
-                this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'User updated' });
+                this.messageService.add({ severity: 'success', summary: this.translocoService.translate('common.success'), detail: this.translocoService.translate('admin.userUpdated') });
                 this.loadUsers();
               },
               error: () => {
                 this.dialogSaving.set(false);
                 this.dialogVisible = false;
-                this.messageService.add({ severity: 'warn', summary: 'Partial', detail: 'Profile saved but role update failed' });
+                this.messageService.add({ severity: 'warn', summary: this.translocoService.translate('common.warning'), detail: this.translocoService.translate('admin.roleUpdateFailed') });
                 this.loadUsers();
               },
             });
           },
           error: () => {
             this.dialogSaving.set(false);
-            this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to update user' });
+            this.messageService.add({ severity: 'error', summary: this.translocoService.translate('common.error'), detail: this.translocoService.translate('admin.updateFailed') });
           },
         });
     } else {
@@ -419,20 +432,20 @@ export class UserAdminComponent implements OnInit {
                 next: () => {
                   this.dialogSaving.set(false);
                   this.dialogVisible = false;
-                  this.messageService.add({ severity: 'success', summary: 'Created', detail: 'User account created' });
+                  this.messageService.add({ severity: 'success', summary: this.translocoService.translate('common.success'), detail: this.translocoService.translate('admin.userCreated') });
                   this.loadUsers();
                 },
                 error: () => {
                   this.dialogSaving.set(false);
                   this.dialogVisible = false;
-                  this.messageService.add({ severity: 'warn', summary: 'Partial', detail: 'User created but some roles not assigned' });
+                  this.messageService.add({ severity: 'warn', summary: this.translocoService.translate('common.warning'), detail: this.translocoService.translate('admin.rolesPartialFailed') });
                   this.loadUsers();
                 },
               });
             } else {
               this.dialogSaving.set(false);
               this.dialogVisible = false;
-              this.messageService.add({ severity: 'success', summary: 'Created', detail: 'User account created' });
+              this.messageService.add({ severity: 'success', summary: this.translocoService.translate('common.success'), detail: this.translocoService.translate('admin.userCreated') });
               this.loadUsers();
             }
           },
@@ -440,8 +453,8 @@ export class UserAdminComponent implements OnInit {
             this.dialogSaving.set(false);
             this.messageService.add({
               severity: 'error',
-              summary: 'Error',
-              detail: err.error?.detail || 'Failed to create user',
+              summary: this.translocoService.translate('common.error'),
+              detail: err.error?.detail || this.translocoService.translate('admin.updateFailed'),
             });
           },
         });
@@ -459,10 +472,10 @@ export class UserAdminComponent implements OnInit {
     this.api.resetUserPassword(this.resetPwUserId, this.newPassword).subscribe({
       next: () => {
         this.resetPwVisible = false;
-        this.messageService.add({ severity: 'success', summary: 'Done', detail: 'Password reset successfully' });
+        this.messageService.add({ severity: 'success', summary: this.translocoService.translate('common.success'), detail: this.translocoService.translate('admin.passwordReset') });
       },
       error: () => {
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to reset password' });
+        this.messageService.add({ severity: 'error', summary: this.translocoService.translate('common.error'), detail: this.translocoService.translate('admin.passwordResetFailed') });
       },
     });
   }

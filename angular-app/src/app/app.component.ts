@@ -6,6 +6,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HeaderComponent } from './shared/components/header/header.component';
 import { FooterComponent } from './shared/components/footer/footer.component';
 import { AuthService } from './core/services/auth.service';
+import { LocaleService } from './core/services/locale.service';
 
 @Component({
   selector: 'app-root',
@@ -30,6 +31,7 @@ export class AppComponent {
   title = 'OpenMath';
   private router = inject(Router);
   private auth = inject(AuthService);
+  private localeService = inject(LocaleService);
   private destroyRef = inject(DestroyRef);
 
   private currentUrl = signal(this.router.url);
@@ -50,5 +52,10 @@ export class AppComponent {
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe((e) => this.currentUrl.set(e.urlAfterRedirects));
+
+    // Initialize locale from user profile on app startup
+    if (this.auth.isAuthenticated()) {
+      this.auth.getMe().subscribe();
+    }
   }
 }

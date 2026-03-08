@@ -8,6 +8,7 @@ import { ToastModule } from 'primeng/toast';
 import { DropdownModule } from 'primeng/dropdown';
 import { FormsModule } from '@angular/forms';
 import { ConfirmationService, MessageService } from 'primeng/api';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService } from '../../core/services/api.service';
 import { DatabaseStats } from '../../models/stats.model';
 
@@ -23,13 +24,15 @@ import { DatabaseStats } from '../../models/stats.model';
     ConfirmDialogModule,
     ToastModule,
     DropdownModule,
+    TranslocoModule,
   ],
   providers: [ConfirmationService, MessageService],
   template: `
+    <ng-container *transloco="let t">
     <p-toast></p-toast>
     <p-confirmDialog></p-confirmDialog>
 
-    <h2>Database Admin</h2>
+    <h2>{{ t('admin.databaseAdmin') }}</h2>
 
     <!-- Stats cards -->
     <div class="grid mb-3">
@@ -47,13 +50,13 @@ import { DatabaseStats } from '../../models/stats.model';
 
     <div class="flex gap-2 mb-3">
       <p-button
-        label="Refresh"
+        [label]="t('admin.refresh')"
         icon="pi pi-refresh"
         severity="secondary"
         (onClick)="loadStats()"
       ></p-button>
       <p-button
-        label="Delete All Data"
+        [label]="t('admin.deleteAllData')"
         icon="pi pi-trash"
         severity="danger"
         (onClick)="confirmReset()"
@@ -61,17 +64,17 @@ import { DatabaseStats } from '../../models/stats.model';
     </div>
 
     <!-- Table browser -->
-    <p-card header="Browse Table" styleClass="mb-3">
+    <p-card [header]="t('admin.browseTable')" styleClass="mb-3">
       <div class="flex gap-2 mb-3">
         <p-dropdown
           [options]="tableOptions"
           [(ngModel)]="selectedTable"
           optionLabel="label"
           optionValue="value"
-          placeholder="Select table"
+          [placeholder]="t('admin.selectTable')"
         ></p-dropdown>
         <p-button
-          label="Load"
+          [label]="t('admin.load')"
           icon="pi pi-search"
           (onClick)="loadTable()"
           [disabled]="!selectedTable"
@@ -107,35 +110,39 @@ import { DatabaseStats } from '../../models/stats.model';
         </p-table>
       }
     </p-card>
+    </ng-container>
   `,
 })
 export class AdminComponent implements OnInit {
   private api = inject(ApiService);
   private confirm = inject(ConfirmationService);
   private messageService = inject(MessageService);
+  private translocoService = inject(TranslocoService);
 
   stats = signal<DatabaseStats | null>(null);
   tableRows = signal<any[]>([]);
   tableCols = signal<string[]>([]);
   selectedTable = '';
 
-  tableOptions = [
-    { label: 'Quiz Types', value: 'quiz_types' },
-    { label: 'Users', value: 'users' },
-    { label: 'Quiz Sessions', value: 'quiz_sessions' },
-    { label: 'Questions', value: 'questions' },
-    { label: 'Answers', value: 'answers' },
-  ];
+  get tableOptions() {
+    return [
+      { label: this.translocoService.translate('admin.quizTypes'), value: 'quiz_types' },
+      { label: this.translocoService.translate('admin.users'), value: 'users' },
+      { label: this.translocoService.translate('admin.sessions'), value: 'quiz_sessions' },
+      { label: this.translocoService.translate('admin.questions'), value: 'questions' },
+      { label: this.translocoService.translate('admin.answers'), value: 'answers' },
+    ];
+  }
 
   statItems = () => {
     const s = this.stats();
     if (!s) return [];
     return [
-      { label: 'Quiz Types', count: s.quiz_types },
-      { label: 'Users', count: s.users },
-      { label: 'Sessions', count: s.quiz_sessions },
-      { label: 'Questions', count: s.questions },
-      { label: 'Answers', count: s.answers },
+      { label: this.translocoService.translate('admin.quizTypes'), count: s.quiz_types },
+      { label: this.translocoService.translate('admin.users'), count: s.users },
+      { label: this.translocoService.translate('admin.sessions'), count: s.quiz_sessions },
+      { label: this.translocoService.translate('admin.questions'), count: s.questions },
+      { label: this.translocoService.translate('admin.answers'), count: s.answers },
     ];
   };
 
@@ -158,8 +165,8 @@ export class AdminComponent implements OnInit {
 
   confirmReset() {
     this.confirm.confirm({
-      message: 'This will permanently delete ALL user and session data. Quiz types will be preserved. Are you sure?',
-      header: 'Delete All Data',
+      message: this.translocoService.translate('admin.deleteAllConfirm'),
+      header: this.translocoService.translate('admin.deleteAllData'),
       icon: 'pi pi-exclamation-triangle',
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => {
@@ -167,8 +174,8 @@ export class AdminComponent implements OnInit {
           next: () => {
             this.messageService.add({
               severity: 'success',
-              summary: 'Done',
-              detail: 'All data deleted.',
+              summary: this.translocoService.translate('common.success'),
+              detail: this.translocoService.translate('admin.allDataDeleted'),
             });
             this.loadStats();
             this.tableRows.set([]);
@@ -176,8 +183,8 @@ export class AdminComponent implements OnInit {
           error: () => {
             this.messageService.add({
               severity: 'error',
-              summary: 'Error',
-              detail: 'Failed to delete data.',
+              summary: this.translocoService.translate('common.error'),
+              detail: this.translocoService.translate('admin.deleteFailed'),
             });
           },
         });

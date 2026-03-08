@@ -615,7 +615,7 @@ async def find_user_by_email(email: str) -> dict[str, Any] | None:
     pool = await get_pool()
     row = await pool.fetchrow(
         """SELECT id, name, email, password_hash, role, auth_provider,
-                  google_sub, birthday, age, gender, learned_timetables
+                  google_sub, birthday, age, gender, learned_timetables, locale
            FROM users WHERE email = $1""",
         email,
     )
@@ -626,7 +626,7 @@ async def find_user_by_google_sub(google_sub: str) -> dict[str, Any] | None:
     pool = await get_pool()
     row = await pool.fetchrow(
         """SELECT id, name, email, password_hash, role, auth_provider,
-                  google_sub, birthday, age, gender, learned_timetables
+                  google_sub, birthday, age, gender, learned_timetables, locale
            FROM users WHERE google_sub = $1""",
         google_sub,
     )
@@ -637,7 +637,7 @@ async def find_user_by_id(user_id: str) -> dict[str, Any] | None:
     pool = await get_pool()
     row = await pool.fetchrow(
         """SELECT id, name, email, password_hash, role, auth_provider,
-                  google_sub, birthday, age, gender, learned_timetables
+                  google_sub, birthday, age, gender, learned_timetables, locale
            FROM users WHERE id = $1""",
         UUID(user_id),
     )
@@ -654,15 +654,16 @@ async def create_user_with_auth(
     birthday: date | None = None,
     gender: str | None = None,
     learned_timetables: list[int] | None = None,
+    locale: str = "en",
 ) -> dict[str, Any]:
     pool = await get_pool()
     sanitized = _sanitize_learned_timetables(learned_timetables)
     row = await pool.fetchrow(
         """INSERT INTO users (name, email, password_hash, role, auth_provider,
-                                 google_sub, birthday, gender, learned_timetables)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                                 google_sub, birthday, gender, learned_timetables, locale)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
            RETURNING id, name, email, role, auth_provider, google_sub,
-                     birthday, age, gender, learned_timetables, created_at""",
+                     birthday, age, gender, learned_timetables, locale, created_at""",
         name.strip(),
         email.lower().strip(),
         password_hash,
@@ -672,6 +673,7 @@ async def create_user_with_auth(
         birthday,
         gender,
         sanitized,
+        locale,
     )
     return _row_to_dict(row)
 
@@ -722,8 +724,9 @@ async def update_user_profile_v2(
     birthday: date | None = None,
     email: str | None = None,
     role: str | None = None,
+    locale: str | None = None,
 ) -> dict[str, Any] | None:
-    """V2.1 profile update with optional birthday, email, and role."""
+    """V2.1 profile update with optional birthday, email, role, and locale."""
     pool = await get_pool()
     sanitized = _sanitize_learned_timetables(learned_timetables)
     row = await pool.fetchrow(
@@ -731,10 +734,11 @@ async def update_user_profile_v2(
            SET name = $2, age = $3, gender = $4, learned_timetables = $5,
                birthday = $6,
                email = COALESCE($7, email),
-               role = COALESCE($8, role)
+               role = COALESCE($8, role),
+               locale = COALESCE($9, locale)
            WHERE id = $1
            RETURNING id, name, email, role, auth_provider, birthday, age,
-                     gender, learned_timetables""",
+                     gender, learned_timetables, locale""",
         UUID(user_id),
         name.strip(),
         age,
@@ -743,6 +747,7 @@ async def update_user_profile_v2(
         birthday,
         email,
         role,
+        locale,
     )
     return _row_to_dict(row) if row else None
 
@@ -1115,12 +1120,12 @@ async def get_session_owner_id(session_id: str) -> str | None:
 
 # ── Review Templates (v2.5) ─────────────────────────
 
-async def list_review_templates(role: str) -> list[dict[str, Any]]:
-    """List all templates for a given reviewer role."""
+async def list_review_templates(role: str, locale: str = "en") -> list[dict[str, Any]]:
+    """List all templates for a given reviewer role and locale."""
     pool = await get_pool()
     rows = await pool.fetch(
-        "SELECT id, reviewer_role, sentiment, label, message FROM review_templates WHERE reviewer_role = $1 ORDER BY sort_order",
-        role,
+        "SELECT id, reviewer_role, sentiment, label, message FROM review_templates WHERE reviewer_role = $1 AND locale = $2 ORDER BY sort_order",
+        role, locale,
     )
     return [_row_to_dict(r) for r in rows]
 

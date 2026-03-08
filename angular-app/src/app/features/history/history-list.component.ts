@@ -15,6 +15,8 @@ import { AuthService } from '../../core/services/auth.service';
 import { SessionListItem } from '../../models/session.model';
 import { QuizType } from '../../models/quiz-type.model';
 import { DurationPipe } from '../../shared/pipes/duration.pipe';
+import { LocalDatePipe } from '../../shared/pipes/local-date.pipe';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 
 @Component({
   selector: 'app-history-list',
@@ -31,13 +33,16 @@ import { DurationPipe } from '../../shared/pipes/duration.pipe';
     ConfirmDialogModule,
     ToastModule,
     DurationPipe,
+    LocalDatePipe,
+    TranslocoModule,
   ],
   providers: [ConfirmationService, MessageService],
   template: `
+    <ng-container *transloco="let t">
     <p-toast></p-toast>
     <p-confirmDialog></p-confirmDialog>
 
-    <h2>{{ viewingUserName() ? viewingUserName() + "'s Session History" : 'Session History' }}</h2>
+    <h2>{{ viewingUserName() ? viewingUserName() + t('history.userHistory') : t('history.title') }}</h2>
 
     <!-- Quiz Type Filter -->
     <div class="mb-3">
@@ -51,9 +56,9 @@ import { DurationPipe } from '../../shared/pipes/duration.pipe';
     </div>
 
     @if (loading()) {
-      <p class="text-500">Loading...</p>
+      <p class="text-500">{{ t('common.loading') }}</p>
     } @else if (filteredSessions().length === 0) {
-      <p class="text-500">No sessions found.</p>
+      <p class="text-500">{{ t('history.noSessions') }}</p>
     } @else {
       <p-table
         [value]="filteredSessions()"
@@ -65,15 +70,15 @@ import { DurationPipe } from '../../shared/pipes/duration.pipe';
       >
         <ng-template pTemplate="header">
           <tr>
-            <th pSortableColumn="quiz_type_description">Quiz Type <p-sortIcon field="quiz_type_description"></p-sortIcon></th>
-            <th>User</th>
-            <th>Difficulty</th>
-            <th>Questions</th>
-            <th>Time</th>
-            <th>Avg/Q</th>
-            <th pSortableColumn="score_percent">Score <p-sortIcon field="score_percent"></p-sortIcon></th>
-            <th pSortableColumn="started_at">Started <p-sortIcon field="started_at"></p-sortIcon></th>
-            <th>Finished</th>
+            <th pSortableColumn="quiz_type_description">{{ t('history.quizType') }} <p-sortIcon field="quiz_type_description"></p-sortIcon></th>
+            <th>{{ t('history.user') }}</th>
+            <th>{{ t('history.difficulty') }}</th>
+            <th>{{ t('history.questionsCol') }}</th>
+            <th>{{ t('history.time') }}</th>
+            <th>{{ t('history.avgQ') }}</th>
+            <th pSortableColumn="score_percent">{{ t('history.score') }} <p-sortIcon field="score_percent"></p-sortIcon></th>
+            <th pSortableColumn="started_at">{{ t('history.started') }} <p-sortIcon field="started_at"></p-sortIcon></th>
+            <th>{{ t('history.finished') }}</th>
             @if (auth.isAdmin()) {
               <th></th>
             }
@@ -85,7 +90,7 @@ import { DurationPipe } from '../../shared/pipes/duration.pipe';
             <td>{{ s.user_name || '—' }}</td>
             <td>
               <a [routerLink]="['/history', s.id]" class="text-primary no-underline">
-                {{ s.difficulty }}
+                {{ t('difficulty.' + s.difficulty) }}
               </a>
             </td>
             <td>{{ s.total_questions }}</td>
@@ -97,13 +102,13 @@ import { DurationPipe } from '../../shared/pipes/duration.pipe';
                 [severity]="scoreSeverity(s.score_percent)"
               ></p-tag>
             </td>
-            <td>{{ s.started_at | date : 'short' }}</td>
+            <td>{{ s.started_at | localDate : 'short' }}</td>
             <td>
               @if (s.finished_at) {
-                {{ s.finished_at | date : 'short' }}
+                {{ s.finished_at | localDate : 'short' }}
               } @else {
                 <a [routerLink]="['/quiz', s.id]" class="text-orange-500 no-underline font-semibold">
-                  In progress
+                  {{ t('history.inProgress') }}
                 </a>
               }
             </td>
@@ -123,6 +128,7 @@ import { DurationPipe } from '../../shared/pipes/duration.pipe';
         </ng-template>
       </p-table>
     }
+    </ng-container>
   `,
 })
 export class HistoryListComponent implements OnInit {
@@ -130,6 +136,7 @@ export class HistoryListComponent implements OnInit {
   protected auth = inject(AuthService);
   private confirm = inject(ConfirmationService);
   private messageService = inject(MessageService);
+  private translocoService = inject(TranslocoService);
   private route = inject(ActivatedRoute);
 
   loading = signal(true);
@@ -147,7 +154,8 @@ export class HistoryListComponent implements OnInit {
 
   quizTypeFilterOptions = computed(() => {
     const types = this.quizTypes();
-    const options = [{ label: 'All Quiz Types', value: '' }];
+    const allLabel = this.translocoService.translate('history.allQuizTypes');
+    const options = [{ label: allLabel, value: '' }];
     for (const qt of types) {
       options.push({ label: qt.description, value: qt.code });
     }
@@ -181,18 +189,18 @@ export class HistoryListComponent implements OnInit {
 
   confirmDelete(s: SessionListItem) {
     this.confirm.confirm({
-      message: 'Delete this session? This will permanently remove the session, all its questions, and all answers.',
-      header: 'Confirm Delete',
+      message: this.translocoService.translate('history.confirmDelete'),
+      header: this.translocoService.translate('history.confirmDeleteHeader'),
       icon: 'pi pi-exclamation-triangle',
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => {
         this.api.deleteSession(s.id).subscribe({
           next: () => {
-            this.messageService.add({ severity: 'success', summary: 'Deleted', detail: 'Session deleted' });
+            this.messageService.add({ severity: 'success', summary: this.translocoService.translate('common.success'), detail: this.translocoService.translate('history.deleted') });
             this.loadSessions();
           },
           error: () => {
-            this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete session' });
+            this.messageService.add({ severity: 'error', summary: this.translocoService.translate('common.error'), detail: this.translocoService.translate('history.deleteFailed') });
           },
         });
       },

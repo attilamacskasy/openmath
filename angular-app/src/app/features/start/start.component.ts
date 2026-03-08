@@ -9,6 +9,7 @@ import { RadioButtonModule } from 'primeng/radiobutton';
 import { CardModule } from 'primeng/card';
 import { CheckboxModule } from 'primeng/checkbox';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService, QuizTypesResponse } from '../../core/services/api.service';
 import { QuizService } from '../../core/services/quiz.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -33,16 +34,18 @@ interface DropdownGroup {
     CardModule,
     CheckboxModule,
     ProgressSpinnerModule,
+    TranslocoModule,
   ],
   template: `
+    <ng-container *transloco="let t">
     <div class="flex justify-content-center">
-      <p-card header="Start a Quiz" [style]="{ 'max-width': '600px', width: '100%' }">
+      <p-card [header]="t('quiz.startAQuiz')" [style]="{ 'max-width': '600px', width: '100%' }">
         <div class="flex flex-column gap-3">
 
           <!-- Logged-in student info -->
           @if (auth.currentUser(); as user) {
             <div class="surface-50 p-3 border-round text-sm">
-              Playing as <strong>{{ user.name }}</strong> ({{ user.email }})
+              {{ t('quiz.playingAs') }} <strong>{{ user.name }}</strong> ({{ user.email }})
             </div>
           }
 
@@ -56,11 +59,11 @@ interface DropdownGroup {
                   inputId="age-filter"
                   (onChange)="onFiltersChanged()"
                 ></p-checkbox>
-                <label for="age-filter" class="text-sm">Show quizzes for my age ({{ userAge() }})</label>
+                <label for="age-filter" class="text-sm">{{ t('quiz.showForAge') }} ({{ userAge() }})</label>
               </div>
             }
             <div class="flex align-items-center gap-2">
-              <label class="text-sm font-semibold">Category:</label>
+              <label class="text-sm font-semibold">{{ t('quiz.category') }}</label>
               <p-dropdown
                 [options]="categoryOptions()"
                 [(ngModel)]="selectedCategory"
@@ -74,7 +77,7 @@ interface DropdownGroup {
 
           <!-- Quiz Type -->
           <div class="flex flex-column gap-1">
-            <label class="font-semibold">Quiz Type</label>
+            <label class="font-semibold">{{ t('quiz.quizType') }}</label>
             <p-dropdown
               [options]="groupedQuizTypeOptions()"
               [(ngModel)]="quizTypeCode"
@@ -83,7 +86,7 @@ interface DropdownGroup {
               optionGroupLabel="label"
               optionGroupChildren="items"
               [group]="true"
-              placeholder="Select quiz type"
+              [placeholder]="t('quiz.selectQuizType')"
               (onChange)="onQuizTypeChanged()"
             ></p-dropdown>
           </div>
@@ -91,12 +94,12 @@ interface DropdownGroup {
           <!-- Live Preview -->
           @if (quizTypeCode && previewLoading()) {
             <div class="surface-50 p-3 border-round text-center">
-              <i class="pi pi-spin pi-spinner"></i> Loading preview...
+              <i class="pi pi-spin pi-spinner"></i> {{ t('quiz.loadingPreview') }}
             </div>
           }
           @if (previewQuestions().length > 0 && !previewLoading()) {
             <div>
-              <div class="font-semibold mb-2 text-sm">Example questions:</div>
+              <div class="font-semibold mb-2 text-sm">{{ t('quiz.exampleQuestions') }}</div>
               <div class="flex flex-column gap-2">
                 @for (p of previewQuestions(); track p.render) {
                   <div class="surface-50 p-3 border-round flex justify-content-between">
@@ -110,7 +113,7 @@ interface DropdownGroup {
 
           <!-- Difficulty -->
           <div class="flex flex-column gap-1">
-            <label class="font-semibold">Difficulty</label>
+            <label class="font-semibold">{{ t('quiz.difficulty') }}</label>
             <div class="flex gap-3">
               @for (d of difficulties; track d) {
                 <div class="flex align-items-center gap-1">
@@ -120,7 +123,7 @@ interface DropdownGroup {
                     [value]="d"
                     [(ngModel)]="difficulty"
                   ></p-radioButton>
-                  <label [for]="'diff-' + d" class="capitalize">{{ d }}</label>
+                  <label [for]="'diff-' + d">{{ t('difficulty.' + d) }}</label>
                 </div>
               }
             </div>
@@ -128,7 +131,7 @@ interface DropdownGroup {
 
           <!-- Total Questions -->
           <div class="flex flex-column gap-1">
-            <label class="font-semibold">Number of Questions</label>
+            <label class="font-semibold">{{ t('quiz.numberOfQuestions') }}</label>
             <p-inputNumber
               [(ngModel)]="totalQuestions"
               [min]="1"
@@ -139,7 +142,7 @@ interface DropdownGroup {
           </div>
 
           <p-button
-            label="Start Quiz"
+            [label]="t('quiz.startQuiz')"
             icon="pi pi-play"
             (onClick)="startQuiz()"
             [disabled]="submitting()"
@@ -148,6 +151,7 @@ interface DropdownGroup {
         </div>
       </p-card>
     </div>
+    </ng-container>
   `,
 })
 export class StartComponent implements OnInit {
@@ -155,6 +159,7 @@ export class StartComponent implements OnInit {
   private quiz = inject(QuizService);
   private router = inject(Router);
   protected auth = inject(AuthService);
+  private translocoService = inject(TranslocoService);
 
   allQuizTypes = signal<QuizType[]>([]);
   categories = signal<string[]>([]);
@@ -183,7 +188,8 @@ export class StartComponent implements OnInit {
 
   categoryOptions = computed(() => {
     const cats = this.categories();
-    return [{ label: 'All', value: '' }, ...cats.map((c) => ({ label: this.formatCategory(c), value: c }))];
+    const allLabel = this.translocoService.translate('quiz.all');
+    return [{ label: allLabel, value: '' }, ...cats.map((c) => ({ label: this.formatCategory(c), value: c }))];
   });
 
   filteredQuizTypes = computed(() => {
