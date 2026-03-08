@@ -34,3 +34,5 @@ Thumbs.db
 
 # Project helper artifacts
 .dev-assistant/
+ # Claude Code worktrees and config
+.claude/
