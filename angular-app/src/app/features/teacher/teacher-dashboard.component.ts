@@ -73,6 +73,11 @@ import { LocaleService } from '../../core/services/locale.service';
                   <div class="flex align-items-center justify-content-between w-full">
                     <span>{{ item.name }}</span>
                     <div class="flex align-items-center gap-1">
+                      @if (badgeCounts()[item.id] !== undefined) {
+                        <p-badge [value]="'🏆' + badgeCounts()[item.id]" severity="warning"
+                          [pTooltip]="t('badge.earnedCount', { count: badgeCounts()[item.id] })"
+                        ></p-badge>
+                      }
                       @if (calculateAge(item.birthday) !== null) {
                         <p-badge [value]="calculateAge(item.birthday)!.toString()" severity="info"></p-badge>
                       }
@@ -305,6 +310,7 @@ export class TeacherDashboardComponent implements OnInit {
 
   loading = signal(true);
   students = signal<any[]>([]);
+  badgeCounts = signal<Record<string, number>>({});
   selectedStudent: any = null;
   sessionsLoading = signal(false);
   sessions = signal<any[]>([]);
@@ -327,9 +333,25 @@ export class TeacherDashboardComponent implements OnInit {
   private loadStudents() {
     this.loading.set(true);
     this.api.getTeacherStudents().subscribe({
-      next: (s) => { this.students.set(s); this.loading.set(false); },
+      next: (s) => {
+        this.students.set(s);
+        this.loading.set(false);
+        this.loadBadgeCounts(s);
+      },
       error: () => this.loading.set(false),
     });
+  }
+
+  private loadBadgeCounts(students: any[]) {
+    const counts: Record<string, number> = {};
+    for (const s of students) {
+      this.api.getUserBadgeCount(s.id).subscribe({
+        next: (res: any) => {
+          counts[s.id] = res.count ?? 0;
+          this.badgeCounts.set({ ...counts });
+        },
+      });
+    }
   }
 
   calculateAge(birthday: string | null): number | null {

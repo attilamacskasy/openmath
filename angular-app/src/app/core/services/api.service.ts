@@ -26,6 +26,7 @@ import {
 import { DatabaseStats } from '../../models/stats.model';
 import { AdminCreateUserRequest } from '../../models/auth.model';
 import { Notification } from '../../models/notification.model';
+import { Badge, UserBadge, TimetableMastery } from '../../models/badge.model';
 
 export interface QuizTypesResponse {
   types: QuizType[];
@@ -273,4 +274,31 @@ export class ApiService {
   getUserSessions(userId: string): Observable<SessionListItem[]> {
     return this.http.get<SessionListItem[]>(`${this.baseUrl}/sessions?user_id=${userId}`);
   }
-}
+  // ── Badges (v2.7) ──────────────────────────────────
+  getBadges(): Observable<Badge[]> {
+    return this.http.get<Badge[]>(`${this.baseUrl}/badges`);
+  }
+
+  getMyBadges(): Observable<UserBadge[]> {
+    return this.http.get<UserBadge[]>(`${this.baseUrl}/badges/me`);
+  }
+
+  getUserBadges(userId: string): Observable<UserBadge[]> {
+    return this.http.get<UserBadge[]>(`${this.baseUrl}/badges/user/${userId}`);
+  }
+
+  getUserBadgeCount(userId: string): Observable<{ count: number }> {
+    return this.http.get<{ count: number }>(`${this.baseUrl}/badges/user/${userId}/count`);
+  }
+
+  // ── Mastery (v2.7) ─────────────────────────────────
+  getUserMastery(userId: string): Observable<TimetableMastery[]> {
+    return this.http.get<TimetableMastery[]>(`${this.baseUrl}/users/${userId}/mastery`);
+  }
+
+  // ── PDF Export (v2.7) ──────────────────────────────
+  exportSessionPdf(sessionId: string): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/sessions/${sessionId}/export-pdf`, {
+      responseType: 'blob',
+    });
+  }}

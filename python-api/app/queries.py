@@ -1246,3 +1246,243 @@ async def get_session_with_quiz_info(session_id: str) -> dict[str, Any] | None:
         UUID(session_id),
     )
     return _row_to_dict(row) if row else None
+
+
+# ── Badges (v2.7) ──────────────────────────────────
+
+async def list_badges() -> list[dict[str, Any]]:
+    """Return all active badges ordered by sort_order."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT id, code, name_en, name_hu, description_en, description_hu,
+                  icon, category, rule, sort_order, is_active, created_at
+           FROM badges
+           WHERE is_active = true
+           ORDER BY sort_order"""
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+async def list_user_badges(user_id: str) -> list[dict[str, Any]]:
+    """Return all badges earned by a user, joined with badge details."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT ub.id, ub.awarded_at, ub.session_id,
+                  b.id AS badge_id, b.code, b.name_en, b.name_hu,
+                  b.description_en, b.description_hu, b.icon, b.category, b.sort_order
+           FROM user_badges ub
+           JOIN badges b ON ub.badge_id = b.id
+           WHERE ub.user_id = $1
+           ORDER BY ub.awarded_at DESC""",
+        UUID(user_id),
+    )
+    results = []
+    for r in rows:
+        d = _row_to_dict(r)
+        results.append({
+            "id": d["id"],
+            "awarded_at": d["awarded_at"],
+            "session_id": d.get("session_id"),
+            "badge": {
+                "id": d["badge_id"],
+                "code": d["code"],
+                "name_en": d["name_en"],
+                "name_hu": d["name_hu"],
+                "description_en": d["description_en"],
+                "description_hu": d["description_hu"],
+                "icon": d["icon"],
+                "category": d["category"],
+                "sort_order": d["sort_order"],
+            },
+        })
+    return results
+
+
+async def award_badge(
+    user_id: str, badge_id: str, session_id: str | None = None
+) -> dict[str, Any] | None:
+    """Insert into user_badges. Returns None if already awarded (UNIQUE conflict)."""
+    pool = await get_pool()
+    try:
+        row = await pool.fetchrow(
+            """INSERT INTO user_badges (user_id, badge_id, session_id)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (user_id, badge_id) DO NOTHING
+               RETURNING id, user_id, badge_id, session_id, awarded_at""",
+            UUID(user_id),
+            UUID(badge_id),
+            UUID(session_id) if session_id else None,
+        )
+        return _row_to_dict(row) if row else None
+    except Exception:
+        return None
+
+
+async def count_user_badges(user_id: str) -> int:
+    """Return count of badges earned by a user."""
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        "SELECT count(*)::int AS cnt FROM user_badges WHERE user_id = $1",
+        UUID(user_id),
+    )
+    return row["cnt"] if row else 0
+
+
+async def get_user_completed_session_count(user_id: str) -> int:
+    """Return count of completed sessions for a user."""
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        "SELECT count(*)::int AS cnt FROM quiz_sessions WHERE user_id = $1 AND finished_at IS NOT NULL",
+        UUID(user_id),
+    )
+    return row["cnt"] if row else 0
+
+
+async def get_user_daily_streak(user_id: str) -> int:
+    """Return current consecutive days with at least one completed session."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT DISTINCT (finished_at AT TIME ZONE 'UTC')::date AS d
+           FROM quiz_sessions
+           WHERE user_id = $1 AND finished_at IS NOT NULL
+           ORDER BY d DESC""",
+        UUID(user_id),
+    )
+    if not rows:
+        return 0
+    streak = 1
+    for i in range(1, len(rows)):
+        diff = (rows[i - 1]["d"] - rows[i]["d"]).days
+        if diff == 1:
+            streak += 1
+        else:
+            break
+    return streak
+
+
+async def get_user_timetable_stats(user_id: str, difficulty: str | None = None) -> list[dict[str, Any]]:
+    """Return per-timetable accuracy stats for multiplication quizzes."""
+    pool = await get_pool()
+    conditions = [
+        "qs.user_id = $1",
+        "qs.finished_at IS NOT NULL",
+        "qt.template_kind = 'axb'",
+    ]
+    params: list[Any] = [UUID(user_id)]
+    idx = 2
+    if difficulty:
+        conditions.append(f"qs.difficulty = ${idx}")
+        params.append(difficulty)
+        idx += 1
+
+    where = " AND ".join(conditions)
+    rows = await pool.fetch(
+        f"""SELECT q.a AS timetable,
+                   count(*)::int AS attempts,
+                   round(100.0 * sum(CASE WHEN a.is_correct THEN 1 ELSE 0 END) / count(*), 1) AS accuracy
+            FROM questions q
+            JOIN answers a ON a.question_id = q.id
+            JOIN quiz_sessions qs ON q.session_id = qs.id
+            JOIN quiz_types qt ON qs.quiz_type_id = qt.id
+            WHERE {where}
+            GROUP BY q.a
+            ORDER BY q.a""",
+        *params,
+    )
+    results = []
+    for r in rows:
+        t = int(r["timetable"])
+        acc = float(r["accuracy"])
+        att = int(r["attempts"])
+        results.append({
+            "table": t,
+            "attempts": att,
+            "accuracy": acc,
+            "mastered": acc >= 90.0 and att >= 10,
+        })
+    return results
+
+
+async def get_user_quiz_type_scores(user_id: str) -> list[dict[str, Any]]:
+    """Return avg score per quiz type (only types with completed sessions)."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT qt.code AS quiz_type_code,
+                  qt.description AS quiz_type_description,
+                  round(avg(qs.score_percent), 1) AS avg_score,
+                  count(*)::int AS sessions
+           FROM quiz_sessions qs
+           JOIN quiz_types qt ON qs.quiz_type_id = qt.id
+           WHERE qs.user_id = $1 AND qs.finished_at IS NOT NULL
+           GROUP BY qt.code, qt.description
+           ORDER BY qt.code""",
+        UUID(user_id),
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+async def get_session_answers_in_order(session_id: str) -> list[dict[str, Any]]:
+    """Return answers for a session ordered by question position (for streak calc)."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT a.is_correct
+           FROM answers a
+           JOIN questions q ON a.question_id = q.id
+           WHERE q.session_id = $1
+           ORDER BY q.position""",
+        UUID(session_id),
+    )
+    return [dict(r) for r in rows]
+
+
+async def get_session_full_detail(session_id: str) -> dict[str, Any] | None:
+    """Get full session detail for PDF export including questions, answers, user, quiz type."""
+    pool = await get_pool()
+    s_row = await pool.fetchrow(
+        """SELECT qs.id, qs.user_id, qs.difficulty, qs.total_questions,
+                  qs.correct_count, qs.wrong_count, qs.score_percent,
+                  qs.started_at, qs.finished_at,
+                  u.name AS user_name,
+                  qt.description AS quiz_type_description, qt.code AS quiz_type_code
+           FROM quiz_sessions qs
+           LEFT JOIN users u ON qs.user_id = u.id
+           LEFT JOIN quiz_types qt ON qs.quiz_type_id = qt.id
+           WHERE qs.id = $1""",
+        UUID(session_id),
+    )
+    if not s_row:
+        return None
+
+    session = _row_to_dict(s_row)
+
+    q_rows = await pool.fetch(
+        """SELECT q.id, q.position, q.a, q.b, q.c, q.d, q.correct, q.prompt,
+                  a.value AS answer_value, a.is_correct, a.response
+           FROM questions q
+           LEFT JOIN answers a ON a.question_id = q.id
+           WHERE q.session_id = $1
+           ORDER BY q.position""",
+        UUID(session_id),
+    )
+    questions = []
+    for qr in q_rows:
+        qd = _row_to_dict(qr)
+        # Parse prompt if it's a JSON string
+        prompt = qd.get("prompt")
+        if isinstance(prompt, str):
+            try:
+                prompt = json.loads(prompt)
+            except (ValueError, TypeError):
+                prompt = None
+        qd["prompt"] = prompt
+        questions.append(qd)
+
+    # Get reviews
+    from app.queries import get_reviews_for_session
+    reviews = await get_reviews_for_session(session_id)
+
+    return {
+        "session": session,
+        "questions": questions,
+        "reviews": reviews,
+    }

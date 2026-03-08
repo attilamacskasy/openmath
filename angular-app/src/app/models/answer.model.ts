@@ -1,3 +1,5 @@
+import { BadgeSummary } from './badge.model';
+
 export interface SubmitAnswerRequest {
   questionId: string;
   response?: {
@@ -15,4 +17,5 @@ export interface SubmitAnswerResponse {
     wrong: number;
     percent: number;
   };
+  newBadges?: BadgeSummary[];
 }

@@ -17,6 +17,9 @@ from app.queries import (
     get_user_performance_stats,
     get_user_profile,
     get_user_roles,
+    get_user_timetable_stats,
+    is_parent_of_student,
+    is_teacher_of_student,
     list_all_parent_students,
     list_all_teacher_students,
     list_users,
@@ -157,6 +160,28 @@ async def get_user_associations(
     if "admin" not in user_roles and user["sub"] != user_id:
         raise HTTPException(status_code=403, detail="Access denied")
     return await get_student_associations(user_id)
+
+
+@router.get("/users/{user_id}/mastery")
+async def get_timetable_mastery(
+    user_id: str,
+    user: dict[str, Any] = Depends(get_current_user),
+):
+    """Return per-timetable accuracy for multiplication quizzes (v2.7).
+    Response: list of { table, attempts, accuracy, mastered }.
+    Access: own, teacher-of, parent-of, admin.
+    """
+    if user_id != user["sub"]:
+        user_roles = await get_user_roles(user["sub"])
+        if "admin" in user_roles:
+            pass
+        elif "teacher" in user_roles and await is_teacher_of_student(user["sub"], user_id):
+            pass
+        elif "parent" in user_roles and await is_parent_of_student(user["sub"], user_id):
+            pass
+        else:
+            raise HTTPException(status_code=403, detail="Access denied")
+    return await get_user_timetable_stats(user_id)
 
 
 # ── Role management (admin) ─────────────────────────

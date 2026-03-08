@@ -9,6 +9,7 @@ import { ButtonModule } from 'primeng/button';
 import { DropdownModule } from 'primeng/dropdown';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
+import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ApiService, QuizTypesResponse } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -32,6 +33,7 @@ import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
     DropdownModule,
     ConfirmDialogModule,
     ToastModule,
+    TooltipModule,
     DurationPipe,
     LocalDatePipe,
     TranslocoModule,
@@ -79,6 +81,7 @@ import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
             <th pSortableColumn="score_percent">{{ t('history.score') }} <p-sortIcon field="score_percent"></p-sortIcon></th>
             <th pSortableColumn="started_at">{{ t('history.started') }} <p-sortIcon field="started_at"></p-sortIcon></th>
             <th>{{ t('history.finished') }}</th>
+            <th></th>
             @if (auth.isAdmin()) {
               <th></th>
             }
@@ -111,6 +114,17 @@ import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
                   {{ t('history.inProgress') }}
                 </a>
               }
+            </td>
+            <td>
+              <p-button
+                icon="pi pi-file-pdf"
+                severity="info"
+                [text]="true"
+                [rounded]="true"
+                size="small"
+                [pTooltip]="t('session.exportPdf')"
+                (onClick)="exportPdf(s)"
+              ></p-button>
             </td>
             @if (auth.isAdmin()) {
               <td>
@@ -220,5 +234,24 @@ export class HistoryListComponent implements OnInit {
     if (percent >= 60) return 'info';
     if (percent >= 40) return 'warning';
     return 'danger';
+  }
+
+  exportPdf(s: SessionListItem): void {
+    this.api.exportSessionPdf(s.id).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `session_${s.id}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.translocoService.translate('session.exportFailed'),
+        });
+      },
+    });
   }
 }

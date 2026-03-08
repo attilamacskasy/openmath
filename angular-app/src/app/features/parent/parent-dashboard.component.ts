@@ -77,6 +77,11 @@ import { LocaleService } from '../../core/services/locale.service';
       } @else if (selectedChild) {
         <div class="flex align-items-center gap-2 mb-3">
           <span class="font-semibold">{{ selectedChild.name }}</span>
+          @if (badgeCounts()[selectedChild.id] !== undefined) {
+            <span class="text-orange-500" [pTooltip]="t('badge.earnedCount', { count: badgeCounts()[selectedChild.id] })">
+              🏆 {{ badgeCounts()[selectedChild.id] }}
+            </span>
+          }
           <p-button icon="pi pi-history" [rounded]="true" [text]="true" size="small"
             severity="info" [pTooltip]="t('parent.viewFullHistory')"
             (click)="viewChildHistory()"></p-button>
@@ -304,6 +309,7 @@ export class ParentDashboardComponent implements OnInit {
 
   loading = signal(true);
   children = signal<any[]>([]);
+  badgeCounts = signal<Record<string, number>>({});
   selectedChild: any = null;
   sessionsLoading = signal(false);
   sessions = signal<any[]>([]);
@@ -329,6 +335,7 @@ export class ParentDashboardComponent implements OnInit {
       next: (c) => {
         this.children.set(c);
         this.loading.set(false);
+        this.loadBadgeCounts(c);
         // Auto-select if only one child
         if (c.length === 1) {
           this.selectedChild = c[0];
@@ -337,6 +344,18 @@ export class ParentDashboardComponent implements OnInit {
       },
       error: () => this.loading.set(false),
     });
+  }
+
+  private loadBadgeCounts(children: any[]) {
+    const counts: Record<string, number> = {};
+    for (const c of children) {
+      this.api.getUserBadgeCount(c.id).subscribe({
+        next: (res: any) => {
+          counts[c.id] = res.count ?? 0;
+          this.badgeCounts.set({ ...counts });
+        },
+      });
+    }
   }
 
   onChildSelect(child: any) {

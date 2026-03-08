@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CardModule } from 'primeng/card';
@@ -11,6 +11,8 @@ import { CalendarModule } from 'primeng/calendar';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ToastModule } from 'primeng/toast';
+import { ProgressBarModule } from 'primeng/progressbar';
+import { TooltipModule } from 'primeng/tooltip';
 import { MessageService } from 'primeng/api';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService } from '../../core/services/api.service';
@@ -22,6 +24,7 @@ import {
   PerformanceBucket,
 } from '../../models/user.model';
 import { MeResponse } from '../../models/auth.model';
+import { Badge, UserBadge, TimetableMastery } from '../../models/badge.model';
 
 @Component({
   selector: 'app-profile',
@@ -39,6 +42,8 @@ import { MeResponse } from '../../models/auth.model';
     TableModule,
     TagModule,
     ToastModule,
+    ProgressBarModule,
+    TooltipModule,
     TranslocoModule,
     LocalDatePipe,
   ],
@@ -50,6 +55,66 @@ import { MeResponse } from '../../models/auth.model';
     @if (loading()) {
       <p class="text-500">{{ t('common.loading') }}</p>
     } @else if (profile()) {
+      <!-- Badges section (v2.7) — top of profile -->
+      <p-card [header]="t('badge.title')" styleClass="mb-3">
+        @if (allBadges().length === 0) {
+          <p class="text-500">{{ t('common.loading') }}</p>
+        } @else {
+          <div class="grid">
+            @for (badge of allBadges(); track badge.code) {
+              <div class="col-6 md:col-3">
+                <div class="surface-100 border-round p-3 text-center h-full"
+                     [class.opacity-40]="!isBadgeEarned(badge.code)">
+                  <i [class]="badge.icon + ' text-3xl mb-2'"
+                     [class.text-yellow-500]="isBadgeEarned(badge.code)"
+                     [class.text-400]="!isBadgeEarned(badge.code)"></i>
+                  <div class="font-semibold text-sm mt-1">{{ getBadgeName(badge) }}</div>
+                  <div class="text-xs text-500 mt-1">{{ getBadgeDescription(badge) }}</div>
+                  @if (isBadgeEarned(badge.code)) {
+                    <div class="text-xs text-green-600 mt-2">
+                      <i class="pi pi-check-circle mr-1"></i>
+                      {{ t('badge.earnedOn') }} {{ getEarnedDate(badge.code) | localDate:'mediumDate' }}
+                    </div>
+                  } @else {
+                    <div class="text-xs text-400 mt-2">
+                      <i class="pi pi-lock mr-1"></i>{{ t('badge.locked') }}
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+          @if (earnedBadges().length === 0) {
+            <p class="text-500 text-sm mt-2">{{ t('badge.noBadges') }}</p>
+          }
+        }
+      </p-card>
+
+      <!-- Timetable mastery (v2.7) -->
+      @if (masteryData().length > 0) {
+        <p-card [header]="t('mastery.title')" styleClass="mb-3">
+          <div class="grid">
+            @for (m of masteryData(); track m.table) {
+              <div class="col-12 md:col-6">
+                <div class="flex align-items-center gap-2 mb-2">
+                  <span class="font-semibold" style="min-width: 60px">{{ m.table }} {{ t('mastery.table') }}</span>
+                  <p-progressBar
+                    [value]="m.accuracy"
+                    [showValue]="true"
+                    [style]="{ height: '20px', flex: '1' }"
+                    [color]="m.accuracy >= 90 ? '#4caf50' : m.accuracy >= 60 ? '#ff9800' : '#f44336'"
+                  ></p-progressBar>
+                  @if (m.mastered) {
+                    <i class="pi pi-check-circle text-green-500" [pTooltip]="t('mastery.mastered')"></i>
+                  }
+                  <span class="text-xs text-500">({{ m.attempts }} {{ t('mastery.attempts') }})</span>
+                </div>
+              </div>
+            }
+          </div>
+        </p-card>
+      }
+
       <div class="grid">
         <!-- Edit form -->
         <div class="col-12 md:col-6">
@@ -135,32 +200,41 @@ import { MeResponse } from '../../models/auth.model';
           </p-card>
         </div>
 
-        <!-- Performance stats -->
+        <!-- Performance stats (table) -->
         <div class="col-12 md:col-6">
           <p-card [header]="t('profile.performance')">
             @if (profile()!.stats) {
-              <h4 class="mt-0">{{ t('profile.overall') }}</h4>
-              <ng-container *ngTemplateOutlet="bucketTpl; context: { $implicit: profile()!.stats.overall }"></ng-container>
-
-              @for (bucket of profile()!.stats.by_quiz_type; track bucket.quiz_type_code) {
-                <h4>{{ bucket.quiz_type_description }}</h4>
-                <ng-container *ngTemplateOutlet="bucketTpl; context: { $implicit: bucket }"></ng-container>
-              }
+              <p-table [value]="performanceRows()" styleClass="p-datatable-sm p-datatable-striped">
+                <ng-template pTemplate="header">
+                  <tr>
+                    <th>{{ t('quiz.quizType') }}</th>
+                    <th style="width: 70px; text-align: right">{{ t('profile.sessions') }}</th>
+                    <th style="width: 70px; text-align: right">{{ t('profile.completed') }}</th>
+                    <th style="width: 70px; text-align: right">{{ t('profile.questions') }}</th>
+                    <th style="width: 60px; text-align: right">{{ t('profile.correct') }}</th>
+                    <th style="width: 60px; text-align: right">{{ t('profile.wrong') }}</th>
+                    <th style="width: 60px; text-align: right">{{ t('profile.avgScore') }}</th>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-row>
+                  <tr [class.font-bold]="row.isOverall">
+                    <td>{{ row.label }}</td>
+                    <td class="text-right">{{ row.sessions }}</td>
+                    <td class="text-right">{{ row.completed_sessions }}</td>
+                    <td class="text-right">{{ row.total_questions }}</td>
+                    <td class="text-right text-green-600">{{ row.correct_answers }}</td>
+                    <td class="text-right text-red-600">{{ row.wrong_answers }}</td>
+                    <td class="text-right">{{ row.average_score_percent }}%</td>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="emptymessage">
+                  <tr><td colspan="7" class="text-center text-500">{{ t('common.noResults') }}</td></tr>
+                </ng-template>
+              </p-table>
             }
           </p-card>
         </div>
       </div>
-
-      <ng-template #bucketTpl let-b>
-        <div class="grid text-sm">
-          <div class="col-6">{{ t('profile.sessions') }}:</div><div class="col-6 font-semibold">{{ b.sessions }}</div>
-          <div class="col-6">{{ t('profile.completed') }}:</div><div class="col-6 font-semibold">{{ b.completed_sessions }}</div>
-          <div class="col-6">{{ t('profile.questions') }}:</div><div class="col-6 font-semibold">{{ b.total_questions }}</div>
-          <div class="col-6">{{ t('profile.correct') }}:</div><div class="col-6 font-semibold text-green-600">{{ b.correct_answers }}</div>
-          <div class="col-6">{{ t('profile.wrong') }}:</div><div class="col-6 font-semibold text-red-600">{{ b.wrong_answers }}</div>
-          <div class="col-6">{{ t('profile.avgScore') }}:</div><div class="col-6 font-semibold">{{ b.average_score_percent }}%</div>
-        </div>
-      </ng-template>
 
       <!-- Associations card (v2.5) -->
       @if (associations().length > 0) {
@@ -211,6 +285,41 @@ export class ProfileComponent implements OnInit {
   profile = signal<UserProfile | null>(null);
   meData = signal<MeResponse | null>(null);
   associations = signal<any[]>([]);
+  allBadges = signal<Badge[]>([]);
+  earnedBadges = signal<UserBadge[]>([]);
+  masteryData = signal<TimetableMastery[]>([]);
+
+  performanceRows = computed(() => {
+    const p = this.profile();
+    if (!p?.stats) return [];
+    const t = (key: string) => this.translocoService.translate(key);
+    const overall = p.stats.overall;
+    const rows: any[] = [
+      {
+        label: t('profile.overall'),
+        isOverall: true,
+        sessions: overall.sessions,
+        completed_sessions: overall.completed_sessions,
+        total_questions: overall.total_questions,
+        correct_answers: overall.correct_answers,
+        wrong_answers: overall.wrong_answers,
+        average_score_percent: overall.average_score_percent,
+      },
+    ];
+    for (const b of p.stats.by_quiz_type) {
+      rows.push({
+        label: b.quiz_type_description,
+        isOverall: false,
+        sessions: b.sessions,
+        completed_sessions: b.completed_sessions,
+        total_questions: b.total_questions,
+        correct_answers: b.correct_answers,
+        wrong_answers: b.wrong_answers,
+        average_score_percent: b.average_score_percent,
+      });
+    }
+    return rows;
+  });
 
   name = '';
   birthday: Date | null = null;
@@ -291,9 +400,42 @@ export class ProfileComponent implements OnInit {
           next: (a) => this.associations.set(a),
           error: () => {},
         });
+
+        // Load badges (v2.7)
+        this.api.getBadges().subscribe({
+          next: (b) => this.allBadges.set(b),
+          error: () => {},
+        });
+        this.api.getMyBadges().subscribe({
+          next: (b) => this.earnedBadges.set(b),
+          error: () => {},
+        });
+
+        // Load mastery (v2.7)
+        this.api.getUserMastery(user.id).subscribe({
+          next: (m) => this.masteryData.set(m),
+          error: () => {},
+        });
       },
       error: () => this.loading.set(false),
     });
+  }
+
+  isBadgeEarned(code: string): boolean {
+    return this.earnedBadges().some(b => b.badge.code === code);
+  }
+
+  getBadgeName(badge: Badge): string {
+    return this.localeService.getLocale() === 'hu' ? badge.name_hu : badge.name_en;
+  }
+
+  getBadgeDescription(badge: Badge): string {
+    return this.localeService.getLocale() === 'hu' ? badge.description_hu : badge.description_en;
+  }
+
+  getEarnedDate(code: string): string {
+    const ub = this.earnedBadges().find(b => b.badge.code === code);
+    return ub?.awarded_at || '';
   }
 
   save() {

@@ -17,10 +17,14 @@ import { InputTextModule } from 'primeng/inputtext';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TagModule } from 'primeng/tag';
-import { TranslocoModule } from '@jsverse/transloco';
+import { ToastModule } from 'primeng/toast';
+import { MessageService } from 'primeng/api';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { ApiService } from '../../core/services/api.service';
 import { QuizService } from '../../core/services/quiz.service';
+import { LocaleService } from '../../core/services/locale.service';
 import { QuestionOut } from '../../models/session.model';
+import { BadgeSummary } from '../../models/badge.model';
 
 interface FeedbackState {
   show: boolean;
@@ -41,10 +45,13 @@ interface FeedbackState {
     ProgressBarModule,
     SelectButtonModule,
     TagModule,
+    ToastModule,
     TranslocoModule,
   ],
+  providers: [MessageService],
   template: `
     <ng-container *transloco="let t">
+    <p-toast></p-toast>
     <div class="flex justify-content-center">
       <div style="max-width: 700px; width: 100%">
         @if (loading()) {
@@ -197,6 +204,9 @@ export class QuizComponent implements OnInit, AfterViewChecked {
   private quiz = inject(QuizService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private messageService = inject(MessageService);
+  private translocoService = inject(TranslocoService);
+  private localeService = inject(LocaleService);
 
   @ViewChild('answerInput') answerInputRef?: ElementRef;
   @ViewChild('textInput') textInputRef?: ElementRef;
@@ -341,6 +351,21 @@ export class QuizComponent implements OnInit, AfterViewChecked {
           this.sessionCorrect.set(res.session.correct);
           this.sessionWrong.set(res.session.wrong);
           this.answeredCount.set(res.session.correct + res.session.wrong);
+
+          // v2.7: Show badge toasts for newly earned badges
+          if (res.newBadges && res.newBadges.length > 0) {
+            for (const badge of res.newBadges) {
+              const name = this.localeService.getLocale() === 'hu' ? badge.name_hu : badge.name_en;
+              this.messageService.add({
+                severity: 'success',
+                summary: this.translocoService.translate('badge.newBadge'),
+                detail: this.translocoService.translate('badge.badgeEarned', { name }),
+                icon: badge.icon,
+                life: 5000,
+              });
+            }
+          }
+
           this.advanceWithFeedback(res.isCorrect, res.correctValue);
         },
         error: () => {

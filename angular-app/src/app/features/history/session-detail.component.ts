@@ -4,16 +4,20 @@ import { ActivatedRoute } from '@angular/router';
 import { CardModule } from 'primeng/card';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
+import { ButtonModule } from 'primeng/button';
+import { ToastModule } from 'primeng/toast';
+import { MessageService } from 'primeng/api';
 import { ApiService } from '../../core/services/api.service';
 import { SessionDetail } from '../../models/session.model';
 import { DurationPipe } from '../../shared/pipes/duration.pipe';
 import { LocalDatePipe } from '../../shared/pipes/local-date.pipe';
-import { TranslocoModule } from '@jsverse/transloco';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 
 @Component({
   selector: 'app-session-detail',
   standalone: true,
-  imports: [CommonModule, CardModule, TableModule, TagModule, DurationPipe, LocalDatePipe, TranslocoModule],
+  imports: [CommonModule, CardModule, TableModule, TagModule, ButtonModule, ToastModule, DurationPipe, LocalDatePipe, TranslocoModule],
+  providers: [MessageService],
   template: `
     <ng-container *transloco="let t">
     @if (loading()) {
@@ -21,7 +25,18 @@ import { TranslocoModule } from '@jsverse/transloco';
     } @else if (!detail()) {
       <p class="text-500">{{ t('session.notFound') }}</p>
     } @else {
-      <h2>{{ t('session.detail') }}</h2>
+      <div class="flex align-items-center justify-content-between mb-2">
+        <h2 class="m-0">{{ t('session.detail') }}</h2>
+        <p-button
+          [label]="t('session.exportPdf')"
+          icon="pi pi-file-pdf"
+          severity="info"
+          [outlined]="true"
+          size="small"
+          (onClick)="exportPdf()"
+          [loading]="exporting()"
+        ></p-button>
+      </div>
 
       <!-- Summary -->
       <p-card styleClass="mb-3">
@@ -115,8 +130,11 @@ import { TranslocoModule } from '@jsverse/transloco';
 export class SessionDetailComponent implements OnInit {
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
+  private messageService = inject(MessageService);
+  private transloco = inject(TranslocoService);
 
   loading = signal(true);
+  exporting = signal(false);
   detail = signal<SessionDetail | null>(null);
   reviews = signal<any[]>([]);
 
@@ -146,5 +164,29 @@ export class SessionDetailComponent implements OnInit {
       return String(q.answer.response.parsed.value);
     if (q.answer.value !== undefined) return String(q.answer.value);
     return '—';
+  }
+
+  exportPdf(): void {
+    const d = this.detail();
+    if (!d) return;
+    this.exporting.set(true);
+    this.api.exportSessionPdf(d.session.id).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `session_${d.session.id}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.exporting.set(false);
+      },
+      error: () => {
+        this.messageService.add({
+          severity: 'error',
+          summary: this.transloco.translate('session.exportFailed'),
+        });
+        this.exporting.set(false);
+      },
+    });
   }
 }
