@@ -1,14 +1,14 @@
-import { Component, DestroyRef, inject, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, DestroyRef, inject, OnInit, signal, ViewChild, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 import { OverlayPanelModule, OverlayPanel } from 'primeng/overlaypanel';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { ConfirmationService } from 'primeng/api';
+import { ConfirmationService, MenuItem } from 'primeng/api';
 import { TooltipModule } from 'primeng/tooltip';
-import { DropdownModule } from 'primeng/dropdown';
+import { MenubarModule } from 'primeng/menubar';
+import { BadgeModule } from 'primeng/badge';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { interval } from 'rxjs';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
@@ -21,13 +21,13 @@ import { LocalDatePipe } from '../../pipes/local-date.pipe';
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive, ButtonModule, TagModule, OverlayPanelModule, TooltipModule, ConfirmDialogModule, DropdownModule, TranslocoModule, LocalDatePipe],
+  imports: [CommonModule, ButtonModule, TagModule, OverlayPanelModule, TooltipModule, ConfirmDialogModule, MenubarModule, BadgeModule, TranslocoModule, LocalDatePipe],
   providers: [ConfirmationService],
   template: `
     <ng-container *transloco="let t">
-    <header class="surface-card shadow-2 px-4 py-2 flex align-items-center justify-content-between">
-      <nav class="flex gap-3 align-items-center">
-        <a routerLink="/" class="no-underline flex align-items-center">
+    <p-menubar [model]="menuItems()" styleClass="shadow-2 border-noround">
+      <ng-template pTemplate="start">
+        <a routerLink="/" class="no-underline flex align-items-center mr-3 cursor-pointer" (click)="navigateTo('/')">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="28" height="28">
             <defs>
               <linearGradient id="om-grad-h" x1="80" y1="60" x2="430" y2="460" gradientUnits="userSpaceOnUse">
@@ -47,68 +47,39 @@ import { LocalDatePipe } from '../../pipes/local-date.pipe';
             <path d="M176 300 Q256 380 336 300" fill="none" stroke="#fff" stroke-width="26" stroke-linecap="round" />
           </svg>
         </a>
-        <a routerLink="/" routerLinkActive="font-bold" [routerLinkActiveOptions]="{exact: true}" class="no-underline text-primary text-lg">{{ t('nav.start') }}</a>
-        <a routerLink="/profile" routerLinkActive="font-bold" class="no-underline text-primary">{{ t('nav.profile') }}</a>
-        <a routerLink="/history" routerLinkActive="font-bold" class="no-underline text-primary">{{ t('nav.history') }}</a>
-        @if (auth.isTeacher()) {
-          <a routerLink="/teacher" routerLinkActive="font-bold" class="no-underline text-primary">{{ t('nav.myStudents') }}</a>
-        }
-        @if (auth.isParent()) {
-          <a routerLink="/parent" routerLinkActive="font-bold" class="no-underline text-primary">{{ t('nav.myChild') }}</a>
-        }
-        <a routerLink="/user-guide" routerLinkActive="font-bold" class="no-underline text-primary">{{ t('nav.userGuide') }}</a>
-        @if (auth.isAdmin()) {
-          <a routerLink="/users" routerLinkActive="font-bold" class="no-underline text-primary">{{ t('nav.users') }}</a>
-          <a routerLink="/admin/quiz-types" routerLinkActive="font-bold" class="no-underline text-primary">{{ t('nav.quizTypes') }}</a>
-          <a routerLink="/admin" routerLinkActive="font-bold" [routerLinkActiveOptions]="{exact: true}" class="no-underline text-primary">{{ t('nav.admin') }}</a>
-        }
-      </nav>
-      <div class="flex align-items-center gap-2">
-        @if (auth.currentUser(); as user) {
-          <p-tag
-            [value]="providerLabel(user.authProvider)"
-            [severity]="user.authProvider === 'local' ? 'secondary' : 'success'"
-          ></p-tag>
-          <span class="text-sm font-semibold">{{ user.name }}</span>
-          <span class="text-xs text-500">({{ user.email }})</span>
-          <span class="text-300">|</span>
-          @for (role of user.roles; track role) {
-            <p-tag [value]="role" [severity]="roleSeverity(role)"></p-tag>
-          }
-          <span class="text-300">|</span>
-          <p-dropdown
-            [options]="languageOptions"
-            [(ngModel)]="selectedLanguage"
-            (onChange)="onLanguageChange($event)"
-            [style]="{ minWidth: '80px' }"
-            optionLabel="label"
-            optionValue="value">
-          </p-dropdown>
-          <span class="text-300">|</span>
-          <div class="relative cursor-pointer" (click)="toggleNotifications($event)">
-            <i class="pi pi-bell text-xl"></i>
-            @if (unreadCount() > 0) {
-              <span class="absolute"
-                style="top: -8px; right: -8px; background: #e53935; color: white;
-                       border-radius: 50%; min-width: 18px; height: 18px;
-                       font-size: 0.7rem; display: flex; align-items: center;
-                       justify-content: center; padding: 0 4px; font-weight: bold;">
-                {{ unreadCount() > 99 ? '99+' : unreadCount() }}
-              </span>
+      </ng-template>
+      <ng-template pTemplate="end">
+        <div class="flex align-items-center gap-2">
+          @if (auth.currentUser(); as user) {
+            <span class="text-xs font-semibold hidden md:inline">{{ user.name }}</span>
+            @for (role of user.roles; track role) {
+              <p-tag [value]="role" [severity]="roleSeverity(role)" class="text-xs"></p-tag>
             }
-          </div>
-          <span class="text-300">|</span>
-          <p-button
-            [label]="t('header.logout')"
-            icon="pi pi-sign-out"
-            severity="secondary"
-            [text]="true"
-            size="small"
-            (onClick)="confirmLogout($event)"
-          ></p-button>
-        }
-      </div>
-    </header>
+            <div class="relative cursor-pointer" (click)="toggleNotifications($event)">
+              <i class="pi pi-bell text-lg"></i>
+              @if (unreadCount() > 0) {
+                <span class="absolute"
+                  style="top: -8px; right: -8px; background: #e53935; color: white;
+                         border-radius: 50%; min-width: 16px; height: 16px;
+                         font-size: 0.65rem; display: flex; align-items: center;
+                         justify-content: center; padding: 0 3px; font-weight: bold;">
+                  {{ unreadCount() > 99 ? '99+' : unreadCount() }}
+                </span>
+              }
+            </div>
+            <p-button
+              icon="pi pi-sign-out"
+              severity="secondary"
+              [text]="true"
+              [rounded]="true"
+              size="small"
+              [pTooltip]="t('header.logout')"
+              (onClick)="confirmLogout($event)"
+            ></p-button>
+          }
+        </div>
+      </ng-template>
+    </p-menubar>
 
     <p-confirmDialog></p-confirmDialog>
 
@@ -144,19 +115,25 @@ import { LocalDatePipe } from '../../pipes/local-date.pipe';
     </ng-container>
   `,
   styles: [`
-    nav a {
-      padding: 0.375rem 0.625rem;
-      border-radius: 6px;
-      transition: background-color 0.15s;
+    :host ::ng-deep .p-menubar {
+      border-radius: 0;
+      padding: 0.25rem 1rem;
     }
-    nav a:hover {
-      background-color: #f0f0f0;
+    :host ::ng-deep .p-menubar .p-menuitem-text {
+      font-size: 0.85rem;
+    }
+    :host ::ng-deep .p-menubar .p-menuitem-icon {
+      font-size: 0.85rem;
+    }
+    :host ::ng-deep .p-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-content .p-menuitem-link {
+      padding: 0.5rem 0.75rem;
     }
   `],
 })
 export class HeaderComponent implements OnInit {
   auth = inject(AuthService);
   private api = inject(ApiService);
+  private router = inject(Router);
   private destroyRef = inject(DestroyRef);
   private confirmService = inject(ConfirmationService);
   private translocoService = inject(TranslocoService);
@@ -165,17 +142,50 @@ export class HeaderComponent implements OnInit {
   unreadCount = signal(0);
   notifications = signal<Notification[]>([]);
 
-  languageOptions = [
-    { label: 'EN', value: 'en' },
-    { label: 'HU', value: 'hu' },
-  ];
-  selectedLanguage = this.localeService.getLocale();
-
   @ViewChild('notifPanel') notifPanel!: OverlayPanel;
+
+  menuItems = computed<MenuItem[]>(() => {
+    const t = (key: string) => this.translocoService.translate(key);
+    const user = this.auth.currentUser();
+    if (!user) return [];
+
+    const items: MenuItem[] = [
+      { label: t('nav.start'), icon: 'pi pi-home', command: () => this.navigateTo('/') },
+      { label: t('nav.profile'), icon: 'pi pi-user', command: () => this.navigateTo('/profile') },
+      { label: t('nav.history'), icon: 'pi pi-clock', command: () => this.navigateTo('/history') },
+    ];
+
+    if (this.auth.isTeacher()) {
+      items.push({ label: t('nav.myStudents'), icon: 'pi pi-users', command: () => this.navigateTo('/teacher') });
+    }
+    if (this.auth.isParent()) {
+      items.push({ label: t('nav.myChild'), icon: 'pi pi-heart', command: () => this.navigateTo('/parent') });
+    }
+
+    items.push({ label: t('nav.userGuide'), icon: 'pi pi-book', command: () => this.navigateTo('/user-guide') });
+
+    if (this.auth.isAdmin()) {
+      items.push({
+        label: t('nav.admin'),
+        icon: 'pi pi-cog',
+        items: [
+          { label: t('nav.users'), icon: 'pi pi-users', command: () => this.navigateTo('/users') },
+          { label: t('nav.quizTypes'), icon: 'pi pi-list', command: () => this.navigateTo('/admin/quiz-types') },
+          { label: t('nav.admin'), icon: 'pi pi-shield', command: () => this.navigateTo('/admin') },
+        ],
+      });
+    }
+
+    return items;
+  });
 
   ngOnInit() {
     this.loadUnreadCount();
     interval(30000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.loadUnreadCount());
+  }
+
+  navigateTo(path: string) {
+    this.router.navigate([path]);
   }
 
   loadUnreadCount() {
@@ -205,14 +215,6 @@ export class HeaderComponent implements OnInit {
     });
   }
 
-  providerLabel(provider: string): string {
-    switch (provider) {
-      case 'google': return 'google';
-      case 'both': return 'google + local';
-      default: return 'local';
-    }
-  }
-
   roleSeverity(role: string): 'success' | 'info' | 'warning' | 'danger' | 'secondary' | 'contrast' {
     switch (role) {
       case 'admin': return 'danger';
@@ -230,10 +232,5 @@ export class HeaderComponent implements OnInit {
       icon: 'pi pi-sign-out',
       accept: () => this.auth.logout(),
     });
-  }
-
-  onLanguageChange(event: any) {
-    this.localeService.setLocale(event.value);
-    this.selectedLanguage = event.value;
   }
 }
