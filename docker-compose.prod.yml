@@ -1,0 +1,85 @@
+# ── OpenMath Production Stack ────────────────────────────────
+# Usage:  docker compose -f docker-compose.prod.yml up -d
+#         docker compose -f docker-compose.prod.yml down
+#
+# Requires .env file — see .env.example
+
+services:
+  # ── PostgreSQL ─────────────────────────────────────────────
+  postgresql:
+    image: postgres:16-alpine
+    container_name: openmath-prod-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-quiz}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-quiz}
+    volumes:
+      - openmath_postgres_data:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - openmath_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-quiz}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Python FastAPI Backend ─────────────────────────────────
+  python-api:
+    build:
+      context: ./python-api
+      dockerfile: Dockerfile
+    image: openmath/python-api:latest
+    container_name: openmath-prod-api
+    restart: unless-stopped
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-quiz}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DB:-quiz}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+      DEBUG: "false"
+    networks:
+      - openmath_net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  # ── Angular Frontend (nginx) ───────────────────────────────
+  angular-app:
+    build:
+      context: ./angular-app
+      dockerfile: Dockerfile
+    image: openmath/angular-app:latest
+    container_name: openmath-prod-frontend
+    restart: unless-stopped
+    depends_on:
+      python-api:
+        condition: service_healthy
+    ports:
+      - "${PUBLIC_PORT:-80}:80"
+    networks:
+      - openmath_net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  openmath_postgres_data:
+
+networks:
+  openmath_net:
+    driver: bridge

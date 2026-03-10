@@ -36,8 +36,14 @@ def confirm_step(
     cwd: str,
     reason: str,
     expected: str,
+    *,
+    prompt: bool = False,
 ) -> dict[str, Any]:
-    """Prompt the user to Run / Skip / Edit / Abort a step."""
+    """Show step info and optionally prompt to Run / Skip / Edit / Abort.
+
+    By default (prompt=False) the step auto-runs after displaying its info.
+    Set prompt=True for PROD operations that warrant explicit confirmation.
+    """
     state = get_state()
 
     print()
@@ -47,8 +53,9 @@ def confirm_step(
     print(f"Reason: {reason}")
     print(f"Expected: {expected}")
 
-    if state.auto_approve:
-        log("AutoApprove enabled. Running step automatically.", label=label)
+    # Auto-run: --auto-approve flag OR default no-prompt mode (DEV / Q)
+    if state.auto_approve or not prompt:
+        log("Running step automatically.", label=label)
         return {"action": "run", "command": command}
 
     while True:
@@ -122,8 +129,9 @@ def invoke_step(
     expected: str,
     required: bool = True,
     skip_in_auto_approve: bool = False,
+    prompt: bool = False,
 ) -> dict[str, Any]:
-    """Execute one step with confirmation, logging, retry-on-failure."""
+    """Execute one step with optional confirmation, logging, retry-on-failure."""
     state = get_state()
     step_label = f"STEP {index}/{total}][{flow_label}"
 
@@ -140,7 +148,7 @@ def invoke_step(
         ))
         return {"ok": True, "skipped": True, "autoSkippedInteractive": True}
 
-    decision = confirm_step(step_label, command, cwd, reason, expected)
+    decision = confirm_step(step_label, command, cwd, reason, expected, prompt=prompt)
     actual_cmd = decision["command"]
 
     # ABORT
@@ -206,6 +214,7 @@ def invoke_step(
                     index=index, total=total, flow_label=flow_label,
                     name=name, command=command, cwd=cwd,
                     reason=reason, expected=expected, required=required,
+                    prompt=prompt,
                 )
             if choice == "e":
                 new_cmd = input("New command: ").strip()
@@ -214,6 +223,7 @@ def invoke_step(
                         index=index, total=total, flow_label=flow_label,
                         name=name, command=new_cmd, cwd=cwd,
                         reason=reason, expected=expected, required=required,
+                        prompt=prompt,
                     )
             elif choice == "s":
                 return {"ok": not required, "skipped": True, "failed": True, "action": "skip"}
@@ -230,7 +240,7 @@ def invoke_step(
 StepDef = dict[str, Any]
 
 
-def invoke_flow(flow_label: str, steps: list[StepDef]) -> None:
+def invoke_flow(flow_label: str, steps: list[StepDef], *, prompt: bool = False) -> None:
     """Run a sequence of steps. Raises on unrecoverable failure."""
     for i, step in enumerate(steps, 1):
         result = invoke_step(
@@ -244,6 +254,7 @@ def invoke_flow(flow_label: str, steps: list[StepDef]) -> None:
             expected=step["expected"],
             required=step.get("required", True),
             skip_in_auto_approve=step.get("skipInAutoApprove", False),
+            prompt=step.get("prompt", prompt),
         )
         if not result["ok"]:
             raise RuntimeError(f"Flow {flow_label} stopped at step {step['name']}.")

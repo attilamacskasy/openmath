@@ -1,0 +1,2 @@
+# DevOps Console dependencies (dev.py / devops/)
+InquirerPy>=0.3.4

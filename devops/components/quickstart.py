@@ -6,8 +6,9 @@ from devops.core.logger import log
 from devops.core.runner import invoke_flow
 from devops.core.state import get_state
 from devops.utils.commands import get_package_manager
-from devops.components.fastapi import fastapi_start
-from devops.components.angular import angular_start
+from devops.components.fastapi import fastapi_start, fastapi_stop
+from devops.components.angular import angular_start, angular_stop
+from devops.components.database import db_stop
 
 
 def dev_quick_start() -> None:
@@ -68,4 +69,22 @@ def dev_quick_start() -> None:
     print("  \033[92mFastAPI:     http://localhost:8000\033[0m")
     print("  \033[92mSwagger:     http://localhost:8000/docs\033[0m")
     print("  \033[92mAngular:     http://localhost:4200\033[0m")
+    print()
+
+
+def dev_quick_stop() -> None:
+    """Gracefully stop the dev stack: Angular → FastAPI → Docker."""
+    print()
+    print("\033[93m═══════════════════════════════════════════════════════════════\033[0m")
+    print("\033[93m  Quick Stop Dev Stack\033[0m")
+    print("\033[93m  Stopping Angular + FastAPI + Docker containers\033[0m")
+    print("\033[93m═══════════════════════════════════════════════════════════════\033[0m")
+    print()
+
+    # Stop in reverse order: frontend → backend → database
+    angular_stop()
+    fastapi_stop()
+    db_stop()
+
+    log("✅ Dev stack stopped.", level="SUCCESS", label="DEV-STOP")
     print()

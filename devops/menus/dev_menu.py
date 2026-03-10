@@ -2,106 +2,145 @@
 
 from __future__ import annotations
 
+from InquirerPy import inquirer
+from InquirerPy.separator import Separator
+
 from devops.components.angular import angular_build, angular_init, angular_start, angular_status, angular_stop
 from devops.components.database import db_build, db_init, db_migrations, db_start, db_status, db_stop
 from devops.components.fastapi import fastapi_init, fastapi_start, fastapi_status, fastapi_stop
 from devops.components.nuxt import nuxt_build, nuxt_init, nuxt_start, nuxt_status, nuxt_stop, nuxt_validate
-from devops.components.quickstart import dev_quick_start
-from devops.utils.display import show_not_implemented
+from devops.components.quickstart import dev_quick_start, dev_quick_stop
+from devops.ui.banner import clear_screen, show_banner
+from devops.ui.theme import CYAN, DIM, GREEN, RED, RESET, YELLOW, THEME
+
+
+# ── Human-readable feedback per action key ────────────────
+_STATUS_MSG: dict[str, str] = {
+    "quick-start": "✅ Dev stack started  (DB + FastAPI + Angular)",
+    "quick-stop":  "✅ Dev stack stopped  (Docker down, servers closed)",
+    "db-init":     "✅ Database initialised",
+    "db-build":    "✅ Database containers built",
+    "db-start":    "✅ Database started  (docker compose up)",
+    "db-migrate":  "✅ Migrations applied",
+    "db-stop":     "✅ Database stopped  (docker compose down)",
+    "db-status":   "ℹ️  Database status shown",
+    "fastapi-init":   "✅ FastAPI venv + deps installed",
+    "fastapi-start":  "✅ FastAPI server started  (http://localhost:8000)",
+    "fastapi-stop":   "✅ FastAPI server stopped",
+    "fastapi-status": "ℹ️  FastAPI status shown",
+    "angular-init":   "✅ Angular dependencies installed",
+    "angular-start":  "✅ Angular dev server started  (http://localhost:4200)",
+    "angular-stop":   "✅ Angular dev server stopped",
+    "angular-build":  "✅ Angular production build complete",
+    "angular-status": "ℹ️  Angular status shown",
+    "nuxt-init":      "✅ Nuxt dependencies installed",
+    "nuxt-start":     "✅ Nuxt dev server started",
+    "nuxt-stop":      "✅ Nuxt dev server stopped",
+    "nuxt-validate":  "✅ Nuxt typecheck complete",
+    "nuxt-build":     "✅ Nuxt production build complete",
+    "nuxt-status":    "ℹ️  Nuxt status shown",
+}
+
+
+# ── Action dispatch table ───────────────────────────────────
+_ACTIONS: dict[str, object] = {
+    "quick-start": dev_quick_start,
+    "quick-stop": dev_quick_stop,
+    # Database
+    "db-init": db_init,
+    "db-build": db_build,
+    "db-start": db_start,
+    "db-migrate": db_migrations,
+    "db-stop": db_stop,
+    "db-status": db_status,
+    # Backend
+    "fastapi-init": fastapi_init,
+    "fastapi-start": fastapi_start,
+    "fastapi-stop": fastapi_stop,
+    "fastapi-status": fastapi_status,
+    # Nuxt
+    "nuxt-init": nuxt_init,
+    "nuxt-start": nuxt_start,
+    "nuxt-stop": nuxt_stop,
+    "nuxt-validate": nuxt_validate,
+    "nuxt-build": nuxt_build,
+    "nuxt-status": nuxt_status,
+    # Angular
+    "angular-init": angular_init,
+    "angular-start": angular_start,
+    "angular-stop": angular_stop,
+    "angular-build": angular_build,
+    "angular-status": angular_status,
+}
 
 
 def show_dev_menu() -> None:
-    """Display the DEV sub-menu loop."""
+    """Display the DEV sub-menu with arrow-key navigation."""
+    _last_status: str | None = None
+
     while True:
-        print()
-        print("\033[92m═══════════════════════════════════════════════════════════════\033[0m")
-        print("\033[92m  DEV — Windows 11 — Docker + uvicorn + ng serve / Vite\033[0m")
-        print("\033[92m═══════════════════════════════════════════════════════════════\033[0m")
-        print()
-        print("  \033[90mCurrent Dev Stack: Postgres + Python FastAPI + Angular/PrimeNG\033[0m")
-        print()
-        print("  \033[92m[Q] Quick Start Dev Stack (Postgres + FastAPI + Angular)\033[0m")
-        print()
-        print("  \033[96m─── Database 1 (Docker / PostgreSQL) ───\033[0m")
-        print("  [D1] Init (verify Docker, create .env)")
-        print("  [D2] Build (docker compose build)")
-        print("  [D3] Start (docker compose up -d)")
-        print("  [D4] Apply Migrations")
-        print("  [D5] Stop (docker compose down)")
-        print("  [D6] Status + Logs")
-        print()
-        print("  \033[96m─── Backend 1 (Python FastAPI) ───\033[0m")
-        print("  [B1] Init (create venv, install deps)")
-        print("  [B2] Start (uvicorn --reload)")
-        print("  [B3] Stop")
-        print("  [B4] Status + Logs")
-        print()
-        print("  \033[90m─── Frontend 1 (React JS) ───\033[0m")
-        print("  \033[90m[F1] Not yet implemented\033[0m")
-        print()
-        print("  \033[96m─── Frontend 2 (Vue.js / Nuxt 4) ───\033[0m")
-        print("  [N1] Init (pnpm install, approve builds, nuxt prepare)")
-        print("  [N2] Start (Vite dev server)")
-        print("  [N3] Stop")
-        print("  [N4] Validate (typecheck)")
-        print("  [N5] Build")
-        print("  [N6] Status + Logs")
-        print()
-        print("  \033[96m─── Frontend 3 (Angular + PrimeNG) ───\033[0m")
-        print("  [A1] Init (pnpm install)")
-        print("  [A2] Start (ng serve)")
-        print("  [A3] Stop")
-        print("  [A4] Build")
-        print("  [A5] Status + Logs")
-        print()
-        print("  \033[90m─── Frontend 4 (Svelte) ───\033[0m")
-        print("  \033[90m[V1] Not yet implemented\033[0m")
-        print()
-        print("  [0] Back to main menu")
+        clear_screen()
+        show_banner()
+        print(f"  {GREEN}DEV — Local Development{RESET}")
+        print(f"  {DIM}Stack: Postgres + FastAPI + Angular/PrimeNG{RESET}")
+        if _last_status:
+            print()
+            print(f"  {CYAN}{_last_status}{RESET}")
         print()
 
-        choice = input("Choose: ").strip().upper()
+        try:
+            choice = inquirer.select(
+                message="Select action:",
+                choices=[
+                    {"name": "Quick Start (DB + FastAPI + Angular)",    "value": "quick-start"},
+                    {"name": "Quick Stop  (Docker + FastAPI + Angular)",   "value": "quick-stop"},
+                    Separator("── Database (Docker / PostgreSQL) ──────────────"),
+                    {"name": "Init          Verify Docker, create .env",   "value": "db-init"},
+                    {"name": "Build         docker compose build",          "value": "db-build"},
+                    {"name": "Start         docker compose up -d",          "value": "db-start"},
+                    {"name": "Migrations    Apply SQL migrations",          "value": "db-migrate"},
+                    {"name": "Stop          docker compose down",           "value": "db-stop"},
+                    {"name": "Status        Show DB status + logs",         "value": "db-status"},
+                    Separator("── Backend (Python FastAPI) ────────────────────"),
+                    {"name": "Init          Create venv, install deps",     "value": "fastapi-init"},
+                    {"name": "Start         uvicorn --reload",              "value": "fastapi-start"},
+                    {"name": "Stop          Stop dev server",               "value": "fastapi-stop"},
+                    {"name": "Status        Show backend status + logs",    "value": "fastapi-status"},
+                    Separator("── Frontend: Angular + PrimeNG ─────────────────"),
+                    {"name": "Init          pnpm install",                  "value": "angular-init"},
+                    {"name": "Start         ng serve",                      "value": "angular-start"},
+                    {"name": "Stop          Stop dev server",               "value": "angular-stop"},
+                    {"name": "Build         Production build",              "value": "angular-build"},
+                    {"name": "Status        Show frontend status + logs",   "value": "angular-status"},
+                    Separator("── Frontend: Nuxt 4 (Vue) ──────────────────────"),
+                    {"name": "Init          pnpm install + nuxt prepare",   "value": "nuxt-init"},
+                    {"name": "Start         Vite dev server",               "value": "nuxt-start"},
+                    {"name": "Stop          Stop dev server",               "value": "nuxt-stop"},
+                    {"name": "Validate      Typecheck",                     "value": "nuxt-validate"},
+                    {"name": "Build         Production build",              "value": "nuxt-build"},
+                    {"name": "Status        Show Nuxt status + logs",       "value": "nuxt-status"},
+                    Separator(),
+                    {"name": "← Back",                                      "value": "back"},
+                ],
+                style=THEME,
+                pointer="›",
+                qmark="",
+                amark="",
+                instruction="",
+                long_instruction="↑/↓ navigate · Enter select · Esc back",
+                mandatory=False,
+            ).execute()
+        except (KeyboardInterrupt, EOFError):
+            choice = None
 
-        actions = {
-            # Quick Start
-            "Q": dev_quick_start,
-            # Database
-            "D1": db_init,
-            "D2": db_build,
-            "D3": db_start,
-            "D4": db_migrations,
-            "D5": db_stop,
-            "D6": db_status,
-            # Backend
-            "B1": fastapi_init,
-            "B2": fastapi_start,
-            "B3": fastapi_stop,
-            "B4": fastapi_status,
-            # Frontend 1 — React (placeholder)
-            "F1": lambda: show_not_implemented("React JS frontend", "docs/spec_react_fastapi.md"),
-            # Frontend 2 — Nuxt
-            "N1": nuxt_init,
-            "N2": nuxt_start,
-            "N3": nuxt_stop,
-            "N4": nuxt_validate,
-            "N5": nuxt_build,
-            "N6": nuxt_status,
-            # Frontend 3 — Angular
-            "A1": angular_init,
-            "A2": angular_start,
-            "A3": angular_stop,
-            "A4": angular_build,
-            "A5": angular_status,
-            # Frontend 4 — Svelte (placeholder)
-            "V1": lambda: show_not_implemented("Svelte frontend", "docs/spec_svelte_fastapi.md"),
-        }
-
-        if choice == "0":
+        if choice is None or choice == "back":
             return
-        elif choice in actions:
+
+        action = _ACTIONS.get(choice)
+        if action:
             try:
-                actions[choice]()
+                action()  # type: ignore[operator]
+                _last_status = _STATUS_MSG.get(choice)
             except Exception as exc:
+                _last_status = f"❌ Error: {exc}"
                 print(f"\033[91mError: {exc}\033[0m")
-        else:
-            print("\033[93mInvalid choice.\033[0m")

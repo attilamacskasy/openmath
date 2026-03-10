@@ -64,7 +64,8 @@ def stop_dev_process(pid_path: Path, label: str) -> bool:
 
     try:
         if sys.platform == "win32":
-            subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True, timeout=10)
+            # /T = tree kill (kills child processes too, closes popup windows)
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, timeout=10)
         else:
             os.kill(pid, signal.SIGTERM)
     except Exception:

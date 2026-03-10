@@ -2,37 +2,55 @@
 
 from __future__ import annotations
 
+from InquirerPy import inquirer
+from InquirerPy.separator import Separator
+
 from devops.check_requirements import check_requirements
 from devops.menus.dev_menu import show_dev_menu
 from devops.menus.prod_menu import show_prod_menu
+from devops.ui.banner import clear_screen, show_banner, show_shortcuts
+from devops.ui.theme import CYAN, DIM, RESET, THEME
 from devops.utils.display import open_latest_log
 
 
 def show_main_menu() -> None:
-    """Display the top-level DEV / PROD menu loop."""
+    """Display the top-level DEV / PROD arrow-key menu loop."""
     while True:
-        print()
-        print("\033[96m═══════════════════════════════════════════════════════════════\033[0m")
-        print("\033[96m  OpenMath DevOps Console (dev.py)\033[0m")
-        print("\033[96m═══════════════════════════════════════════════════════════════\033[0m")
-        print()
-        print("  \033[92m[D] DEV  — Windows 11 — Docker + uvicorn + ng serve / Vite\033[0m")
-        print("  \033[95m[P] PROD — Docker containers — local or remote deployment\033[0m")
-        print("  \033[93m[H] Check Requirements (verify all prerequisites)\033[0m")
-        print("  [L] Open latest log")
-        print("  [0] Exit")
-        print()
+        clear_screen()
+        show_banner()
+        try:
+            choice = inquirer.select(
+                message="What would you like to do?",
+                choices=[
+                    {"name": "DEV   Local development (Docker + uvicorn + ng serve)", "value": "dev"},
+                    {"name": "PROD  Production deployment (build, local, remote)", "value": "prod"},
+                    Separator(),
+                    {"name": "Check Requirements", "value": "check-reqs"},
+                    {"name": "Open Latest Log", "value": "open-log"},
+                    {"name": "? Shortcuts", "value": "shortcuts"},
+                    Separator(),
+                    {"name": "Exit", "value": "exit"},
+                ],
+                style=THEME,
+                pointer="›",
+                qmark="",
+                amark="",
+                instruction="",
+                long_instruction="↑/↓ navigate · Enter select · ? shortcuts · Ctrl+C exit",
+                mandatory=False,
+            ).execute()
+        except (KeyboardInterrupt, EOFError):
+            choice = None
 
-        choice = input("Choose: ").strip().upper()
-        if choice == "D":
-            show_dev_menu()
-        elif choice == "P":
-            show_prod_menu()
-        elif choice == "H":
-            check_requirements()
-        elif choice == "L":
-            open_latest_log()
-        elif choice == "0":
+        if choice is None or choice == "exit":
             return
-        else:
-            print("\033[93mInvalid choice. Press D, P, H, L, or 0.\033[0m")
+        elif choice == "dev":
+            show_dev_menu()
+        elif choice == "prod":
+            show_prod_menu()
+        elif choice == "check-reqs":
+            check_requirements()
+        elif choice == "open-log":
+            open_latest_log()
+        elif choice == "shortcuts":
+            show_shortcuts()

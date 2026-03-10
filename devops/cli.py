@@ -7,7 +7,7 @@ from devops.components.angular import angular_build, angular_init, angular_start
 from devops.components.database import db_build, db_init, db_migrations, db_start, db_status, db_stop
 from devops.components.fastapi import fastapi_init, fastapi_start, fastapi_status, fastapi_stop
 from devops.components.nuxt import nuxt_build, nuxt_init, nuxt_start, nuxt_status, nuxt_stop, nuxt_validate
-from devops.components.quickstart import dev_quick_start
+from devops.components.quickstart import dev_quick_start, dev_quick_stop
 from devops.menus.main_menu import show_main_menu
 from devops.prod.builds import prod_build_all
 from devops.prod.local import prod_local_down, prod_local_reset, prod_local_status, prod_local_up
@@ -31,6 +31,7 @@ def print_help() -> None:
     print()
     print(f"  {G}DEV shortcuts:{R}")
     print("    dev-quick         Quick start: DB + FastAPI + Angular")
+    print("    dev-stop          Quick stop: Angular + FastAPI + Docker")
     print("    db-init           Init database prerequisites")
     print("    db-build          Build database containers")
     print("    db-start          Start PostgreSQL + Adminer")
@@ -81,6 +82,7 @@ MODE_MAP: dict[str, object] = {
     "menu": show_main_menu,
     # DEV shortcuts
     "dev-quick": dev_quick_start,
+    "dev-stop": dev_quick_stop,
     "db-init": db_init,
     "db-build": db_build,
     "db-start": db_start,

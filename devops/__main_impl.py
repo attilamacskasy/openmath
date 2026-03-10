@@ -13,12 +13,19 @@ from devops.core.summary import print_run_summary, save_summary
 def main(argv: list[str] | None = None) -> None:
     """Parse arguments and run the requested mode."""
 
-    # ── Enable ANSI colours on Windows ───────────────────────
+    # ── Enable ANSI colours + UTF-8 on Windows ──────────────
     if sys.platform == "win32":
         try:
             import ctypes
             kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
             kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+            # Set console output codepage to UTF-8 (box-drawing chars etc.)
+            kernel32.SetConsoleOutputCP(65001)
+        except Exception:
+            pass
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
         except Exception:
             pass
 
@@ -51,7 +58,13 @@ def main(argv: list[str] | None = None) -> None:
 
     # ── Dispatch ─────────────────────────────────────────────
     try:
-        log(f"Run started in mode: {mode}", level="STEP", label="BOOT")
+        # Show ASCII banner only for interactive menu mode
+        if mode == "menu":
+            from devops.ui.banner import clear_screen, show_banner
+            clear_screen()
+            show_banner()
+        else:
+            log(f"Run started in mode: {mode}", level="STEP", label="BOOT")
 
         from devops.cli import route_mode
         route_mode(mode)

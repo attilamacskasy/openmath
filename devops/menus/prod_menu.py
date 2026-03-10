@@ -2,77 +2,111 @@
 
 from __future__ import annotations
 
+from InquirerPy import inquirer
+from InquirerPy.separator import Separator
+
 from devops.prod.builds import prod_build_all, prod_build_component
 from devops.prod.local import prod_local_down, prod_local_reset, prod_local_status, prod_local_up
 from devops.prod.remote import remote_down, remote_push, remote_setup, remote_status, remote_up
-from devops.utils.display import show_not_implemented
+from devops.ui.banner import clear_screen, show_banner
+from devops.ui.theme import CYAN, DIM, RED, RESET, THEME
+
+
+# ── Human-readable feedback per action key ────────────────
+_STATUS_MSG: dict[str, str] = {
+    "build-all":     "✅ All production images built",
+    "build-backend": "✅ Backend image built",
+    "build-angular": "✅ Angular image built",
+    "build-nuxt":    "✅ Nuxt image built",
+    "local-start":   "✅ Local containers started",
+    "local-stop":    "✅ Local containers stopped",
+    "local-status":  "ℹ️  Local container status shown",
+    "local-reset":   "✅ Local containers reset",
+    "remote-setup":  "✅ Remote host configured",
+    "remote-push":   "✅ Images pushed to remote",
+    "remote-start":  "✅ Remote containers started",
+    "remote-stop":   "✅ Remote containers stopped",
+    "remote-status": "ℹ️  Remote status shown",
+}
+
+
+# ── Action dispatch table ───────────────────────────────────
+_ACTIONS: dict[str, object] = {
+    # Build
+    "build-all": prod_build_all,
+    "build-backend": lambda: prod_build_component("python-api", "Backend"),
+    "build-angular": lambda: prod_build_component("angular-app", "Angular"),
+    "build-nuxt": lambda: prod_build_component("nuxt-app", "Nuxt"),
+    # Local deploy
+    "local-start": prod_local_up,
+    "local-stop": prod_local_down,
+    "local-status": prod_local_status,
+    "local-reset": prod_local_reset,
+    # Remote deploy
+    "remote-setup": remote_setup,
+    "remote-push": remote_push,
+    "remote-start": remote_up,
+    "remote-stop": remote_down,
+    "remote-status": remote_status,
+}
 
 
 def show_prod_menu() -> None:
-    """Display the PROD sub-menu loop."""
+    """Display the PROD sub-menu with arrow-key navigation."""
+    _last_status: str | None = None
+
     while True:
-        print()
-        print("\033[95m═══════════════════════════════════════════════════════════════\033[0m")
-        print("\033[95m  PROD — Docker Container Deployment\033[0m")
-        print("\033[95m═══════════════════════════════════════════════════════════════\033[0m")
-        print()
-        print("  \033[90mCurrent Prod Stack: Postgres + Python FastAPI + Angular/PrimeNG\033[0m")
-        print()
-        print("  \033[96m─── Build Container Images ───\033[0m")
-        print("  [B1] Build ALL images (database + backend + frontend)")
-        print("  [B2] Build Database image")
-        print("  [B3] Build Backend image (python-api)")
-        print("  \033[90m[B4] Build Frontend 1 (React)       — not yet implemented\033[0m")
-        print("  [B5] Build Frontend 2 (Nuxt)")
-        print("  [B6] Build Frontend 3 (Angular)")
-        print("  \033[90m[B7] Build Frontend 4 (Svelte)      — not yet implemented\033[0m")
-        print()
-        print("  \033[96m─── Deploy to Local Docker (Docker Desktop) ───\033[0m")
-        print("  [L1] Start all containers")
-        print("  [L2] Stop all containers")
-        print("  [L3] Status + Logs")
-        print("  [L4] Reset (stop + remove volumes + rebuild)")
-        print()
-        print("  \033[96m─── Deploy to Remote Docker (Ubuntu 24 Server) ───\033[0m")
-        print("  [R1] Setup remote host (SSH key, Docker install check)")
-        print("  [R2] Push images to remote")
-        print("  [R3] Start all containers on remote")
-        print("  [R4] Stop all containers on remote")
-        print("  [R5] Status + Logs (remote)")
-        print()
-        print("  [0] Back to main menu")
+        clear_screen()
+        show_banner()
+        print(f"  {CYAN}PROD — Production Deployment{RESET}")
+        print(f"  {DIM}Stack: Postgres + FastAPI + Angular/PrimeNG (Docker){RESET}")
+        if _last_status:
+            print()
+            print(f"  {CYAN}{_last_status}{RESET}")
         print()
 
-        choice = input("Choose: ").strip().upper()
+        try:
+            choice = inquirer.select(
+                message="Select action:",
+                choices=[
+                    Separator("── Build Container Images ──────────────────────"),
+                    {"name": "Build ALL         Build all production images",    "value": "build-all"},
+                    {"name": "Build Backend     python-api image",               "value": "build-backend"},
+                    {"name": "Build Angular     Angular frontend image",         "value": "build-angular"},
+                    {"name": "Build Nuxt        Nuxt frontend image",            "value": "build-nuxt"},
+                    Separator("── Local Docker (Docker Desktop) ───────────────"),
+                    {"name": "Start             Start all containers",           "value": "local-start"},
+                    {"name": "Stop              Stop all containers",            "value": "local-stop"},
+                    {"name": "Status            Container status + logs",        "value": "local-status"},
+                    {"name": "Reset             Stop + remove volumes + rebuild","value": "local-reset"},
+                    Separator("── Remote Docker (Ubuntu 24 Server) ────────────"),
+                    {"name": "Setup             Configure SSH + Docker check",   "value": "remote-setup"},
+                    {"name": "Push              Push images to remote",          "value": "remote-push"},
+                    {"name": "Start             Start remote containers",        "value": "remote-start"},
+                    {"name": "Stop              Stop remote containers",         "value": "remote-stop"},
+                    {"name": "Status            Remote status + logs",           "value": "remote-status"},
+                    Separator(),
+                    {"name": "← Back",                                           "value": "back"},
+                ],
+                style=THEME,
+                pointer="›",
+                qmark="",
+                amark="",
+                instruction="",
+                long_instruction="↑/↓ navigate · Enter select · Esc back",
+                mandatory=False,
+            ).execute()
+        except (KeyboardInterrupt, EOFError):
+            choice = None
 
-        actions = {
-            # Build
-            "B1": prod_build_all,
-            "B2": lambda: prod_build_component("postgres", "Database"),
-            "B3": lambda: prod_build_component("python-api", "Backend"),
-            "B4": lambda: show_not_implemented("React frontend build", "docs/spec_react_fastapi.md"),
-            "B5": lambda: prod_build_component("nuxt-app", "Nuxt"),
-            "B6": lambda: prod_build_component("angular-app", "Angular"),
-            "B7": lambda: show_not_implemented("Svelte frontend build", "docs/spec_svelte_fastapi.md"),
-            # Local deploy
-            "L1": prod_local_up,
-            "L2": prod_local_down,
-            "L3": prod_local_status,
-            "L4": prod_local_reset,
-            # Remote deploy
-            "R1": remote_setup,
-            "R2": remote_push,
-            "R3": remote_up,
-            "R4": remote_down,
-            "R5": remote_status,
-        }
-
-        if choice == "0":
+        if choice is None or choice == "back":
             return
-        elif choice in actions:
+
+        action = _ACTIONS.get(choice)
+        if action:
             try:
-                actions[choice]()
+                action()  # type: ignore[operator]
+                _last_status = _STATUS_MSG.get(choice)
             except Exception as exc:
+                _last_status = f"❌ Error: {exc}"
                 print(f"\033[91mError: {exc}\033[0m")
-        else:
-            print("\033[93mInvalid choice.\033[0m")

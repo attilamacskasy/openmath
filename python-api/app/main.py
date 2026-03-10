@@ -31,3 +31,9 @@ app.include_router(teacher.router, prefix="/api")
 app.include_router(parent.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 app.include_router(badges.router, prefix="/api")
+
+
+@app.get("/api/health")
+async def health():
+    """Health check endpoint for container orchestration."""
+    return {"status": "ok"}
