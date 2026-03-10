@@ -8,7 +8,7 @@ from InquirerPy.separator import Separator
 from devops.check_requirements import check_requirements
 from devops.menus.dev_menu import show_dev_menu
 from devops.menus.prod_menu import show_prod_menu
-from devops.ui.banner import clear_screen, show_banner, show_shortcuts
+from devops.ui.banner import clear_screen, show_banner, show_shortcuts, wait_for_key
 from devops.ui.theme import CYAN, DIM, RESET, THEME
 from devops.utils.display import open_latest_log
 
@@ -36,8 +36,9 @@ def show_main_menu() -> None:
                 qmark="",
                 amark="",
                 instruction="",
-                long_instruction="↑/↓ navigate · Enter select · ? shortcuts · Ctrl+C exit",
+                long_instruction="↑/↓ navigate · Enter select · Ctrl+C exit",
                 mandatory=False,
+                keybindings={"skip": [{"key": "escape"}]},
             ).execute()
         except (KeyboardInterrupt, EOFError):
             choice = None
@@ -50,7 +51,9 @@ def show_main_menu() -> None:
             show_prod_menu()
         elif choice == "check-reqs":
             check_requirements()
+            wait_for_key()
         elif choice == "open-log":
             open_latest_log()
+            wait_for_key()
         elif choice == "shortcuts":
             show_shortcuts()

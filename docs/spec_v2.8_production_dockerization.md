@@ -2,8 +2,9 @@
 ## Production Dockerization (3-Container Deployment)
 
 **Version:** 2.8  
-**Status:** Draft Specification  
-**Module:** Deployment / Infrastructure / Production Runtime
+**Status:** Implemented  
+**Module:** Deployment / Infrastructure / Production Runtime  
+**Implementation Summary:** [implementation_summary_v2.8_production_dockerization.md](implementation_summary_v2.8_production_dockerization.md)
 
 ---
 
@@ -23,7 +24,7 @@ The initial production setup uses **three containers**:
 2. **python-api** — backend API service
 3. **angular-app** — frontend application
 
-This spec also introduces a Linux deployment helper script named **`prod.sh`**, modeled after the existing `dev.ps1` menu approach, to simplify local production deployment on self-hosted Docker.
+This spec also introduces a **Python-based DevOps PROD menu** (replacing the originally proposed `prod.sh` bash script), integrated into the existing `dev.py` CLI framework with InquirerPy arrow-key navigation, to simplify production deployment on self-hosted Docker.
 
 ---
 
@@ -36,7 +37,7 @@ Primary objectives:
 3. Keep internal services isolated on a private container network
 4. Expose only the public frontend endpoint to end users
 5. Support portability to Azure, AWS, and GCP container runtimes
-6. Provide a repeatable Linux deployment workflow through `prod.sh`
+6. Provide a repeatable deployment workflow through the Python DevOps PROD menu (`python dev.py` → PROD)
 7. Keep the setup simple enough for single-server hosting as the primary target
 
 ---
@@ -50,8 +51,9 @@ Included in this version:
 - Dockerized Angular frontend container
 - Shared Docker network for internal communication
 - Volume-based persistence for PostgreSQL
-- Linux production deployment helper script
+- Linux production deployment helper ~~script~~ Python DevOps menu
 - Public/private endpoint design
+- nginx reverse proxy for API routing (frontend → backend)
 - Mermaid deployment architecture diagram
 - Baseline environment variable strategy
 - Health check expectations
@@ -218,7 +220,7 @@ Environment variables:
 Persistent volume example:
 
 ```text
-openmath_postgres_data:/var/lib/postgresql/data
+openmath-local-prod-pgdata:/var/lib/postgresql/data
 ```
 
 ### Internal port
@@ -262,14 +264,19 @@ Examples:
 
 - `APP_ENV=production`
 - `DATABASE_URL=postgresql://user:password@postgresql:5432/openmath`
-- `SECRET_KEY=...`
-- `ALLOWED_HOSTS=...`
-- `CORS_ALLOWED_ORIGINS=...`
+- `JWT_SECRET_KEY=...`
+- `CORS_ORIGINS=...`
+- `JWT_ALGORITHM=HS256`
+- `JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30`
+- `JWT_REFRESH_TOKEN_EXPIRE_DAYS=7`
+- `GOOGLE_CLIENT_ID=...` (optional)
+- `GOOGLE_CLIENT_SECRET=...` (optional)
+- `GOOGLE_REDIRECT_URI=...` (optional)
 
 ### Internal health endpoint
 
 ```text
-GET /health
+GET /api/health
 ```
 
 ### Internal service URL
@@ -308,9 +315,14 @@ Optional:
 
 Examples:
 
-- `API_BASE_URL`
+- `API_BASE_URL` (not required when nginx reverse proxy is used)
 - runtime environment config for production
 - host-specific frontend branding/domain config if required later
+
+> **Implementation note:** The Angular frontend uses an nginx reverse proxy
+> (`location /api/` → `http://python-api:8000/api/`) so `API_BASE_URL` is not
+> needed at runtime.  All browser API calls are routed through the frontend
+> container, providing stronger isolation than direct backend access.
 
 ### Public service URL
 
@@ -333,7 +345,7 @@ A dedicated bridge network must be created for the OpenMath stack.
 Example:
 
 ```text
-openmath_net
+openmath-local-prod-net
 ```
 
 All three containers must join this network.
@@ -354,7 +366,7 @@ Only PostgreSQL requires persistent storage in the initial 3-container design.
 ### Persistent volume
 
 ```text
-openmath_postgres_data
+openmath-local-prod-pgdata
 ```
 
 Requirements:
@@ -438,112 +450,113 @@ No custom image is required unless initialization logic becomes more complex.
 
 ---
 
-# 11. prod.sh Linux Deployment Script
+# 11. Python DevOps PROD Menu
 
 ## 11.1 Purpose
 
-Introduce a new script named **`prod.sh`** with a menu-driven experience similar in spirit to `dev.ps1`, but intended for Linux-hosted production deployment.
+The originally proposed `prod.sh` bash script has been replaced by a **Python-based DevOps PROD menu** integrated into the existing `dev.py` CLI framework. This provides:
 
-This script is primarily for:
+- Cross-platform support (Windows + Linux) instead of Linux-only bash
+- InquirerPy arrow-key navigation instead of text input menus
+- Consistent UX with the DEV menu
+- Both interactive menu and CLI shortcut modes
 
-- self-hosted Docker server setup
-- image build
-- local production stack deployment
-- service restarts
-- logs and status checks
-- controlled shutdown
+The PROD menu is accessible via:
+
+```text
+python dev.py          → Main Menu → PROD
+python dev.py prod-*   → Direct CLI shortcuts
+```
 
 ---
 
 ## 11.2 Functional Requirements
 
-`prod.sh` must support at minimum the following actions:
+The PROD menu supports the following actions:
 
-1. Build backend image
-2. Build frontend image
+1. Build backend image (`openmath/python-api:latest`)
+2. Build frontend image (`openmath/angular-app:latest`)
 3. Build all images
-4. Start or deploy production stack
-5. Stop production stack
-6. Restart production stack
-7. Show container status
-8. Show logs
-9. Run database migration command
-10. Remove and recreate stack without deleting DB volume
-11. Optional full cleanup including containers, network, and non-persistent assets
+4. Pull PostgreSQL image (`postgres:16-alpine`)
+5. Backup PostgreSQL database (pg_dump → gzip → `backups/`)
+6. Restore PostgreSQL database from backup
+7. List available database backups
+8. Start local production stack
+9. Stop local production stack
+10. Show container status + recent logs
+11. Reset local stack (stop + remove volumes + rebuild)
+12. Configure remote host (SSH wizard)
+13. Push images to remote host
+14. Start remote containers
+15. Stop remote containers
+16. Show remote status
 
 ---
 
-## 11.3 Suggested Menu
-
-Example interactive menu:
+## 11.3 Menu Layout
 
 ```text
-OpenMath Production Menu
-------------------------
-1) Build backend image
-2) Build frontend image
-3) Build all images
-4) Deploy production stack
-5) Stop production stack
-6) Restart production stack
-7) Show status
-8) Show logs
-9) Run DB migrations
-10) Recreate stack
-11) Full cleanup
-0) Exit
+PROD — Production Deployment
+Stack: Postgres + FastAPI + Angular/PrimeNG (Docker)
+
+Select action:
+── Build Container Images ──────────────
+  Build ALL         Build all production images
+  Build Backend     openmath/python-api:latest
+  Build Angular     openmath/angular-app:latest
+  Build PostgreSQL  postgres:16-alpine (pull)
+── Database (Backup & Restore) ─────────
+  Backup            Create pg_dump → backups/
+  Restore           Restore from backup file
+  List Backups      Show available backups
+── Local Docker (Docker Desktop) ───────
+  Start             Start all containers
+  Stop              Stop all containers
+  Status            Container status + logs
+  Reset             Stop + remove volumes + rebuild
+── Remote Docker (Ubuntu 24 Server) ────
+  Setup             Configure SSH + Docker check
+  Push              Push images to remote
+  Start             Start remote containers
+  Stop              Stop remote containers
+  Status            Remote status + logs
+──────────────────
+  ← Back
 ```
 
 ---
 
-## 11.4 Script Requirements
+## 11.4 CLI Shortcut Modes
 
-`prod.sh` must:
+All PROD actions are also available as non-interactive CLI modes:
 
-- run on Linux host
-- use `bash`
-- validate Docker is installed
-- validate Docker daemon is running
-- validate required `.env` file exists
-- create Docker network if missing
-- create volume if missing
-- build images in deterministic order
-- deploy containers in dependency order:
-  1. PostgreSQL
-  2. Python API
-  3. Angular frontend
-- fail fast on missing dependencies
-- print readable status messages
-- support non-interactive future extension if needed
+```text
+python dev.py prod-build          Build all production images
+python dev.py prod-local-up       Start local prod containers
+python dev.py prod-local-down     Stop local prod containers
+python dev.py prod-local-status   Show local prod status
+python dev.py prod-local-reset    Reset local prod (rebuild)
+python dev.py prod-remote-setup   Configure remote host
+python dev.py prod-remote-push    Push images to remote
+python dev.py prod-remote-up      Start remote containers
+python dev.py prod-remote-down    Stop remote containers
+python dev.py prod-remote-status  Show remote status
+python dev.py prod-db-backup      Backup PostgreSQL database
+python dev.py prod-db-restore     Restore from backup file
+python dev.py prod-db-list        List available backups
+```
 
 ---
 
-## 11.5 Example Deployment Order
+## 11.5 Implementation Files
 
 ```text
-Check prerequisites
-    ↓
-Load .env
-    ↓
-Create network if missing
-    ↓
-Create postgres volume if missing
-    ↓
-Build python-api image
-    ↓
-Build angular-app image
-    ↓
-Start postgresql container
-    ↓
-Wait for DB health
-    ↓
-Start python-api container
-    ↓
-Wait for API health
-    ↓
-Start angular-app container
-    ↓
-Show success summary
+devops/prod/builds.py      Image build functions
+devops/prod/local.py       Local Docker deployment
+devops/prod/remote.py      Remote SSH deployment
+devops/prod/database.py    Database backup & restore
+devops/menus/prod_menu.py  Interactive PROD menu
+devops/cli.py              CLI mode routing
 ```
 
 ---
@@ -562,17 +575,25 @@ Production configuration must be driven by environment variables or `.env` files
 
 ### Backend
 
-- `APP_ENV=production`
 - `DATABASE_URL`
-- `SECRET_KEY`
-- `ALLOWED_HOSTS`
-- `CORS_ALLOWED_ORIGINS`
+- `CORS_ORIGINS`
+- `JWT_SECRET_KEY`
+- `JWT_ALGORITHM`
+- `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`
+- `JWT_REFRESH_TOKEN_EXPIRE_DAYS`
+- `GOOGLE_CLIENT_ID` (optional)
+- `GOOGLE_CLIENT_SECRET` (optional)
+- `GOOGLE_REDIRECT_URI` (optional)
+- `DEBUG=false`
 
 ### Frontend
 
-- `API_BASE_URL`
-- `FRONTEND_PORT` if configurable
+- `PUBLIC_PORT` (default: 80)
 - domain-specific runtime values if used
+
+> **Note:** `API_BASE_URL` is not required because the nginx reverse proxy
+> in the Angular container routes `/api/` requests to `python-api:8000`
+> internally.
 
 ---
 
@@ -662,8 +683,8 @@ Expected services:
 
 Expected resources:
 
-- `openmath_net`
-- `openmath_postgres_data`
+- `openmath-local-prod-net`
+- `openmath-local-prod-pgdata`
 
 This alignment improves portability to:
 
@@ -767,20 +788,28 @@ Recommended operational commands exposed via script:
 
 ---
 
-# 19. Backup Expectations
+# 19. Backup & Restore
 
 Database backup is mandatory for production use.
 
-Baseline recommendation:
+The entire application stack is **stateless** — all user data lives exclusively
+in PostgreSQL.  A single backup captures the complete application state;
+restoring it fully recovers everything.
 
-- periodic PostgreSQL dump from host or container
-- backup persistent volume or logical dumps
-- verify restore procedure regularly
+### Implementation (v3.2)
 
-Out of scope for this version:
+Backup and restore are implemented in `devops/prod/database.py` and accessible
+from the PROD menu under "Database (Backup & Restore)":
 
-- automated backup scheduler implementation
-- cloud backup integrations
+- **Backup:** `docker exec` → `pg_dump --clean --if-exists` → gzip compressed → `backups/` directory
+- **Restore:** Interactive file picker → safety confirmation → `psql` pipe from gzip
+- **List:** Formatted table with filename, size, date
+
+Backup files are stored at `{repo_root}/backups/openmath_{YYYY-MM-DD}_{HHMMSS}.sql.gz`.
+
+CLI modes: `python dev.py prod-db-backup`, `prod-db-restore`, `prod-db-list`.
+
+See [spec_v3.2_database_backup_restore.md](spec_v3.2_database_backup_restore.md) for full details.
 
 ---
 
@@ -801,23 +830,22 @@ This spec is considered implemented when all of the following are true:
 
 ---
 
-# 21. Suggested Repository Additions
+# 21. Repository Files
 
-Suggested files to add:
-
-```text
-deploy/prod.sh
-deploy/.env.example
-deploy/docker-compose.prod.yml
-backend/Dockerfile
-frontend/Dockerfile
-```
-
-Optional documentation additions:
+Files added for production deployment:
 
 ```text
-docs/specs/v2.8-production-dockerization.md
-docs/deployment/self-hosted-docker.md
+docker-compose.prod.yml          Production Docker Compose (repo root)
+.env.example                     Environment variable template
+python-api/Dockerfile            Backend container image
+angular-app/Dockerfile           Frontend container image (multi-stage)
+angular-app/nginx.conf           nginx config with SPA routing + API proxy
+devops/prod/builds.py            Image build functions
+devops/prod/local.py             Local Docker deployment
+devops/prod/remote.py            Remote SSH deployment
+devops/prod/database.py          Database backup & restore
+devops/menus/prod_menu.py        Interactive PROD menu
+backups/.gitkeep                 Backup storage directory
 ```
 
 ---
@@ -846,9 +874,10 @@ Version 2.8 establishes the first production deployment standard for OpenMath us
 It prioritizes:
 
 - self-hosted Linux Docker deployment
-- strong internal network isolation
-- persistent PostgreSQL storage
-- reproducible deployment via `prod.sh`
+- strong internal network isolation (nginx reverse proxy for API routing)
+- persistent PostgreSQL storage with backup & restore support
+- reproducible deployment via the Python DevOps PROD menu
+- full remote deployment workflow via SSH
 - future portability to Azure, AWS, and GCP
 
 This version is intentionally minimal and practical so the project can move from development-only workflows toward real production hosting.

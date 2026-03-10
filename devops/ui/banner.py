@@ -108,3 +108,27 @@ def show_shortcuts() -> None:
     except (EOFError, KeyboardInterrupt):
         pass
     print()  # newline after keypress
+
+
+def wait_for_key() -> None:
+    """Print a prompt and wait for any keypress before continuing."""
+    print()
+    try:
+        if sys.platform == "win32":
+            import msvcrt
+            print(f"  {DIM}Press any key to continue...{RESET}", end="", flush=True)
+            msvcrt.getch()  # type: ignore[attr-defined]
+        else:
+            import termios
+            import tty
+            print(f"  {DIM}Press any key to continue...{RESET}", end="", flush=True)
+            fd = sys.stdin.fileno()
+            old = termios.tcgetattr(fd)
+            try:
+                tty.setraw(fd)
+                sys.stdin.read(1)
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old)
+    except (EOFError, KeyboardInterrupt):
+        pass
+    print()

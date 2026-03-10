@@ -33,7 +33,7 @@ def dev_quick_start() -> None:
 
     # Phase 1: Dependencies
     steps = [
-        {"name": "DB Start", "command": "docker compose up -d",
+        {"name": "DB Start", "command": "docker compose --env-file .env.dev up -d",
          "cwd": str(state.repo_root), "reason": "Start PostgreSQL + Adminer.",
          "expected": "Containers running.", "required": True},
     ]

@@ -1,24 +1,26 @@
 # ── OpenMath Production Stack ────────────────────────────────
-# Usage:  docker compose -f docker-compose.prod.yml up -d
-#         docker compose -f docker-compose.prod.yml down
+# Usage:  docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+#         docker compose -f docker-compose.prod.yml --env-file .env.prod down
 #
-# Requires .env file — see .env.example
+# Requires .env.prod file — see .env.prod.example
+# NOTE: Always pass --env-file .env.prod so ${VAR} interpolation reads
+#       from the correct file (not the default .env).
 
 services:
   # ── PostgreSQL ─────────────────────────────────────────────
   postgresql:
     image: postgres:16-alpine
-    container_name: openmath-prod-db
+    container_name: openmath-local-prod-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-quiz}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-quiz}
     volumes:
-      - openmath_postgres_data:/var/lib/postgresql/data
+      - openmath-local-prod-pgdata:/var/lib/postgresql/data
       - ./db/migrations:/docker-entrypoint-initdb.d:ro
     networks:
-      - openmath_net
+      - openmath-local-prod-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-quiz}"]
       interval: 10s
@@ -31,7 +33,7 @@ services:
       context: ./python-api
       dockerfile: Dockerfile
     image: openmath/python-api:latest
-    container_name: openmath-prod-api
+    container_name: openmath-local-prod-api
     restart: unless-stopped
     depends_on:
       postgresql:
@@ -48,7 +50,7 @@ services:
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
       DEBUG: "false"
     networks:
-      - openmath_net
+      - openmath-local-prod-net
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 30s
@@ -62,7 +64,7 @@ services:
       context: ./angular-app
       dockerfile: Dockerfile
     image: openmath/angular-app:latest
-    container_name: openmath-prod-frontend
+    container_name: openmath-local-prod-frontend
     restart: unless-stopped
     depends_on:
       python-api:
@@ -70,7 +72,7 @@ services:
     ports:
       - "${PUBLIC_PORT:-80}:80"
     networks:
-      - openmath_net
+      - openmath-local-prod-net
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
       interval: 30s
@@ -78,8 +80,8 @@ services:
       retries: 3
 
 volumes:
-  openmath_postgres_data:
+  openmath-local-prod-pgdata:
 
 networks:
-  openmath_net:
+  openmath-local-prod-net:
     driver: bridge

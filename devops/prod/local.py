@@ -18,7 +18,7 @@ def prod_local_up() -> None:
 
     invoke_flow("PROD-LOCAL-UP", [
         {"name": "Start prod containers",
-         "command": "docker compose -f docker-compose.prod.yml up -d",
+         "command": "docker compose -f docker-compose.prod.yml --env-file .env.prod up -d",
          "cwd": str(state.repo_root), "reason": "Start all production containers locally.",
          "expected": "All containers running.", "required": True},
     ])
@@ -33,7 +33,7 @@ def prod_local_down() -> None:
 
     invoke_flow("PROD-LOCAL-DOWN", [
         {"name": "Stop prod containers",
-         "command": "docker compose -f docker-compose.prod.yml down",
+         "command": "docker compose -f docker-compose.prod.yml --env-file .env.prod down",
          "cwd": str(state.repo_root), "reason": "Stop all production containers.",
          "expected": "Containers stopped.", "required": True},
     ])
@@ -45,7 +45,7 @@ def prod_local_status() -> None:
     print("\033[96m═══ Production Containers (Local) ═══\033[0m")
     try:
         result = subprocess.run(
-            ["docker", "compose", "-f", "docker-compose.prod.yml", "ps"],
+            ["docker", "compose", "-f", "docker-compose.prod.yml", "--env-file", ".env.prod", "ps"],
             capture_output=True, text=True, cwd=str(state.repo_root), timeout=15,
         )
         for line in result.stdout.strip().splitlines():
@@ -57,7 +57,7 @@ def prod_local_status() -> None:
     print("  \033[90mRecent logs:\033[0m")
     try:
         result = subprocess.run(
-            ["docker", "compose", "-f", "docker-compose.prod.yml", "logs", "--tail=20"],
+            ["docker", "compose", "-f", "docker-compose.prod.yml", "--env-file", ".env.prod", "logs", "--tail=20"],
             capture_output=True, text=True, cwd=str(state.repo_root), timeout=15,
         )
         for line in result.stdout.strip().splitlines():
@@ -76,15 +76,15 @@ def prod_local_reset() -> None:
 
     invoke_flow("PROD-LOCAL-RESET", [
         {"name": "Stop containers",
-         "command": "docker compose -f docker-compose.prod.yml down -v",
+         "command": "docker compose -f docker-compose.prod.yml --env-file .env.prod down -v",
          "cwd": str(state.repo_root), "reason": "Stop containers and remove volumes.",
          "expected": "Containers and volumes removed.", "required": True},
         {"name": "Rebuild images",
-         "command": "docker compose -f docker-compose.prod.yml build --no-cache",
+         "command": "docker compose -f docker-compose.prod.yml --env-file .env.prod build --no-cache",
          "cwd": str(state.repo_root), "reason": "Rebuild all images from scratch.",
          "expected": "Images rebuilt.", "required": True},
         {"name": "Start containers",
-         "command": "docker compose -f docker-compose.prod.yml up -d",
+         "command": "docker compose -f docker-compose.prod.yml --env-file .env.prod up -d",
          "cwd": str(state.repo_root), "reason": "Start fresh containers.",
          "expected": "Containers running.", "required": True},
     ])

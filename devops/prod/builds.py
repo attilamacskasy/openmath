@@ -19,7 +19,7 @@ def prod_build_all() -> None:
 
     log("Building all production container images...", level="STEP", label="PROD-BUILD")
     invoke_flow("PROD-BUILD-ALL", [
-        {"name": "Build ALL images", "command": "docker compose -f docker-compose.prod.yml build",
+        {"name": "Build ALL images", "command": "docker compose -f docker-compose.prod.yml --env-file .env.prod build",
          "cwd": str(state.repo_root), "reason": "Build all production container images.",
          "expected": "All images built successfully.", "required": True},
     ])
@@ -35,7 +35,7 @@ def prod_build_component(service: str, label: str) -> None:
 
     invoke_flow(f"PROD-BUILD-{label.upper()}", [
         {"name": f"Build {label}",
-         "command": f"docker compose -f docker-compose.prod.yml build {service}",
+         "command": f"docker compose -f docker-compose.prod.yml --env-file .env.prod build {service}",
          "cwd": str(state.repo_root), "reason": f"Build {label} production image.",
          "expected": "Image built.", "required": True},
     ])

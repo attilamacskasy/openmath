@@ -381,7 +381,7 @@ Every component's "Status + Logs" action follows a consistent pattern:
 Example output:
 ```
 ═══ Database 1 (PostgreSQL) ═══
-  Status:    ● Running (container: openmath-postgres)
+  Status:    ● Running (container: openmath-local-dev-db)
   Endpoint:  localhost:5432
   Uptime:    2h 15m
   Memory:    42 MB

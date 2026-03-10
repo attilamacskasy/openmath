@@ -1,7 +1,7 @@
-# OpenMath Specification — v2.9
+# OpenMath Specification — v3.3
 ## OpenTelemetry Monitoring Stack for Real-Time Observability
 
-**Version:** 2.9  
+**Version:** 3.3 
 **Status:** Draft Specification  
 **Module:** Observability / Monitoring / Telemetry / Operations
 
@@ -612,7 +612,7 @@ Recommended network options:
 ## Option A: Single shared network
 
 ```text
-openmath_net
+openmath-local-prod-net
 ```
 
 All app and monitoring containers join the same network.

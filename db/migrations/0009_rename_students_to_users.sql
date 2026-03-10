@@ -16,19 +16,19 @@ BEGIN
     ALTER TABLE quiz_sessions RENAME COLUMN student_id TO user_id;
 
     BEGIN ALTER TABLE users RENAME CONSTRAINT students_age_check TO users_age_check;
-    EXCEPTION WHEN undefined_object THEN NULL; END;
+    EXCEPTION WHEN undefined_object OR undefined_table THEN NULL; END;
     BEGIN ALTER TABLE users RENAME CONSTRAINT students_gender_check TO users_gender_check;
-    EXCEPTION WHEN undefined_object THEN NULL; END;
+    EXCEPTION WHEN undefined_object OR undefined_table THEN NULL; END;
     BEGIN ALTER TABLE quiz_sessions RENAME CONSTRAINT quiz_sessions_student_id_fkey TO quiz_sessions_user_id_fkey;
-    EXCEPTION WHEN undefined_object THEN NULL; END;
+    EXCEPTION WHEN undefined_object OR undefined_table THEN NULL; END;
 
     BEGIN ALTER INDEX idx_sessions_student RENAME TO idx_sessions_user;
-    EXCEPTION WHEN undefined_object THEN NULL; END;
+    EXCEPTION WHEN undefined_object OR undefined_table THEN NULL; END;
     BEGIN ALTER INDEX idx_students_email RENAME TO idx_users_email;
-    EXCEPTION WHEN undefined_object THEN NULL; END;
+    EXCEPTION WHEN undefined_object OR undefined_table THEN NULL; END;
     BEGIN ALTER INDEX idx_students_google_sub RENAME TO idx_users_google_sub;
-    EXCEPTION WHEN undefined_object THEN NULL; END;
+    EXCEPTION WHEN undefined_object OR undefined_table THEN NULL; END;
     BEGIN ALTER INDEX idx_students_role RENAME TO idx_users_role;
-    EXCEPTION WHEN undefined_object THEN NULL; END;
+    EXCEPTION WHEN undefined_object OR undefined_table THEN NULL; END;
   END IF;
 END $$;

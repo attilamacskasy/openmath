@@ -10,6 +10,7 @@ from devops.components.nuxt import nuxt_build, nuxt_init, nuxt_start, nuxt_statu
 from devops.components.quickstart import dev_quick_start, dev_quick_stop
 from devops.menus.main_menu import show_main_menu
 from devops.prod.builds import prod_build_all
+from devops.prod.database import db_backup as prod_db_backup, db_list_backups as prod_db_list, db_migrate as prod_db_migrate, db_restore as prod_db_restore
 from devops.prod.local import prod_local_down, prod_local_reset, prod_local_status, prod_local_up
 from devops.prod.remote import remote_down, remote_push, remote_setup, remote_status, remote_up
 
@@ -66,6 +67,12 @@ def print_help() -> None:
     print("    prod-remote-down  Stop remote containers")
     print("    prod-remote-status Show remote status")
     print()
+    print(f"  {M}Database:{R}")
+    print("    prod-db-migrate   Apply SQL migrations")
+    print("    prod-db-backup    Backup PostgreSQL database")
+    print("    prod-db-restore   Restore from backup file")
+    print("    prod-db-list      List available backups")
+    print()
     print(f"  {Y}Utility:{R}")
     print("    check-reqs        Verify all prerequisites")
     print("    help              Show this help")
@@ -115,6 +122,11 @@ MODE_MAP: dict[str, object] = {
     "prod-remote-up": remote_up,
     "prod-remote-down": remote_down,
     "prod-remote-status": remote_status,
+    # Database
+    "prod-db-migrate": prod_db_migrate,
+    "prod-db-backup": prod_db_backup,
+    "prod-db-restore": prod_db_restore,
+    "prod-db-list": prod_db_list,
     # Utility
     "check-reqs": check_requirements,
     "help": print_help,

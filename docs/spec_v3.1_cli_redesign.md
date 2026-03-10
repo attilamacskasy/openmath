@@ -224,7 +224,7 @@ to the sub-menu they came from.
 ```
   ==[STEP 1/4][DEV-QUICK] DB Start (docker compose up -d) @ C:\...\openmath==
   Running step automatically.
-  [2026-03-10 01:02:03] Container openmath-postgres  Started
+  [2026-03-10 01:02:03] Container openmath-local-dev-db  Started
   ✅ DB Start finished with exit code 0
 
   ==[STEP 2/4][DEV-QUICK] FastAPI Install ...==

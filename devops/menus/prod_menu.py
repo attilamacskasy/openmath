@@ -6,9 +6,10 @@ from InquirerPy import inquirer
 from InquirerPy.separator import Separator
 
 from devops.prod.builds import prod_build_all, prod_build_component
+from devops.prod.database import db_backup, db_list_backups, db_migrate, db_restore
 from devops.prod.local import prod_local_down, prod_local_reset, prod_local_status, prod_local_up
 from devops.prod.remote import remote_down, remote_push, remote_setup, remote_status, remote_up
-from devops.ui.banner import clear_screen, show_banner
+from devops.ui.banner import clear_screen, show_banner, wait_for_key
 from devops.ui.theme import CYAN, DIM, RED, RESET, THEME
 
 
@@ -17,7 +18,11 @@ _STATUS_MSG: dict[str, str] = {
     "build-all":     "✅ All production images built",
     "build-backend": "✅ Backend image built",
     "build-angular": "✅ Angular image built",
-    "build-nuxt":    "✅ Nuxt image built",
+    "build-db":      "✅ PostgreSQL image built",
+    "db-backup":     "✅ Database backup created",
+    "db-restore":    "✅ Database restored from backup",
+    "db-migrate":    "✅ Database migrations applied",
+    "db-list":       "ℹ️  Backup list shown",
     "local-start":   "✅ Local containers started",
     "local-stop":    "✅ Local containers stopped",
     "local-status":  "ℹ️  Local container status shown",
@@ -36,7 +41,12 @@ _ACTIONS: dict[str, object] = {
     "build-all": prod_build_all,
     "build-backend": lambda: prod_build_component("python-api", "Backend"),
     "build-angular": lambda: prod_build_component("angular-app", "Angular"),
-    "build-nuxt": lambda: prod_build_component("nuxt-app", "Nuxt"),
+    "build-db": lambda: prod_build_component("postgresql", "PostgreSQL"),
+    # Database
+    "db-backup": db_backup,
+    "db-restore": db_restore,
+    "db-migrate": db_migrate,
+    "db-list": db_list_backups,
     # Local deploy
     "local-start": prod_local_up,
     "local-stop": prod_local_down,
@@ -70,10 +80,15 @@ def show_prod_menu() -> None:
                 message="Select action:",
                 choices=[
                     Separator("── Build Container Images ──────────────────────"),
-                    {"name": "Build ALL         Build all production images",    "value": "build-all"},
-                    {"name": "Build Backend     python-api image",               "value": "build-backend"},
-                    {"name": "Build Angular     Angular frontend image",         "value": "build-angular"},
-                    {"name": "Build Nuxt        Nuxt frontend image",            "value": "build-nuxt"},
+                    {"name": "Build ALL         Build all production images",              "value": "build-all"},
+                    {"name": "Build Backend     openmath/python-api:latest",               "value": "build-backend"},
+                    {"name": "Build Angular     openmath/angular-app:latest",              "value": "build-angular"},
+                    {"name": "Build PostgreSQL  postgres:16-alpine (pull)",                "value": "build-db"},
+                    Separator("── Database ───────────────────────────────────"),
+                    {"name": "Run Migrations    Apply db/migrations/*.sql",     "value": "db-migrate"},
+                    {"name": "Backup            Create pg_dump → backups/",     "value": "db-backup"},
+                    {"name": "Restore           Restore from backup file",      "value": "db-restore"},
+                    {"name": "List Backups      Show available backups",        "value": "db-list"},
                     Separator("── Local Docker (Docker Desktop) ───────────────"),
                     {"name": "Start             Start all containers",           "value": "local-start"},
                     {"name": "Stop              Stop all containers",            "value": "local-stop"},
@@ -95,6 +110,7 @@ def show_prod_menu() -> None:
                 instruction="",
                 long_instruction="↑/↓ navigate · Enter select · Esc back",
                 mandatory=False,
+                keybindings={"skip": [{"key": "escape"}]},
             ).execute()
         except (KeyboardInterrupt, EOFError):
             choice = None
@@ -110,3 +126,4 @@ def show_prod_menu() -> None:
             except Exception as exc:
                 _last_status = f"❌ Error: {exc}"
                 print(f"\033[91mError: {exc}\033[0m")
+            wait_for_key()

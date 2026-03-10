@@ -135,7 +135,7 @@ def remote_up() -> None:
 
     invoke_flow("REMOTE-UP", [
         {"name": "Start remote containers",
-         "command": f'ssh {ssh["args"]} {ssh["target"]} "cd {ssh["config"]["deployPath"]} && docker compose -f docker-compose.prod.yml up -d"',
+         "command": f'ssh {ssh["args"]} {ssh["target"]} "cd {ssh["config"]["deployPath"]} && docker compose -f docker-compose.prod.yml --env-file .env.prod up -d"',
          "cwd": str(state.repo_root), "reason": "Start production stack on remote.",
          "expected": "Containers running.", "required": True},
     ])
@@ -147,7 +147,7 @@ def remote_down() -> None:
 
     invoke_flow("REMOTE-DOWN", [
         {"name": "Stop remote containers",
-         "command": f'ssh {ssh["args"]} {ssh["target"]} "cd {ssh["config"]["deployPath"]} && docker compose -f docker-compose.prod.yml down"',
+         "command": f'ssh {ssh["args"]} {ssh["target"]} "cd {ssh["config"]["deployPath"]} && docker compose -f docker-compose.prod.yml --env-file .env.prod down"',
          "cwd": str(state.repo_root), "reason": "Stop production stack on remote.",
          "expected": "Containers stopped.", "required": True},
     ])
@@ -160,7 +160,7 @@ def remote_status() -> None:
     print(f'\033[96m═══ Production Containers (Remote: {ssh["config"]["host"]}) ═══\033[0m')
     try:
         result = subprocess.run(
-            f'ssh {ssh["args"]} {ssh["target"]} "cd {ssh["config"]["deployPath"]} && docker compose -f docker-compose.prod.yml ps"',
+            f'ssh {ssh["args"]} {ssh["target"]} "cd {ssh["config"]["deployPath"]} && docker compose -f docker-compose.prod.yml --env-file .env.prod ps"',
             shell=True, capture_output=True, text=True, timeout=30,
         )
         for line in result.stdout.strip().splitlines():
@@ -172,7 +172,7 @@ def remote_status() -> None:
     print("  \033[90mRecent logs:\033[0m")
     try:
         result = subprocess.run(
-            f'ssh {ssh["args"]} {ssh["target"]} "cd {ssh["config"]["deployPath"]} && docker compose -f docker-compose.prod.yml logs --tail=20"',
+            f'ssh {ssh["args"]} {ssh["target"]} "cd {ssh["config"]["deployPath"]} && docker compose -f docker-compose.prod.yml --env-file .env.prod logs --tail=20"',
             shell=True, capture_output=True, text=True, timeout=30,
         )
         for line in result.stdout.strip().splitlines():

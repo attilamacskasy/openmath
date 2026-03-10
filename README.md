@@ -1,454 +1,290 @@
-# openmath
+# OpenMath
 
 <p align="center">
-  <img src="nuxt-app/public/openmath-logo.svg" alt="OpenMath logo" width="120" />
+  <img src="nuxt-app/public/openmath-logo.svg" alt="OpenMath logo" width="140" />
 </p>
 
-`openmath` is a learning-focused project for building fun, practical math tools for kids, starting with multiplication and expanding into a broader quiz platform.
-
-## Purpose
-
-- Build a child-friendly **OpenMath** quiz platform that improves both correctness and speed.
-- Start with multiplication as the first quiz type, then expand with additional quiz formats.
-- Keep development spec-driven for consistent implementation and easier iteration.
-- Compare multiple stack implementations over the same product domain.
-
-## Project Update (March 2026)
-
-### Architecture decision
-
-- I made a strategic tech decision to replace the planned `React + Laravel` stack with `Angular + Python FastAPI`, while keeping **PostgreSQL** as the shared database foundation.
-- The project keeps a **shared PostgreSQL DB model** across implementations for consistent data behavior and cross-stack parity.
-
-### Team and collaboration note
-
-- I officially welcome my pro developer peer **Hajnalka**, who has strong Angular expertise, to support this new stack direction.
-
-### Maintenance strategy going forward
-
-- Keep `nuxt-app/` (`Nuxt + Nitro`) as a working and supported implementation.
-- Keep `python-app/` as a lightweight CLI application for quick testing, learning flows, and DB-driven diagnostics.
-- Introduce `Angular + FastAPI` as the new **primary maintained feature stack** for upcoming product enhancements.
-
-## User Guide (Start Here)
-
-### Objective
-
-The student goal is simple: **get the highest correct score in the least amount of time**.
-
-### Main workflow
-
-1. Select an active student in the top navigation (or keep `No student` to create one when starting).
-2. Open **Start**, choose quiz type, difficulty, and question count.
-3. Complete the quiz (keyboard-friendly flow with focused answer input).
-4. Review results in **History** and session detail.
-5. Improve profile and learned timetables in **Profile**, then repeat.
-
-### Menu guide
-
-- **Start** — create and launch a new quiz session.
-- **Profile** — edit student preferences and view performance stats.
-- **History** — review sessions, resume `In progress` sessions, compare speed/accuracy metrics.
-- **User Guide** — usage instructions for students and teachers.
-- **Database Statistics** — admin diagnostics: table counts, table row viewer, and danger-zone reset.
-- **Active student selector (top bar)** — sets current student context across pages.
-
-## Release Status
-
-- **Nuxt release:** `v1.5` (working)
-- **Current working web app:** `nuxt-app/` (Nuxt 4 + Nitro + Drizzle + PostgreSQL)
-- **Python console app:** available in `python-app/` (lightweight CLI)
-- **Primary maintained next stack:** `Angular + Python FastAPI + PostgreSQL` (new feature direction)
-
-## What’s New (Nuxt v1.5)
-
-This section summarizes everything added after `v1.0`.
-
-### 1) Platform and navigation improvements
-
-- Added a global **Active student** selector in the top navigation.
-- Student context now persists while navigating pages.
-- Added a dedicated **User Guide** page and menu item.
-- Rebranded content to OpenMath as a multi-quiz platform (multiplication-first).
-
-### 2) Quiz architecture and content expansion
-
-- Introduced `quiz_types` domain model and DB relationships.
-- Added quiz type selection on Start page.
-- Added quiz type visibility during quiz and grouped history by quiz type.
-- Added new quiz type: `sum_products_1_10` with question pattern `(a x b) + (c x d)`.
-- Persisted `c` and `d` terms in questions for full session replay and review.
-
-### 3) Student model and adaptive generation
-
-- Added student profile fields: `age`, `gender`, `learned_timetables` (1..10).
-- Generation now respects learned timetables for better personalization.
-- Added full profile edit page for active student preferences.
-
-### 4) Quiz UX and flow improvements
-
-- Improved keyboard-only quiz flow with answer input auto-focus between questions.
-- Added visual progress bar during quiz.
-- Added automatic redirect to session summary after quiz completion.
-- Added resume flow from History for unfinished sessions (`In progress` link).
-- Resume now starts from first unanswered question and preserves progress correctly.
-
-### 5) History and performance analytics
-
-- History now includes: `Student`, `Questions`, `Time Spent`, `Avg / Question`.
-- Added active-student-only filter in History (default ON).
-- Session summary now includes average time per question.
-- Profile includes aggregated performance metrics:
-  - all quizzes combined
-  - by quiz type
-  - total time spent (overall and by type)
-
-### 6) Database admin and safety tools
-
-- Database Statistics page now supports:
-  - per-table record counts
-  - row browsing by table
-  - refresh actions
-- Added **Danger Zone** reset with confirmation phrase `DELETE ALL DATA`.
-
-### 7) Dev tooling and migration workflow
-
-- Added PowerShell migration script and integrated DB migration into `dev.ps1`.
-- Added Nuxt start/stop modes in `dev.ps1` with visible server logs.
-- Fixed assistant menu exit behavior and script robustness issues.
-- Hardened SQL migrations for safer reruns and PostgreSQL compatibility.
-
-## What’s New (Python CLI v1.5)
-
-This section summarizes the Python console app improvements aligned with the v1.5 OpenMath domain model.
-
-### 1) Full menu-driven CLI application
-
-- Replaced the minimal quiz script with a complete interactive menu system.
-- Added top-level workflows: Start, Resume, History, Session Detail, Active Student, Profile, User Guide, DB Statistics, Danger Zone.
-- Added startup integrity checks for required quiz types.
-
-### 2) Multi-quiz parity with Nuxt app
-
-- Added support for both quiz types:
-  - `multiplication_1_10`
-  - `sum_products_1_10`
-- CLI generation logic now follows the same difficulty and learned-timetable-aware behavior.
-
-### 3) PostgreSQL-first persistence model
-
-- CLI now uses PostgreSQL as the single source of truth.
-- Added repository/service layers for sessions, questions, answers, students, and stats.
-- Implemented transactional write flows for session creation, answer submission, and resets.
-
-### 4) Student context and profile support
-
-- Added active student selection in CLI.
-- Main menu now shows active student **name** (not UUID).
-- Added profile editing (name, age, gender, learned timetables) and performance stats output.
-
-### 5) Session continuity and review
-
-- Added resume support for unfinished sessions.
-- Added detailed session audit output with question-by-question correctness.
-- Added grouped history output with score/time/avg-per-question metrics.
-
-### 6) Admin and quality-of-life tools
-
-- Added DB statistics view and row browser.
-- Added confirmation-gated Danger Zone reset (`DELETE ALL DATA`).
-- Added launcher scripts for clean Windows terminal startup:
-  - `scripts/start-python-cli.ps1`
-  - `scripts/start-python-cli.cmd`
-
-## v1.5 Screenshots CLI
-
-### Main menu
-
-![OpenMath CLI main menu showing all v1.5 menu options and footer.](assets/images/v1.5_CLI/main_menu.JPG)
-
-*OpenMath CLI main menu showing all v1.5 menu options and footer.*
-
-### Start quiz flow
-
-![CLI start quiz flow showing quiz type, difficulty, and setup prompts.](assets/images/v1.5_CLI/start_quiz.JPG)
-
-*CLI start quiz flow showing quiz type, difficulty, and setup prompts.*
-
-### Active student selection
-
-![CLI active student menu showing student list and selection options.](assets/images/v1.5_CLI/active_student.JPG)
-
-*CLI active student menu showing student list and selection options.*
-
-### History view
-
-![CLI history output grouped by quiz type with session metrics.](assets/images/v1.5_CLI/history.JPG)
-
-*CLI history output grouped by quiz type with session metrics.*
-
-### Profile view
-
-![CLI profile view showing student fields and performance statistics.](assets/images/v1.5_CLI/profile.JPG)
-
-*CLI profile view showing student fields and performance statistics.*
-
-## v1.5 Screenshots
-
-### Start page
-
-![OpenMath Start page showing quiz setup with quiz type, difficulty, student selection, and start button.](assets/images/v1.5/main.JPG)
-
-*OpenMath Start page showing quiz setup with quiz type, difficulty, student selection, and start button.*
-
-### Nuxt / Nitro / Vite / Vue runtime
-
-![Terminal or app runtime view showing Nuxt, Nitro, Vite, and Vue development execution details.](assets/images/v1.5/nuxt_nitro_vite_vue.JPG)
-
-*Terminal or app runtime view showing Nuxt, Nitro, Vite, and Vue development execution details.*
-
-### Session Summary detail
-
-![Session detail page showing question-by-question results, correctness status, and session summary metrics.](assets/images/v1.5/history_session.JPG)
-
-*Session detail page showing question-by-question results, correctness status, and session summary metrics.*
-
-### Quiz History
-
-![Quiz History page grouped by quiz type with session rows, time spent, average time per question, and status links.](assets/images/v1.5/history.JPG)
-
-*Quiz History page grouped by quiz type with session rows, time spent, average time per question, and status links.*
-
-### Profile page
-
-![Profile page showing active student preferences such as name, age, gender, learned timetables, and performance statistics.](assets/images/v1.5/profile.JPG)
-
-*Profile page showing active student preferences such as name, age, gender, learned timetables, and performance statistics.*
-
-### Database Statistics
-
-![Database Statistics page showing table record counts, row viewer, refresh controls, and admin data tools.](assets/images/v1.5/dbstats.JPG)
-
-*Database Statistics page showing table record counts, row viewer, refresh controls, and admin data tools.*
-
-### pgAdmin database view
-
-![pgAdmin interface showing OpenMath PostgreSQL schema, tables, and stored quiz data.](assets/images/v1.5/pgadmin.JPG)
-
-*pgAdmin interface showing OpenMath PostgreSQL schema, tables, and stored quiz data.*
-
-### Docker stack
-
-![Docker environment view showing running services used by OpenMath development stack.](assets/images/v1.5/docker.JPG)
-
-*Docker environment view showing running services used by OpenMath development stack.*
-
-### Dev assistant script
-
-![PowerShell dev assistant output showing guided commands for Nuxt workflow, validation, build, and migrations.](assets/images/v1.5/dev.JPG)
-
-*PowerShell dev assistant output showing guided commands for Nuxt workflow, validation, build, and migrations.*
-
-## v2.0 Screenshots — Angular + FastAPI + PrimeNG + PostgreSQL
-
-Of all the implementations in this repository, **v2.0 is by far the most polished**. The Angular + PrimeNG combination produces a clean, professional UI that feels fast and intentional — the Lara Light Blue theme, fluid PrimeFlex layouts, and reactive signal-based state give it a coherence the other stacks simply don't match visually. On the backend side, FastAPI with asyncpg is rock solid: clean structured logs, near-instant responses, and a fully auto-generated Swagger UI that makes the API a pleasure to work with and inspect. This stack is the one I'd confidently put in front of a real user.
-
-### Frontend — Angular 18 + PrimeNG 17
-
-#### Start page
-
-![OpenMath v2.0 Start page with quiz type selector, difficulty radio group, learned timetables checkboxes, and question count input built with PrimeNG components.](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_start.JPG)
-
-*Start page — quiz type selector, difficulty radio group, timetables checkboxes, and question count. PrimeNG Lara Light Blue theme throughout.*
-
-#### Quiz page
-
-![OpenMath v2.0 Quiz page showing a multiplication question with progress bar, answer input auto-focused, and PrimeNG card layout.](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_quiz.JPG)
-
-*Quiz page — progress bar, question card, auto-focused answer input. Keyboard-first flow.*
-
-#### Session detail
-
-![OpenMath v2.0 Session detail page showing question-by-question results with correct/wrong status badges and session summary metrics.](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_session.JPG)
-
-*Session detail — per-question status badges, score summary, and session metadata in a clean PrimeNG table.*
-
-#### History
-
-![OpenMath v2.0 History page showing quiz sessions grouped by quiz type with student name, score badge, time and avg per question columns.](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_history.JPG)
-
-*History — sessions grouped by quiz type, color-coded score tags, time spent and avg/question columns.*
-
-#### Profile page
-
-![OpenMath v2.0 Profile page showing editable student fields, learned timetables checkboxes, and aggregated performance statistics by quiz type.](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_profile.JPG)
-
-*Profile — editable student fields, timetable selection, and aggregated performance stats per quiz type.*
-
-#### User Guide
-
-![OpenMath v2.0 User Guide page with instructional content in a PrimeNG card layout.](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_guide.JPG)
-
-*User Guide — clean card-based instructional layout.*
-
-#### Admin page
-
-![OpenMath v2.0 Admin page showing database row count stats cards, table row browser dropdown, and danger zone reset with confirmation dialog.](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_admin.JPG)
-
-*Admin — stats cards, table row browser, and confirmation-gated danger zone reset.*
+<p align="center">
+  <strong>A production-ready, full-stack math quiz platform for kids, parents, and teachers.</strong><br/>
+  Built with Angular + FastAPI + PostgreSQL. Dockerized. Self-hostable.<br/>
+  <em>Current release: v3.2 — First Production Release</em>
+</p>
 
 ---
 
-### Backend — FastAPI + asyncpg
+## What is OpenMath?
 
-#### Swagger UI (auto-generated docs)
+OpenMath is a child-friendly quiz platform that helps kids improve both **correctness and speed** in math — starting with multiplication and expanding into a broader quiz system. It supports multiple quiz types, adaptive difficulty, student profiles, badges, KaTeX-rendered math, localization, and full session history with performance analytics.
 
-![FastAPI Swagger UI at /docs showing all OpenMath API endpoints: quiz-types, students, sessions, answers, stats with request/response schemas.](assets/images/v2.0_Angular_FastAPI_PrimeNG/be_api_swagger.JPG)
+The goal is simple: **get the highest score in the least amount of time**.
 
-*FastAPI auto-generated Swagger UI — all endpoints documented with live request/response testing. The backend is clean, well-typed, and immediately inspectable.*
-
----
-
-### Database — PostgreSQL 16 + JSONB
-
-#### Questions table with JSONB prompt column
-
-![PostgreSQL questions table row showing JSONB prompt payload with template kind, render string, and answer type fields stored alongside legacy columns.](assets/images/v2.0_Angular_FastAPI_PrimeNG/db_question.JPG)
-
-*Questions table — JSONB `prompt` column stores template kind, render string, and answer type. Legacy columns maintained for backwards compatibility.*
-
-#### Answers table with JSONB response column
-
-![PostgreSQL answers table row showing JSONB response payload with raw input, parsed answer type and value stored alongside legacy value column.](assets/images/v2.0_Angular_FastAPI_PrimeNG/db_answer.JPG)
-
-*Answers table — JSONB `response` stores raw input and parsed answer. GIN indexes enable fast JSONB queries at scale.*
+I learned full-stack application development building this project — from database design and API development to frontend frameworks, Docker, CI/CD, and production operations. I will continue to leverage these learnings in both my private life and professionally at work. I am very excited to use this math platform with my children's schoolmates, teachers, and parents — whether in person or self-hosted online.
 
 ---
 
-### Dev tooling
+## v3.2 — First Production Release Highlights
 
-#### dev.ps1 — Win11 dev assistant
+This is the first production-ready release of OpenMath. The focus was to get a **production-grade full-stack application** end-to-end: Dockerized, database-backed, with authentication, role-based access control, localization, badges, KaTeX rendering, and a complete DevOps CLI.
 
-![PowerShell dev.ps1 assistant menu showing Angular and FastAPI menu options alongside existing Nuxt entries for parallel stack management.](assets/images/v2.0_Angular_FastAPI_PrimeNG/dev_ps1.JPG)
+### Start a Quiz
 
-*dev.ps1 updated with Angular + FastAPI menu items — both stacks managed side by side from a single assistant.*
+Choose quiz type, difficulty, learned timetables, and question count. KaTeX renders math beautifully.
 
-#### Angular dev server (ng serve)
+![Start page with quiz configuration](assets/images/v_3.2_first_prod_release/fe_start.JPG)
 
-![Angular ng serve terminal output showing Vite-based build completing and dev server running on localhost:4200.](assets/images/v2.0_Angular_FastAPI_PrimeNG/dev_ng_serve.JPG)
+### Session Detail & Review
 
-*Angular dev server — Vite-based build, hot reload, running on port 4200.*
+Review each question with correct/wrong status, your answer vs. the expected answer, and session summary metrics.
 
-#### FastAPI uvicorn logs
+![Session detail with per-question results](assets/images/v_3.2_first_prod_release/fe_session_detail.JPG)
 
-![FastAPI uvicorn dev server logs showing startup and clean HTTP request log lines with 200 OK responses.](assets/images/v2.0_Angular_FastAPI_PrimeNG/dev_api_logs.JPG)
+![Review page with session analytics](assets/images/v_3.2_first_prod_release/fe_review.JPG)
 
-*FastAPI uvicorn with `--reload` — clean structured logs, instant restarts on code changes, port 8000.*
+### User Profiles with Badges & Performance
+
+Earned badges are displayed on the profile. Performance stats are aggregated by quiz type with time tracking.
+
+![Profile page showing earned badges](assets/images/v_3.2_first_prod_release/fe_profile_badges.JPG)
+
+![Profile page showing performance statistics](assets/images/v_3.2_first_prod_release/fe_profile_perf.JPG)
+
+### User Management
+
+Manage users with role-based access control (Admin, Teacher, Student, Parent).
+
+![User management page](assets/images/v_3.2_first_prod_release/fe_users.JPG)
+
+### Admin Panel & Quiz Type Management
+
+Database statistics, table browser, danger zone reset, and quiz type configuration.
+
+![Admin panel with database statistics](assets/images/v_3.2_first_prod_release/fe_admin.JPG)
+
+![Quiz type management](assets/images/v_3.2_first_prod_release/fe_admin_quiz_types.JPG)
+
+### Backend — FastAPI with Swagger UI
+
+Clean, well-typed API with auto-generated interactive documentation.
+
+![FastAPI Swagger UI](assets/images/v_3.2_first_prod_release/be_fastapi.JPG)
+
+### DevOps CLI & Production Tooling
+
+A powerful Python-based CLI (`dev.py`) manages the entire development and production lifecycle.
+
+![DevOps CLI main menu](assets/images/v_3.2_first_prod_release/dev_main.JPG)
+
+![DevOps CLI start options](assets/images/v_3.2_first_prod_release/dev_start.JPG)
+
+![DevOps CLI development mode](assets/images/v_3.2_first_prod_release/dev_dev.JPG)
+
+![DevOps CLI production deployment](assets/images/v_3.2_first_prod_release/dev_prod.JPG)
 
 ---
 
-## Current Scope (Implemented)
+## Tech Stack
 
-This repository contains two working implementations:
+| Layer | Technology |
+|---|---|
+| **Frontend (primary)** | Angular 18 + PrimeNG 17 (Lara Light Blue theme) |
+| **Frontend (maintained)** | Nuxt 4 + Vue 3 (Reka UI) |
+| **Frontend (planned)** | SvelteKit + Svelte 5 |
+| **Backend** | Python FastAPI + asyncpg + Uvicorn |
+| **Database** | PostgreSQL 16 with JSONB + GIN indexes |
+| **Auth** | Google SSO + JWT + Role-Based Access Control |
+| **Rendering** | KaTeX for math equations |
+| **Localization** | i18n (Hungarian + English) |
+| **DevOps** | Docker Compose, Nginx reverse proxy, Python CLI |
+| **Monitoring** | OpenTelemetry (planned — v3.3) |
 
-- `python-app/` — multiplication quiz for grade 2 practice (console)
-- `nuxt-app/` — full-stack OpenMath app with PostgreSQL persistence
+**PostgreSQL is amazing.** JSONB columns with GIN indexes give you the flexibility of a document store with the power of a relational database. It has been rock solid throughout this project.
 
-### Python app supports
+I am still committed to maintaining both the **VueJS/Nuxt** and the upcoming **Svelte** frontends. The **FastAPI** backend stays — it is clean, fast, and a joy to work with.
 
-- Difficulty selection: `low`, `medium`, `hard`
-- 10-question quiz flow
-- Integer input validation (`Please type a number.` on invalid input)
-- Correct/wrong tracking and final percentage score
+---
 
-### Nuxt app supports
+## How We Built This
 
-- Multi-quiz OpenMath platform (multiplication-first)
-- Active student context across pages
-- Student profile and learned timetable preferences
-- Quiz types, progress tracking, and resumable sessions
-- History analytics with speed + accuracy metrics
-- Database statistics and admin reset tools
+The combination of **GitHub Copilot** and **Claude Code** is amazing. With strong domain knowledge, senior human mentors (full-stack developers), thorough code reviews, and dedicated testers, everything is possible **in days** — not weeks, not months, not years like before.
 
-## Planned Scope
+Senior mentors (human full-stack developers) and AI together achieved what would have previously taken an entire team months. OTEL and production monitoring (v3.3) is still ahead, but we achieved a tremendous amount here already.
 
-This repo hosts multiple full-stack implementations of the same domain:
+---
 
-- `angular-app/` + `python-api/` — **Angular + FastAPI (v2.0, primary maintained stack)** ✅
-- `nuxt-app/` — Nuxt 4 + Drizzle ORM (v1.5, maintained) ✅
-- `python-app/` — Python CLI (v1.5, maintained) ✅
+## Documentation
 
-All implementations share the same PostgreSQL database schema via canonical SQL migrations in `db/migrations/`.
+All specifications and implementation summaries are in the `docs/` folder. Specs were written first, then implemented and documented — this table shows them side by side in development order.
 
-## Repository Documentation
+### Specifications & Implementations
 
-### Python app docs
+| Version | Specification | Implementation Summary |
+|---|---|---|
+| v1.0 | [spec_python_quiz.md](docs/spec_python_quiz.md) | — (initial Python CLI) |
+| v1.5 | [spec_nuxt4_drizzle_reka.md](docs/spec_nuxt4_drizzle_reka.md) | — (Nuxt full-stack) |
+| v2.0 | [spec_angular_fastapi_primeng.md](docs/spec_angular_fastapi_primeng.md) | [angular_fastapi_implementation.md](docs/angular_fastapi_implementation.md) |
+| v2.1 | [spec_v2.1_auth_rbac.md](docs/spec_v2.1_auth_rbac.md) | [implementation_summary_v2.1_auth_rbac.md](docs/implementation_summary_v2.1_auth_rbac.md) |
+| v2.2 | [spec_v2.2_quiz_type_editor.md](docs/spec_v2.2_quiz_type_editor.md) | — (included in v2.3) |
+| v2.2.1 | [spec_v2.2.1_rename_students_to_users.md](docs/spec_v2.2.1_rename_students_to_users.md) | — (refactoring) |
+| v2.3 | [spec_v2.3_advanced_rbac.md](docs/spec_v2.3_advanced_rbac.md) | [implementation_summary_v2.3_advanced_rbac.md](docs/implementation_summary_v2.3_advanced_rbac.md) |
+| v2.4 | [spec_v2.4_ux_improvements.md](docs/spec_v2.4_ux_improvements.md) | [implementation_summary_v2.4_ux_improvements.md](docs/implementation_summary_v2.4_ux_improvements.md) |
+| v2.5 | [spec_v2.5_notifications_and_polish.md](docs/spec_v2.5_notifications_and_polish.md) | [implementation_summary_v2.5_notifications_and_polish.md](docs/implementation_summary_v2.5_notifications_and_polish.md) |
+| v2.6 | [spec_v2.6_localization.md](docs/spec_v2.6_localization.md) | [implementation_summary_v2.6_localization.md](docs/implementation_summary_v2.6_localization.md) |
+| v2.7 | [spec_v2.7_incentive_badge_system.md](docs/spec_v2.7_incentive_badge_system.md) | [implementation_summary_v2.7_badges_pdf.md](docs/implementation_summary_v2.7_badges_pdf.md) |
+| v2.7.5 | [spec_v2.7.5_katex_rendering.md](docs/spec_v2.7.5_katex_rendering.md) | [implementation_summary_v2.7.5_katex_rendering.md](docs/implementation_summary_v2.7.5_katex_rendering.md) |
+| v2.8 | [spec_v2.8_production_dockerization.md](docs/spec_v2.8_production_dockerization.md) | [implementation_summary_v2.8_production_dockerization.md](docs/implementation_summary_v2.8_production_dockerization.md) |
+| v3.0 | [spec_v3.0_devops_script.md](docs/spec_v3.0_devops_script.md) | — (DevOps CLI) |
+| v3.1 | [spec_v3.1_cli_redesign.md](docs/spec_v3.1_cli_redesign.md) | — (CLI redesign) |
+| v3.2 | [spec_v3.2_database_backup_restore.md](docs/spec_v3.2_database_backup_restore.md) | — (DB backup/restore) |
+| v3.3 | [spec_v3.3_otel_monitoring.md](docs/spec_v3.3_otel_monitoring.md) | *planned — not yet implemented* |
 
-- `python-app/README.md`
-- `python-app/AI_INSTRUCTIONS.md`
-- `python-app/docs/requirements.md`
-- `python-app/docs/design.md`
-- `python-app/docs/tasks.md`
+### Architecture & Stack Exploration
 
-### Cross-project specs
+| Document | Description |
+|---|---|
+| [spec_python_fullstack_frontends.md](docs/spec_python_fullstack_frontends.md) | Full-stack architecture with Python backend and multiple frontends |
+| [spec_react_fastapi.md](docs/spec_react_fastapi.md) | React + FastAPI stack exploration |
+| [spec_react_laravel_chakra.md](docs/spec_react_laravel_chakra.md) | React + Laravel stack (replaced by Angular + FastAPI) |
+| [spec_svelte_fastapi.md](docs/spec_svelte_fastapi.md) | Svelte + FastAPI stack (planned) |
+| [multiproject_repo_spec.md](docs/multiproject_repo_spec.md) | Monorepo strategy and shared DB guidance |
+| [tech_stack_and_folder_structure.md](docs/tech_stack_and_folder_structure.md) | Tech stack overview and folder layout |
 
-- `openmath_python_quiz_spec.md` — OpenMath Python console quiz spec (multiplication-first)
-- `openmath_nuxt4_drizzle_reka_spec.md` — OpenMath Nuxt full-stack spec + Reka UI spec
-- `openmath_react_laravel_chakra_spec.md` — legacy React + Laravel spec (replaced by Angular + FastAPI direction)
-- `multiproject_repo_spec.md` — monorepo strategy and shared DB guidance
-- `win11_dev_assistant_nuxt4_spec.md` — Win11 visibility-first assistant spec for Nuxt workflows
+### Guides & References
 
-## Nuxt Quick Start
+| Document | Description |
+|---|---|
+| [production_operations_guide.md](docs/production_operations_guide.md) | Production deployment and operations |
+| [google_sso_config_guide.md](docs/google_sso_config_guide.md) | Google SSO configuration |
+| [frontend_ui_ecosystem_guide.md](docs/frontend_ui_ecosystem_guide.md) | Frontend UI framework comparison |
+| [dev_ps1_nuxt4_step_by_step.md](docs/dev_ps1_nuxt4_step_by_step.md) | Dev assistant step-by-step for Nuxt |
+| [spec_win11_dev_assistant_nuxt4.md](docs/spec_win11_dev_assistant_nuxt4.md) | Win11 dev assistant spec |
+| [source_context_v2.md](docs/source_context_v2.md) | Source context for AI assistants |
 
-From repository root:
+### AI & Model Notes
+
+| Document | Description |
+|---|---|
+| [claude_code_lessons.md](docs/claude_code_lessons.md) | Lessons learned using Claude Code |
+| [model_recommendation_claude_opus_4.6.md](docs/model_recommendation_claude_opus_4.6.md) | Claude Opus 4.6 recommendation |
+| [model_recommendation_chatgpt5.3.md](docs/model_recommendation_chatgpt5.3.md) | ChatGPT 5.3 recommendation |
+| [model_recommendations_compared.md](docs/model_recommendations_compared.md) | AI model comparison |
+
+---
+
+## Quick Start
+
+### Production (Docker Compose)
 
 ```powershell
-Set-Location "c:\Users\attila\Desktop\Code\openmath\nuxt-app"
+cd c:\Users\attila\Desktop\Code\openmath
+python dev.py          # Launch the DevOps CLI
+# Select: Production → Up
+```
+
+### Development
+
+```powershell
+cd c:\Users\attila\Desktop\Code\openmath
+python dev.py          # Launch the DevOps CLI
+# Select: Development → Start API / Start Angular
+```
+
+### Nuxt Frontend (alternative)
+
+```powershell
+cd c:\Users\attila\Desktop\Code\openmath\nuxt-app
 pnpm install
 pnpm dev
 ```
 
-Then open the Nuxt URL shown in terminal (typically `http://localhost:3000`).
-
-## Dev Assistant (Win11)
-
-Use root script `dev.ps1` to run visible, prompt-driven workflows.
-
-### Common modes
+### Python CLI
 
 ```powershell
-Set-Location "c:\Users\attila\Desktop\Code\openmath"
-.\dev.ps1
-.\dev.ps1 doctor
-.\dev.ps1 migrate-db
-.\dev.ps1 validate-nuxt
-.\dev.ps1 build-nuxt
-.\dev.ps1 up-nuxt
-```
-
-For non-interactive diagnostics:
-
-```powershell
-Set-Location "c:\Users\attila\Desktop\Code\openmath"
-.\dev.ps1 doctor -AutoApprove
-```
-
-### Logs and run artifacts
-
-Each run writes to:
-
-- `.dev-assistant/logs/<timestamp>/run.log`
-- `.dev-assistant/logs/<timestamp>/errors.log`
-- `.dev-assistant/logs/<timestamp>/summary.json`
-
-## Quick Start (Python App)
-
-Use Python 3 from repository root:
-
-```powershell
-Set-Location "c:\Users\attila\Desktop\Code\openmath\python-app"
+cd c:\Users\attila\Desktop\Code\openmath\python-app
 python src/main.py
 ```
+
+---
+
+## Repository Structure
+
+```
+openmath/
+├── angular-app/       # Angular 18 + PrimeNG frontend
+├── python-api/        # FastAPI backend
+├── nuxt-app/          # Nuxt 4 + Vue 3 frontend (maintained)
+├── python-app/        # Python CLI quiz app
+├── db/                # Shared PostgreSQL migrations & seeds
+├── devops/            # DevOps CLI (dev.py)
+├── docs/              # All specs and implementation summaries
+├── assets/images/     # Screenshots by version
+├── docker-compose.yml         # Development stack
+├── docker-compose.prod.yml    # Production stack
+├── dev.py             # DevOps CLI entry point
+└── dev.ps1            # Legacy PowerShell dev assistant
+```
+
+All implementations share the same PostgreSQL database schema via canonical SQL migrations in `db/migrations/`.
+
+---
+
+## Previous Release Screenshots
+
+<details>
+<summary><strong>v2.0 — Angular + FastAPI + PrimeNG</strong></summary>
+
+Of all the implementations in this repository, **v2.0 was the first polished web release**. The Angular + PrimeNG combination produces a clean, professional UI — the Lara Light Blue theme, fluid PrimeFlex layouts, and reactive signal-based state give it a coherence the other stacks don't match visually. FastAPI with asyncpg is rock solid on the backend.
+
+#### Frontend
+
+![Start page](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_start.JPG)
+![Quiz page](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_quiz.JPG)
+![Session detail](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_session.JPG)
+![History](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_history.JPG)
+![Profile](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_profile.JPG)
+![User Guide](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_guide.JPG)
+![Admin](assets/images/v2.0_Angular_FastAPI_PrimeNG/fe_admin.JPG)
+
+#### Backend & Database
+
+![Swagger UI](assets/images/v2.0_Angular_FastAPI_PrimeNG/be_api_swagger.JPG)
+![Questions JSONB](assets/images/v2.0_Angular_FastAPI_PrimeNG/db_question.JPG)
+![Answers JSONB](assets/images/v2.0_Angular_FastAPI_PrimeNG/db_answer.JPG)
+
+#### Dev Tooling
+
+![dev.ps1](assets/images/v2.0_Angular_FastAPI_PrimeNG/dev_ps1.JPG)
+![ng serve](assets/images/v2.0_Angular_FastAPI_PrimeNG/dev_ng_serve.JPG)
+![API logs](assets/images/v2.0_Angular_FastAPI_PrimeNG/dev_api_logs.JPG)
+
+</details>
+
+<details>
+<summary><strong>v1.5 — Nuxt + Nitro + Drizzle</strong></summary>
+
+![Start page](assets/images/v1.5/main.JPG)
+![Runtime](assets/images/v1.5/nuxt_nitro_vite_vue.JPG)
+![Session detail](assets/images/v1.5/history_session.JPG)
+![History](assets/images/v1.5/history.JPG)
+![Profile](assets/images/v1.5/profile.JPG)
+![DB Statistics](assets/images/v1.5/dbstats.JPG)
+![pgAdmin](assets/images/v1.5/pgadmin.JPG)
+![Docker](assets/images/v1.5/docker.JPG)
+![Dev assistant](assets/images/v1.5/dev.JPG)
+
+</details>
+
+<details>
+<summary><strong>v1.5 — Python CLI</strong></summary>
+
+![Main menu](assets/images/v1.5_CLI/main_menu.JPG)
+![Start quiz](assets/images/v1.5_CLI/start_quiz.JPG)
+![Active student](assets/images/v1.5_CLI/active_student.JPG)
+![History](assets/images/v1.5_CLI/history.JPG)
+![Profile](assets/images/v1.5_CLI/profile.JPG)
+
+</details>
+
+---
 
 ## License
 

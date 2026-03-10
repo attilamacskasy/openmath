@@ -10,7 +10,7 @@ from devops.components.database import db_build, db_init, db_migrations, db_star
 from devops.components.fastapi import fastapi_init, fastapi_start, fastapi_status, fastapi_stop
 from devops.components.nuxt import nuxt_build, nuxt_init, nuxt_start, nuxt_status, nuxt_stop, nuxt_validate
 from devops.components.quickstart import dev_quick_start, dev_quick_stop
-from devops.ui.banner import clear_screen, show_banner
+from devops.ui.banner import clear_screen, show_banner, wait_for_key
 from devops.ui.theme import CYAN, DIM, GREEN, RED, RESET, YELLOW, THEME
 
 
@@ -129,6 +129,7 @@ def show_dev_menu() -> None:
                 instruction="",
                 long_instruction="↑/↓ navigate · Enter select · Esc back",
                 mandatory=False,
+                keybindings={"skip": [{"key": "escape"}]},
             ).execute()
         except (KeyboardInterrupt, EOFError):
             choice = None
@@ -144,3 +145,4 @@ def show_dev_menu() -> None:
             except Exception as exc:
                 _last_status = f"❌ Error: {exc}"
                 print(f"\033[91mError: {exc}\033[0m")
+            wait_for_key()

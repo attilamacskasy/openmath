@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: openmath-postgres
+    container_name: openmath-local-dev-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-quiz}
@@ -10,11 +10,11 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - openmath-local-dev-pgdata:/var/lib/postgresql/data
 
   adminer:
     image: adminer:4
-    container_name: openmath-adminer
+    container_name: openmath-local-dev-adminer
     restart: unless-stopped
     depends_on:
       - postgres
@@ -22,4 +22,4 @@ services:
       - "8080:8080"
 
 volumes:
-  pg_data:
+  openmath-local-dev-pgdata:

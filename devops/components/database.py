@@ -43,7 +43,7 @@ def db_init() -> None:
 def db_build() -> None:
     state = get_state()
     invoke_flow("DB-BUILD", [
-        {"name": "Docker Compose Build", "command": "docker compose build",
+        {"name": "Docker Compose Build", "command": "docker compose --env-file .env.dev build",
          "cwd": str(state.repo_root), "reason": "Build/pull database container images.",
          "expected": "Images pulled/built successfully.", "required": True},
     ])
@@ -52,7 +52,7 @@ def db_build() -> None:
 def db_start() -> None:
     state = get_state()
     invoke_flow("DB-START", [
-        {"name": "DB Start", "command": "docker compose up -d",
+        {"name": "DB Start", "command": "docker compose --env-file .env.dev up -d",
          "cwd": str(state.repo_root), "reason": "Start PostgreSQL and Adminer containers.",
          "expected": "Containers running.", "required": True},
     ])
@@ -81,7 +81,7 @@ def db_migrations() -> None:
 def db_stop() -> None:
     state = get_state()
     invoke_flow("DB-STOP", [
-        {"name": "DB Stop", "command": "docker compose down",
+        {"name": "DB Stop", "command": "docker compose --env-file .env.dev down",
          "cwd": str(state.repo_root), "reason": "Stop database containers.",
          "expected": "Containers stopped.", "required": True},
     ])

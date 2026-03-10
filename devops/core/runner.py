@@ -91,6 +91,8 @@ def run_logged(label: str, command: str, cwd: str) -> dict[str, Any]:
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
+            encoding="utf-8",
+            errors="replace",
         )
         assert proc.stdout is not None
         for raw_line in proc.stdout:

@@ -84,8 +84,8 @@ DATABASE_URL=postgres://quiz:quiz@localhost:5432/quiz
 ```powershell
 Set-Location "c:\Users\attila\Desktop\Code\openmath"
 docker compose up -d
-Get-Content -Raw ".\db\migrations\0001_init.sql" | docker exec -i openmath-postgres psql -U quiz -d quiz -v ON_ERROR_STOP=1
-docker exec openmath-postgres psql -U quiz -d quiz -c "SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;"
+Get-Content -Raw ".\db\migrations\0001_init.sql" | docker exec -i openmath-local-dev-db psql -U quiz -d quiz -v ON_ERROR_STOP=1
+docker exec openmath-local-dev-db psql -U quiz -d quiz -c "SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;"
 ```
 
 **Expected:**

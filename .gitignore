@@ -16,6 +16,7 @@ __pycache__/
 venv/
 .env
 .env.*
+!.env.*.example
 .pytest_cache/
 .mypy_cache/
 
@@ -34,5 +35,8 @@ Thumbs.db
 
 # Project helper artifacts
 .dev-assistant/
+
+# Database backups
+backups/*.sql.gz
  # Claude Code worktrees and config
 .claude/
