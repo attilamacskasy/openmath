@@ -184,6 +184,9 @@ interface UserRow {
               [placeholder]="t('profile.dateFormat')"
               styleClass="w-full"
             ></p-calendar>
+            @if (dialogBirthdayTooYoung) {
+              <small class="text-red-500">{{ t('auth.mustBeAtLeast4') }}</small>
+            }
           </div>
           <div class="flex flex-column gap-1 flex-1">
             <label class="font-semibold">{{ t('profile.gender') }}</label>
@@ -233,6 +236,7 @@ interface UserRow {
           icon="pi pi-check"
           (onClick)="saveUser()"
           [loading]="dialogSaving()"
+          [disabled]="dialogBirthdayTooYoung"
         ></p-button>
       </ng-template>
     </p-dialog>
@@ -294,6 +298,7 @@ export class UserAdminComponent implements OnInit {
   newPassword = '';
 
   maxDate = new Date();
+  minAgeDate = new Date(new Date().getFullYear() - 4, new Date().getMonth(), new Date().getDate());
   timetableRange = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   get genderOptions() {
     return [
@@ -325,6 +330,11 @@ export class UserAdminComponent implements OnInit {
       },
       error: () => this.loading.set(false),
     });
+  }
+
+  get dialogBirthdayTooYoung(): boolean {
+    if (!this.dialogBirthday) return false;
+    return this.dialogBirthday > this.minAgeDate;
   }
 
   calculateAge(birthday: string | null): number | null {
@@ -379,7 +389,7 @@ export class UserAdminComponent implements OnInit {
         .updateUser(this.editingUser.id, {
           name: this.dialogName.trim(),
           age,
-          gender: this.dialogGender,
+          gender: this.dialogGender || null,
           learned_timetables: this.dialogTimetables,
           birthday: birthdayStr,
           email: this.dialogEmail.trim() || null,

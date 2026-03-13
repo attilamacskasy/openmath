@@ -74,6 +74,9 @@ async def patch_user(
             birthday = date.fromisoformat(body.birthday)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid birthday format (use YYYY-MM-DD)")
+        computed_age = calculate_age(birthday)
+        if computed_age is not None and computed_age < 4:
+            raise HTTPException(status_code=400, detail="User must be at least 4 years old")
 
     updated = await update_user_profile_v2(
         user_id,
@@ -102,6 +105,9 @@ async def create_user(
             birthday = date.fromisoformat(body.birthday)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid birthday format")
+        computed_age = calculate_age(birthday)
+        if computed_age is not None and computed_age < 4:
+            raise HTTPException(status_code=400, detail="User must be at least 4 years old")
 
     pw_hash = hash_password(body.password)
     timetables = body.learnedTimetables or [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]

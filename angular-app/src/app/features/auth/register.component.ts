@@ -116,6 +116,9 @@ import { LocaleService } from '../../core/services/locale.service';
                 placeholder="YYYY-MM-DD"
                 styleClass="w-full"
               ></p-calendar>
+              @if (birthdayTooYoung) {
+                <small class="text-red-500">{{ t('auth.mustBeAtLeast4') }}</small>
+              }
             </div>
             <div class="flex flex-column gap-1 flex-1">
               <label for="gender" class="font-semibold">{{ t('auth.gender') }}</label>
@@ -194,6 +197,7 @@ export class RegisterComponent {
   errorMessage = signal('');
 
   maxDate = new Date();
+  minAgeDate = new Date(new Date().getFullYear() - 4, new Date().getMonth(), new Date().getDate());
   timetableRange = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
   localeOptions = [
@@ -211,12 +215,18 @@ export class RegisterComponent {
     ];
   }
 
+  get birthdayTooYoung(): boolean {
+    if (!this.birthday) return false;
+    return this.birthday > this.minAgeDate;
+  }
+
   canRegister(): boolean {
     return !!(
       this.name.trim() &&
       this.email.trim() &&
       this.password.length >= 6 &&
-      this.learnedTimetables.length > 0
+      this.learnedTimetables.length > 0 &&
+      !this.birthdayTooYoung
     );
   }
 

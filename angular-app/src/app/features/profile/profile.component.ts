@@ -148,6 +148,9 @@ import { Badge, UserBadge, TimetableMastery } from '../../models/badge.model';
                     [placeholder]="t('profile.selectDate')"
                     styleClass="w-full"
                   ></p-calendar>
+                  @if (birthdayTooYoung) {
+                    <small class="text-red-500">{{ t('auth.mustBeAtLeast4') }}</small>
+                  }
                 </div>
                 <div class="flex flex-column gap-1 flex-1">
                   <label class="font-semibold">{{ t('profile.age') }}</label>
@@ -193,7 +196,7 @@ import { Badge, UserBadge, TimetableMastery } from '../../models/badge.model';
                 [label]="t('common.save')"
                 icon="pi pi-save"
                 (onClick)="save()"
-                [disabled]="saving() || !name.trim() || learnedTimetables.length === 0"
+                [disabled]="saving() || !name.trim() || learnedTimetables.length === 0 || birthdayTooYoung"
                 [loading]="saving()"
               ></p-button>
             </div>
@@ -327,6 +330,7 @@ export class ProfileComponent implements OnInit {
   locale = 'en';
   learnedTimetables: number[] = [];
   maxDate = new Date();
+  minAgeDate = new Date(new Date().getFullYear() - 4, new Date().getMonth(), new Date().getDate());
 
   timetableRange = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
@@ -354,6 +358,11 @@ export class ProfileComponent implements OnInit {
       age--;
     }
     return String(age);
+  }
+
+  get birthdayTooYoung(): boolean {
+    if (!this.birthday) return false;
+    return this.birthday > this.minAgeDate;
   }
 
   get providerTagLabel(): string {
@@ -455,7 +464,7 @@ export class ProfileComponent implements OnInit {
       .updateUser(user.id, {
         name: this.name.trim(),
         age,
-        gender: this.gender,
+        gender: this.gender || null,
         locale: this.locale,
         learned_timetables: this.learnedTimetables,
         birthday: birthdayStr,

@@ -88,6 +88,9 @@ async def register(body: RegisterRequest) -> AuthResponse:
             birthday = date.fromisoformat(body.birthday)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid birthday format (use YYYY-MM-DD)")
+        age = calculate_age(birthday)
+        if age is not None and age < 4:
+            raise HTTPException(status_code=400, detail="User must be at least 4 years old")
 
     pw_hash = hash_password(body.password)
     timetables = body.learnedTimetables or [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]

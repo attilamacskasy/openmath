@@ -52,6 +52,7 @@
   "auth.signInWithGoogle": "Bejelentkezés Google fiókkal",
   "auth.orSeparator": "vagy",
   "auth.registrationFailed": "A regisztráció sikertelen",
+  "auth.mustBeAtLeast4": "A felhasználónak legalább 4 évesnek kell lennie",
   "auth.loginFailed": "Sikertelen bejelentkezés",
   "auth.invalidCredentials": "Hibás e-mail cím vagy jelszó",
 

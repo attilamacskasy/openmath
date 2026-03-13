@@ -52,6 +52,7 @@
   "auth.signInWithGoogle": "Sign in with Google",
   "auth.orSeparator": "or",
   "auth.registrationFailed": "Registration failed",
+  "auth.mustBeAtLeast4": "User must be at least 4 years old",
   "auth.loginFailed": "Login failed",
   "auth.invalidCredentials": "Invalid email or password",
 

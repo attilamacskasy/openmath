@@ -1,6 +1,6 @@
 """Pydantic schemas for authentication."""
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class RegisterRequest(BaseModel):
@@ -63,6 +63,13 @@ class AdminCreateUserRequest(BaseModel):
     locale: str = Field(default="en", pattern=r"^(en|hu)$")
 
     model_config = {"populate_by_name": True}
+
+    @field_validator("gender", mode="before")
+    @classmethod
+    def empty_gender_to_none(cls, v: str | None) -> str | None:
+        if isinstance(v, str) and v.strip() == "":
+            return None
+        return v
 
 
 class ReviewRequest(BaseModel):

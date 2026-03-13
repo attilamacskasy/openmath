@@ -3,7 +3,7 @@
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class UserListItem(BaseModel):
@@ -46,6 +46,14 @@ class UpdateUserRequest(BaseModel):
     birthday: str | None = None  # ISO date string YYYY-MM-DD
     email: str | None = None
     locale: str | None = Field(default=None, pattern=r"^(en|hu)$")
+
+    @field_validator("gender", mode="before")
+    @classmethod
+    def empty_gender_to_none(cls, v: str | None) -> str | None:
+        """Treat empty string as None so the pattern validator doesn't reject it."""
+        if isinstance(v, str) and v.strip() == "":
+            return None
+        return v
 
 
 class UserOut(BaseModel):
