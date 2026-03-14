@@ -636,4 +636,69 @@ CI/CD events should feed into the OTEL monitoring stack (see observability roadm
 | CI/CD events → Grafana | **Observability roadmap** | OTEL stack must be running |
 | Backup automation | **DB backup spec (v3.2)** | Builds on existing `dev.py` backup logic |
 | Registry images | **Production dockerization (v2.8)** | Dockerfiles must exist |
+| WebSocket drain on deploy | **v4.0 Multiplayer** | GameManager must handle SIGTERM gracefully |
+
+---
+
+## 16. Multiplayer Deployment Impact (v4.0)
+
+> Cross-reference: `spec_v4.0_multiplayer.md` Section 13.7
+
+The v4.0 multiplayer mode introduces persistent WebSocket connections and
+in-memory game state in `python-api`. This affects both the deployment
+strategy and the migration pipeline.
+
+### 16.1 Graceful WebSocket drain on deploy
+
+The current `docker compose up -d` restarts `python-api`, immediately
+killing all active WebSocket connections and destroying in-memory game state.
+Players in active games see a silent disconnection with no explanation.
+
+**Required design:** The `GameManager` must handle `SIGTERM`:
+
+1. Set `accepting_new_games = False`
+2. Broadcast `game_ended` with reason `"server_restart"` to all active games
+3. Wait 10 seconds for clients to receive the message
+4. Exit cleanly
+
+The deploy script should account for this drain period:
+
+```bash
+# Deploy with WebSocket drain
+docker compose stop -t 15 python-api   # send SIGTERM, wait 15s
+docker compose pull python-api
+docker compose up -d python-api
+```
+
+### 16.2 Database migrations
+
+The multiplayer spec adds 5 new tables. The migration file should follow
+the existing `db/migrations/NNN_description.sql` pattern:
+
+```
+db/migrations/015_multiplayer_tables.sql
+```
+
+All `CREATE TABLE` statements must be idempotent (`IF NOT EXISTS`) so
+CI/CD re-runs and rollback+retry sequences do not fail.
+
+### 16.3 CI/CD pipeline additions
+
+- Add `pytest -m websocket` stage to run WebSocket-specific tests
+- Add post-deploy health check for WebSocket capability:
+
+```bash
+# Post-deploy WebSocket health check
+curl -s -o /dev/null -w "%{http_code}" \
+  -H "Connection: Upgrade" -H "Upgrade: websocket" \
+  http://localhost:8000/ws/health
+# Expected: 101 (switching protocols) or a dedicated HTTP health endpoint
+```
+
+### 16.4 Rollback considerations
+
+If a multiplayer deploy fails and rollback is needed, the 5 new tables
+may already contain data from games played between deploy and rollback.
+The rollback procedure should **not** drop the multiplayer tables — they
+are additive and do not conflict with the pre-multiplayer schema.
 

@@ -954,3 +954,67 @@ It enables administrators to understand in real time:
 - how usage patterns evolve over time
 
 This design extends the Docker-based OpenMath deployment with a practical and modern monitoring foundation while remaining portable for future infrastructure evolution.
+
+---
+
+# 30. Multiplayer Telemetry Impact (v4.0)
+
+> Cross-reference: `spec_v4.0_multiplayer.md` Section 13.8
+
+The v4.0 multiplayer mode adds WebSocket connections and real-time game
+state management. All multiplayer events must use the same OTEL structured
+log format defined in Section 11 (17 fields: timestamp, severity, service,
+trace_id, user_id, etc.).
+
+## 30.1 New Event Types
+
+Add to the event type list in Section 11.2:
+
+- `multiplayer.game.created` — host creates a new game
+- `multiplayer.game.started` — countdown begins, game transitions to playing
+- `multiplayer.game.completed` — all players finished all questions
+- `multiplayer.game.ended` — host manually ends game or server shuts down
+- `multiplayer.player.joined` — player joins a game lobby
+- `multiplayer.player.left` — player disconnects or leaves voluntarily
+- `multiplayer.answer.submitted` — player submits an answer (DEBUG level)
+- `multiplayer.chat.sent` — chat message sent (DEBUG level)
+- `multiplayer.ws.connected` — WebSocket connection established
+- `multiplayer.ws.disconnected` — WebSocket connection closed
+- `multiplayer.ws.error` — WebSocket error (auth failure, protocol error)
+
+## 30.2 New Prometheus Metrics
+
+Add to the metrics requirements in Section 12:
+
+| Metric | Type | Description |
+|---|---|---|
+| `multiplayer_games_active` | Gauge | Currently active games (status != ended) |
+| `multiplayer_players_connected` | Gauge | Total WebSocket connections open |
+| `multiplayer_games_created_total` | Counter | Games created (lifetime) |
+| `multiplayer_games_completed_total` | Counter | Games that reached completion |
+| `multiplayer_answers_per_second` | Histogram | Answer submission rate |
+| `multiplayer_ws_message_latency_ms` | Histogram | WebSocket message round-trip time |
+
+Use the same `prometheus_client` library defined in the observability stack —
+do not introduce a second metrics library.
+
+## 30.3 Grafana Dashboard Additions
+
+Add a **"Multiplayer Operations"** row to the Quiz Operations dashboard:
+
+| Panel | Visualization | Metric source |
+|---|---|---|
+| Active games | Stat (gauge) | `multiplayer_games_active` |
+| Players connected | Stat (gauge) | `multiplayer_players_connected` |
+| Games created/hr | Time series | `rate(multiplayer_games_created_total[1h])` |
+| Games completed/hr | Time series | `rate(multiplayer_games_completed_total[1h])` |
+| WS connections | Time series | `multiplayer_players_connected` over time |
+| Message latency p95 | Time series | `histogram_quantile(0.95, multiplayer_ws_message_latency_ms)` |
+
+## 30.4 Alert Rules
+
+| Alert | Condition | Severity |
+|---|---|---|
+| High WS connection count | `multiplayer_players_connected > 200` | Warning |
+| Game completion rate drop | `rate(completed) / rate(created) < 0.5` for 30m | Warning |
+| WS message latency spike | `p95 > 500ms` for 5m | Critical |

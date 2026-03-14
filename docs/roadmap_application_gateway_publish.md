@@ -612,3 +612,59 @@ docker restart traefik
 - [ ] Router firewall only forwards ports 80 and 443
 - [ ] `.env.prod` `CORS_ORIGINS` matches the public domain exactly
 - [ ] Google OAuth redirect URI updated to `https://openmath.hu/…`
+
+---
+
+## 12. Multiplayer WebSocket Impact (v4.0)
+
+> Cross-reference: `spec_v4.0_multiplayer.md` Section 13.5
+
+The v4.0 multiplayer mode adds a WebSocket endpoint (`/ws/game/{code}`) that
+requires HTTP upgrade support at every proxy layer in the request chain.
+
+### nginx — WebSocket location block (required)
+
+The existing `angular-app/nginx.conf` proxies `/api/*` to `python-api:8000`.
+A new location block is needed for WebSocket traffic:
+
+```nginx
+# angular-app/nginx.conf — add alongside /api/ block
+location /ws/ {
+    proxy_pass         http://python-api:8000;
+    proxy_http_version 1.1;
+    proxy_set_header   Upgrade $http_upgrade;
+    proxy_set_header   Connection "upgrade";
+    proxy_set_header   Host $host;
+    proxy_set_header   X-Real-IP $remote_addr;
+    proxy_read_timeout 3600s;   # 1 hour — keep WS alive through full game
+    proxy_send_timeout 3600s;
+}
+```
+
+Without this block, WebSocket upgrade requests will be handled as regular
+HTTP and fail with a 400 or 502 response.
+
+### Traefik — idle timeout tuning
+
+Traefik v3 handles WebSocket natively (no middleware needed), but the default
+`respondingTimeouts.idleTimeout` (180 seconds) will kill idle WebSocket
+connections. A multiplayer game can last 30+ minutes.
+
+**Action:** Set `idleTimeout: 3600` for the `python-api` service router,
+or increase the global default:
+
+```yaml
+# traefik.yml — add under entryPoints.websecure
+entryPoints:
+  websecure:
+    address: ":443"
+    transport:
+      respondingTimeouts:
+        idleTimeout: 3600s
+```
+
+### Checklist additions
+
+- [ ] nginx `/ws/` location block with upgrade headers added
+- [ ] Traefik idle timeout increased to 3600s for WebSocket support
+- [ ] Full proxy chain tested: browser → Traefik → nginx → python-api (WS)

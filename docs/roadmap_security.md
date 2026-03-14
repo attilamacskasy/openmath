@@ -713,3 +713,72 @@ a data source, giving operators a single-pane view.
 - [ ] Wazuh alerts → Grafana (cross-feed)
 - [ ] Password complexity policy enforcement
 - [ ] Automated security regression testing
+
+---
+
+## Multiplayer WebSocket Security Impact (v4.0)
+
+> Cross-reference: `spec_v4.0_multiplayer.md` Section 13.9
+
+The v4.0 multiplayer mode introduces persistent WebSocket connections that
+intersect with several security measures defined above.
+
+### Rate limiting — WebSocket exemption
+
+The `slowapi` middleware at `30/min` (auth) and `100/min` (general) applies
+to HTTP requests. WebSocket upgrade requests are standard HTTP GETs and will
+count against these limits.
+
+**Required:** Apply a separate, higher rate limit for WebSocket upgrades:
+
+```python
+@limiter.limit("10/minute")
+async def game_websocket(websocket: WebSocket, game_code: str):
+    ...
+```
+
+This prevents connection-flood attacks while allowing legitimate rapid
+reconnects (e.g., player disconnects and rejoins within seconds).
+
+Once the WebSocket is established, rate limiting shifts to the application
+layer: the `GameManager` enforces 500ms minimum between answer submissions.
+
+### CSP — WebSocket scheme
+
+The CSP `connect-src 'self' https://accounts.google.com` should already
+cover same-origin `wss://` connections (since `'self'` includes matching
+scheme upgrades). **Verify this during integration testing.** If browsers
+block `wss://` connections:
+
+```nginx
+connect-src 'self' https://accounts.google.com wss://openmath.hu;
+```
+
+### JWT on persistent WebSocket connections
+
+The 15-minute access token conflicts with multiplayer games that can last
+30+ minutes. The multiplayer spec resolves this by:
+
+- Validating JWT at WebSocket **connection time only**
+- Keeping the WebSocket authenticated for the connection lifetime
+- Requiring re-authentication only on **reconnect** after disconnection
+
+This is documented in `spec_v4.0_multiplayer.md` Section 13.9. No changes
+to the JWT configuration are needed — the WebSocket endpoint simply does
+not enforce token refresh mid-connection.
+
+### Wazuh — WebSocket abuse detection rules
+
+| Rule | Trigger | Severity |
+|---|---|---|
+| WS connection flood | > 20 WS connects from same IP in 1 minute | Medium |
+| Chat spam | > 10 chat messages from same user in 30 seconds | Low |
+| Rapid game creation | > 5 games created by same user in 5 minutes | Medium |
+| Invalid WS auth | > 5 failed WS auth attempts from same IP | High |
+
+### Security checklist additions
+
+- [ ] WebSocket upgrade rate limit configured (10/min/IP)
+- [ ] CSP `connect-src` verified for `wss://` connections
+- [ ] WebSocket JWT validated at connection time only (no mid-game expiry)
+- [ ] Wazuh rules for WS connection flood, chat spam, invalid auth

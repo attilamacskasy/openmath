@@ -829,3 +829,157 @@ jobs:
 | Frontend unit | **60%** | Focus on components with business logic |
 | E2E | **5 core flows** | Login, register, quiz, admin CRUD, profile |
 | Load test baseline | Documented p95 at 50 VUs | Know the performance ceiling before going public |
+
+---
+
+## 10. Multiplayer WebSocket Testing (v4.0)
+
+> Cross-reference: `spec_v4.0_multiplayer.md` Section 13.6
+
+The v4.0 multiplayer mode adds 2 new router modules (`multiplayer.py` REST +
+`multiplayer_ws.py` WebSocket), increasing the API surface by ~20%.
+
+### 10.1 pytest — WebSocket fixtures
+
+The `httpx.AsyncClient` transport does not support WebSocket. Add a
+Starlette `TestClient` fixture specifically for multiplayer tests:
+
+```python
+# python-api/tests/conftest.py — add alongside existing fixtures
+from starlette.testclient import TestClient
+
+@pytest.fixture
+def ws_client(app):
+    """Synchronous WebSocket test client for multiplayer endpoints."""
+    with TestClient(app) as client:
+        yield client
+```
+
+Example WebSocket test:
+
+```python
+# python-api/tests/test_multiplayer_ws.py
+import pytest
+
+def test_join_game_lobby(ws_client, auth_token):
+    with ws_client.websocket_connect(
+        f"/ws/game/TEST-123?token={auth_token}"
+    ) as ws:
+        ws.send_json({"type": "player_ready", "payload": {"ready": True}})
+        data = ws.receive_json()
+        assert data["type"] == "player_ready_changed"
+
+def test_ws_rejects_invalid_token(ws_client):
+    with pytest.raises(Exception):
+        with ws_client.websocket_connect(
+            "/ws/game/TEST-123?token=invalid"
+        ) as ws:
+            pass
+```
+
+Use the `@pytest.mark.websocket` marker so WebSocket tests can be run
+independently: `pytest -m websocket`.
+
+### 10.2 Playwright — multi-client multiplayer E2E
+
+Multiplayer E2E tests require **multiple browser contexts** connected to
+the same game simultaneously:
+
+```typescript
+// angular-app/e2e/multiplayer.spec.ts
+import { test, expect } from '@playwright/test';
+
+test('3-player game completes with correct scoring', async ({ browser }) => {
+  // Create isolated browser contexts (each with its own cookies/storage)
+  const hostCtx = await browser.newContext();
+  const p1Ctx = await browser.newContext();
+  const p2Ctx = await browser.newContext();
+
+  const host = await hostCtx.newPage();
+  const player1 = await p1Ctx.newPage();
+  const player2 = await p2Ctx.newPage();
+
+  // Host creates game
+  await host.goto('/multiplayer/create');
+  await host.fill('[data-testid="game-settings-questions"]', '5');
+  await host.click('[data-testid="create-game-btn"]');
+  const gameCode = await host.locator('[data-testid="game-code"]').textContent();
+
+  // Players join
+  await player1.goto('/multiplayer/join');
+  await player1.fill('[data-testid="join-code"]', gameCode);
+  await player1.click('[data-testid="join-btn"]');
+
+  await player2.goto('/multiplayer/join');
+  await player2.fill('[data-testid="join-code"]', gameCode);
+  await player2.click('[data-testid="join-btn"]');
+
+  // All ready → host starts → game plays → results appear
+  // ... (full flow)
+
+  // Cleanup
+  await hostCtx.close();
+  await p1Ctx.close();
+  await p2Ctx.close();
+});
+```
+
+### 10.3 k6 — WebSocket load scenario
+
+k6 supports WebSocket natively via `import ws from 'k6/ws'`. Add a scenario
+to measure multiplayer capacity:
+
+```javascript
+// k6/multiplayer-ws-load.js
+import ws from 'k6/ws';
+import { check } from 'k6';
+
+export const options = {
+  scenarios: {
+    multiplayer_games: {
+      executor: 'ramping-vus',
+      startVUs: 0,
+      stages: [
+        { duration: '30s', target: 50 },   // ramp to 50 WS connections
+        { duration: '2m',  target: 50 },   // hold
+        { duration: '30s', target: 0 },    // ramp down
+      ],
+    },
+  },
+  thresholds: {
+    ws_connecting: ['p(95)<500'],           // WS handshake < 500ms
+    ws_msgs_received: ['count>100'],        // received game updates
+  },
+};
+
+export default function () {
+  const url = `wss://${__ENV.HOST}/ws/game/${__ENV.GAME_CODE}?token=${__ENV.TOKEN}`;
+  const res = ws.connect(url, {}, function (socket) {
+    socket.on('open', () => {
+      socket.send(JSON.stringify({ type: 'player_ready', payload: { ready: true } }));
+    });
+    socket.on('message', (msg) => {
+      const data = JSON.parse(msg);
+      if (data.type === 'next_question') {
+        socket.send(JSON.stringify({
+          type: 'submit_answer', payload: { answer: 0 }
+        }));
+      }
+    });
+    socket.setTimeout(() => socket.close(), 180000);
+  });
+  check(res, { 'WS status 101': (r) => r && r.status === 101 });
+}
+```
+
+**Target capacity:** 10 simultaneous games × 5 players = 50 WebSocket
+connections with p95 message round-trip < 100ms.
+
+### 10.4 Updated coverage targets
+
+| Layer | Target | Notes |
+|---|---|---|
+| Multiplayer REST API | **80%** | Game CRUD, player management |
+| WebSocket protocol | **90%** | All 10 message types, error paths |
+| Multiplayer E2E | **1 core flow** | Create → join → play → results |
+| WebSocket load | Documented p95 at 50 WS connections | Baseline before production |

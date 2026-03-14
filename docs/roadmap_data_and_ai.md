@@ -356,3 +356,62 @@ Detect unusual spikes before they become outages. Feeds into Grafana alerts.
 - GPU-based deep learning — tabular quiz data fits classical ML
 - Multi-cluster observability — single Docker host
 - Managed cloud analytics (BigQuery, Snowflake) — self-hosted preference
+
+---
+
+## 10. Multiplayer Data Impact (v4.0)
+
+> Cross-reference: `spec_v4.0_multiplayer.md` Section 13.10
+
+The v4.0 multiplayer mode adds 5 new database tables (`multiplayer_games`,
+`multiplayer_players`, `multiplayer_answers`, `multiplayer_chat_messages`,
+`multiplayer_game_settings`) that provide a new data source for analytics
+and ML models.
+
+### 10.1 New analytical signals
+
+| Signal | Source table | ML model impact |
+|---|---|---|
+| Accuracy under competitive pressure | `multiplayer_answers` | Different from self-paced solo data — weight separately |
+| Engagement intensity | `multiplayer_players` (game count per user) | Strong signal for engagement prediction model |
+| Win/loss patterns | `multiplayer_games` (player rankings) | Inform adaptive difficulty differently than solo scores |
+| Time-to-answer under pressure | `multiplayer_answers` (time_taken_ms) | Competitive vs. solo response time comparison |
+| Social engagement | `multiplayer_chat_messages` | Proxy for student engagement level |
+
+### 10.2 Unified analytics view
+
+The existing analytics queries reference `quiz_sessions` and `answers`.
+Multiplayer data lives in separate tables. To avoid duplicating every
+analytics query, create a unified SQL view:
+
+```sql
+CREATE VIEW all_answers AS
+SELECT
+    a.id, a.user_id, a.question_id, a.is_correct,
+    a.time_taken_ms, 'single' AS mode,
+    qs.started_at AS session_time
+FROM answers a
+JOIN quiz_sessions qs ON a.session_id = qs.id
+UNION ALL
+SELECT
+    ma.id, mp.user_id, ma.question_id, ma.is_correct,
+    ma.time_taken_ms, 'multi' AS mode,
+    mg.started_at AS session_time
+FROM multiplayer_answers ma
+JOIN multiplayer_players mp ON ma.player_id = mp.id
+JOIN multiplayer_games mg ON mp.game_id = mg.id;
+```
+
+This allows ML models to include a `mode` feature and weight competitive
+vs. solo performance appropriately.
+
+### 10.3 DuckDB export update
+
+The nightly `pg_dump → DuckDB` pipeline must include the 5 new multiplayer
+tables. Update the export script to include:
+
+```bash
+pg_dump -U quiz -d quiz -t multiplayer_games -t multiplayer_players \
+  -t multiplayer_answers -t multiplayer_chat_messages \
+  -t multiplayer_game_settings --data-only | duckdb analytics.db
+```

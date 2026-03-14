@@ -163,6 +163,17 @@ previous, and the application remains functional at every stage.
 | **Phase 7** | On-Prem AI | Ollama running on GPU server, quiz feedback and hints powered by local LLMs |
 | **Phase 8** | Kubernetes & Helm | Docker Compose replaced by K8s cluster, Helm releases, auto-scaling, zero-downtime deploys |
 
+> **Cross-cutting feature: v4.0 Multiplayer (spec_v4.0_multiplayer.md)**
+> The real-time multiplayer mode (WebSocket, in-memory GameManager, 5 new DB
+> tables) intersects with most roadmap phases. Key impacts: nginx/Traefik need
+> WebSocket proxy config (Phase 1), pytest needs WS fixtures and Playwright
+> needs multi-context tests (Phase 2), CI/CD needs graceful WS drain on deploy
+> (Phase 3), OTEL needs multiplayer event types and metrics (Phase 4), slowapi
+> needs WS exemptions and CSP needs `wss://` verification (Phase 5), multiplayer
+> data feeds ML models (Phase 6), and Kubernetes HPA conflicts with in-memory
+> game state requiring a `GameBroadcaster` abstraction for future Redis pub/sub
+> (Phase 8). See Section 13.5–13.12 of the multiplayer spec for full details.
+
 ---
 
 ## Current Tech Stack
@@ -171,6 +182,7 @@ previous, and the application remains functional at every stage.
 |---|---|---|
 | **Frontend** | Angular 19 + PrimeNG + Tailwind CSS | Live |
 | **Backend** | FastAPI (Python) + asyncpg | Live |
+| **Real-time** | WebSocket (FastAPI native) | v4.0 — Multiplayer |
 | **Database** | PostgreSQL 16 | Live |
 | **Auth** | JWT + Google SSO + bcrypt | Live |
 | **Dev tooling** | `dev.py` CLI (InquirerPy) | Live |

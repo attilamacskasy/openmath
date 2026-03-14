@@ -520,6 +520,14 @@ pythonApi:
     minReplicas: 2
     maxReplicas: 8
     targetCPUUtilization: 70
+  # ── v4.0 Multiplayer: WebSocket support ──
+  # WARNING: In-memory GameManager state is NOT shared between pods.
+  # With HPA scaling, sticky sessions are the minimum requirement.
+  # For production-grade multi-pod multiplayer, add Redis (see below).
+  websocket:
+    enabled: true
+    idleTimeout: 3600           # seconds — keep WS alive through full game
+    stickySession: true         # Traefik cookie affinity for WS connections
   env:
     CORS_ORIGINS: "https://openmath.hu"
     JWT_ALGORITHM: "HS256"
@@ -554,6 +562,10 @@ ingress:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     traefik.ingress.kubernetes.io/router.tls: "true"
+    # v4.0 Multiplayer: sticky sessions for WebSocket affinity
+    traefik.ingress.kubernetes.io/service.sticky.cookie: "true"
+    traefik.ingress.kubernetes.io/service.sticky.cookie.name: "openmath-ws-affinity"
+    traefik.ingress.kubernetes.io/service.sticky.cookie.httponly: "true"
   hosts:
     - host: openmath.hu
       paths:
@@ -564,6 +576,18 @@ ingress:
     - secretName: openmath-tls
       hosts:
         - openmath.hu
+
+# ── Redis (v4.0 Multiplayer — future multi-pod support) ──
+redis:
+  enabled: false                # flip to true when running multiple python-api pods
+  image: redis:7-alpine
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
 
 # ── Network Policies ─────────────────────────────────────
 networkPolicies:
@@ -1303,3 +1327,70 @@ helm get values openmath -n openmath
 - [ ] 30-day parallel operation window passed
 - [ ] Docker Compose stack decommissioned
 - [ ] Migration retrospective documented
+
+---
+
+## Multiplayer WebSocket Impact on Kubernetes (v4.0) — CRITICAL
+
+> Cross-reference: `spec_v4.0_multiplayer.md` Section 13.12
+
+The v4.0 multiplayer mode uses an in-memory `GameManager` that holds all
+active game state and WebSocket connections in a single Python process.
+This is the **most impactful cross-cutting concern** for Kubernetes migration.
+
+### The problem
+
+With HPA scaling `python-api` from 2 to 8 replicas, each pod runs its own
+`GameManager` with no shared state. A player who reconnects after
+disconnection may land on a different pod and get a "game not found" error.
+New game creation requests are load-balanced arbitrarily across pods.
+
+### Solution path (phased)
+
+**Phase 1 — Sticky sessions (minimum viable K8s support):**
+
+The Helm `values.yaml` above already includes Traefik sticky cookie
+annotations. This ensures all requests from the same browser go to the
+same pod for the lifetime of the cookie. It works until the pod restarts
+(game state lost).
+
+**Phase 2 — Redis pub/sub (production-grade, future):**
+
+Enable the Redis service in `values.yaml` (`redis.enabled: true`). The
+multiplayer spec requires a `GameBroadcaster` abstraction (Protocol class)
+that can be swapped from `InProcessBroadcaster` (direct WebSocket send)
+to `RedisBroadcaster` (publish to Redis channel). All pods subscribe to
+game channels and relay messages to their local WebSocket connections.
+
+When Redis is enabled, add the following NetworkPolicy rule:
+
+```yaml
+# k8s/network-policies/allow-api-to-redis.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-to-redis
+  namespace: openmath
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: python-api
+      ports:
+        - port: 6379
+          protocol: TCP
+```
+
+### Migration checklist additions
+
+- [ ] Traefik sticky session cookie verified for WebSocket affinity
+- [ ] `GameManager` tested with single-pod (no Redis) under K8s
+- [ ] Redis service deployed and enabled (when multi-pod needed)
+- [ ] NetworkPolicy allows python-api → redis:6379
+- [ ] WebSocket idle timeout set to 3600s in Traefik Ingress
+- [ ] Graceful SIGTERM handling verified (10s drain period)
+- [ ] Post-deploy WS health check passing

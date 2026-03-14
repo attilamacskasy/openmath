@@ -1,8 +1,8 @@
 # OpenMath Specification
 ## v4.0  Multiplayer Quiz Mode
 
-**Version:** 4.0  
-**Status:** Draft Specification  
+**Version:** 4.0 (Major revision)
+**Status:** Final Specification (Draft → Review → Approved → Final)
 **Module:** Multiplayer / Real-Time / WebSocket  
 **Depends on:** v3.2 (production Docker, backup/restore, DevOps CLI)
 
@@ -32,7 +32,7 @@ scoreboard. This mirrors the dedicated server model from competitive gaming.
 # 2. Goals
 
 1. Add a competitive multiplayer quiz mode with real-time gameplay
-2. Support 25 players per game with a lobby and ready-check system
+2. Support up to 25 players per game with a lobby and ready-check system
 3. Provide a real-time host dashboard showing live player progress
 4. Add in-lobby chat for social interaction before, during, and after games
 5. Implement a fair penalty system for wrong answers (time-based)
@@ -1314,6 +1314,438 @@ all players' results.
 | Multiple answer submissions | Database UNIQUE constraint on (player_id, question_id) |
 | Inspecting WebSocket for answers | Correct answers are NOT sent to players until game completion |
 | Manipulating timer | Server-side authoritative timing |
+
+## 13.5 Reverse-Proxy & Gateway Alignment
+
+> Reference: `roadmap_application_gateway_publish.md`
+
+The production request path is:
+**Browser → Traefik (443/HTTPS) → nginx (angular-app:80) → python-api:8000**
+
+WebSocket connections follow the same path but require HTTP upgrade support
+at every proxy layer.
+
+### nginx WebSocket proxy (required before multiplayer goes live)
+
+The existing `nginx.conf` in `angular-app` proxies `/api/*` to `python-api`.
+A new location block is needed for WebSocket:
+
+```nginx
+# angular-app/nginx.conf — add alongside existing /api/ block
+location /ws/ {
+    proxy_pass         http://python-api:8000;
+    proxy_http_version 1.1;
+    proxy_set_header   Upgrade $http_upgrade;
+    proxy_set_header   Connection "upgrade";
+    proxy_set_header   Host $host;
+    proxy_set_header   X-Real-IP $remote_addr;
+    proxy_read_timeout 3600s;   # 1 hour — keep WS alive through full game
+    proxy_send_timeout 3600s;
+}
+```
+
+### Traefik considerations
+
+- Traefik v3 supports WebSocket natively — no special middleware needed
+- Increase `respondingTimeouts.idleTimeout` from default (180s) to 3600s
+  for the `python-api` service, or WebSocket connections will be killed
+  during long games
+- The `CORS_ORIGINS` environment variable must use `https://` — WebSocket
+  origin validation happens at the HTTP upgrade handshake and uses the
+  page origin (HTTPS, not WSS)
+
+### Implementation note
+
+The nginx config change is a **prerequisite** for multiplayer deployment.
+Add it in Phase 3 (WebSocket infrastructure) and test the full proxy chain
+before implementing game logic.
+
+## 13.6 Automated Testing Alignment
+
+> Reference: `roadmap_automated_testing.md`
+
+Multiplayer adds 2 new router modules (`multiplayer.py` REST + `multiplayer_ws.py`
+WebSocket) to the existing 10, increasing the API surface by ~20%.
+
+### pytest — WebSocket fixtures
+
+The planned `conftest.py` uses `httpx.AsyncClient` with ASGI transport.
+WebSocket testing requires the Starlette `TestClient`:
+
+```python
+# Multiplayer-ready fixture pattern
+from starlette.testclient import TestClient
+
+@pytest.fixture
+def ws_client(app):
+    """WebSocket test client for multiplayer endpoints."""
+    with TestClient(app) as client:
+        yield client
+
+# Usage:
+def test_game_lobby(ws_client, auth_headers):
+    with ws_client.websocket_connect(
+        f"/ws/game/TEST-123?token={token}"
+    ) as ws:
+        ws.send_json({"type": "player_ready", "payload": {"ready": True}})
+        data = ws.receive_json()
+        assert data["type"] == "player_ready_changed"
+```
+
+### Playwright — multi-client E2E
+
+Multiplayer E2E tests need **multiple browser contexts** connected to the
+same game simultaneously:
+
+```typescript
+test('multiplayer full game flow', async ({ browser }) => {
+  const host = await browser.newContext();
+  const player1 = await browser.newContext();
+  const player2 = await browser.newContext();
+  // Host creates game → players join → ready → countdown → play → results
+});
+```
+
+### k6 — WebSocket load scenario
+
+k6 has built-in WebSocket support (`import ws from 'k6/ws'`). Add a scenario
+testing concurrent game capacity:
+
+- Target: 10 simultaneous games × 5 players = 50 WebSocket connections
+- Measure: connection latency, message delivery time, memory per connection
+- Threshold: p95 message round-trip < 100ms
+
+### Implementation note
+
+Design the `GameManager` with a clean interface that the test fixtures can
+instantiate independently. Avoid global singleton state that makes testing
+difficult — use dependency injection so tests can create isolated game
+instances.
+
+## 13.7 DevOps & CI/CD Alignment
+
+> Reference: `roadmap_devops.md`
+
+### Database migrations
+
+The 5 new multiplayer tables must follow the existing migration pattern:
+`db/migrations/NNN_description.sql`. Ensure migration files are idempotent
+(`CREATE TABLE IF NOT EXISTS`) so CI/CD re-runs don't fail.
+
+Recommended migration file:
+
+```
+db/migrations/015_multiplayer_tables.sql
+```
+
+### Deployment and WebSocket connections
+
+The current deploy strategy (`docker compose pull && up -d`) restarts
+containers, killing all active WebSocket connections and in-memory game state.
+
+**v4.0 design constraint:** The `GameManager` must handle `SIGTERM` gracefully:
+
+1. On shutdown signal, set `accepting_new_games = False`
+2. Broadcast `game_ended` to all active games with reason `"server_restart"`
+3. Allow 10-second drain period for clients to receive the message
+4. Then exit
+
+This ensures no silent game loss on deploy. Players see a clear message
+and can restart their game after the deploy completes.
+
+### CI/CD pipeline additions
+
+- Add `pytest -m websocket` marker for WebSocket-specific tests
+- Add a post-deploy health check: `curl -N -H "Connection: Upgrade" -H "Upgrade: websocket" http://localhost:8000/ws/health` (add a simple WS health endpoint)
+
+## 13.8 Observability Alignment
+
+> Reference: `roadmap_observability_otel_monitoring.md`
+
+### New telemetry events
+
+All WebSocket and game events must use the OTEL structured log format
+defined in the observability roadmap (17 fields: timestamp, severity,
+service, trace_id, user_id, etc.).
+
+| Event name | When | Severity |
+|---|---|---|
+| `multiplayer.game.created` | Host creates a game | INFO |
+| `multiplayer.game.started` | Countdown begins | INFO |
+| `multiplayer.game.completed` | All players finished | INFO |
+| `multiplayer.game.ended` | Host ends game | INFO |
+| `multiplayer.player.joined` | Player joins lobby | INFO |
+| `multiplayer.player.left` | Player leaves / disconnects | WARN |
+| `multiplayer.answer.submitted` | Player submits an answer | DEBUG |
+| `multiplayer.chat.sent` | Chat message sent | DEBUG |
+| `multiplayer.ws.connected` | WebSocket connection opened | INFO |
+| `multiplayer.ws.disconnected` | WebSocket connection closed | INFO |
+| `multiplayer.ws.error` | WebSocket error (auth fail, etc.) | ERROR |
+
+### New Prometheus metrics
+
+| Metric | Type | Description |
+|---|---|---|
+| `multiplayer_games_active` | Gauge | Currently active games (status != ended) |
+| `multiplayer_players_connected` | Gauge | Total WebSocket connections open |
+| `multiplayer_games_created_total` | Counter | Games created (lifetime) |
+| `multiplayer_games_completed_total` | Counter | Games that reached completion |
+| `multiplayer_answers_per_second` | Histogram | Answer submission rate |
+| `multiplayer_ws_message_latency_ms` | Histogram | WebSocket message round-trip |
+
+### Grafana dashboard
+
+Add a **"Multiplayer Operations"** panel to the Quiz Operations dashboard:
+
+- Active games count (gauge)
+- Players connected (gauge)
+- Games created/completed per hour (time series)
+- WebSocket connection count (time series)
+- Message latency p50/p95 (time series)
+
+### Implementation note
+
+Instrument the `GameManager` with Prometheus counters and gauges at creation
+time. Use Python's `prometheus_client` library — the same one the
+observability roadmap uses for other FastAPI metrics. Do not add a separate
+metrics library.
+
+## 13.9 Security Alignment
+
+> Reference: `roadmap_security.md`
+
+### Rate limiting — WebSocket exemption
+
+The security roadmap applies `slowapi` rate limiting at `30/min` on auth
+and `100/min` on other endpoints. WebSocket upgrade requests are standard
+HTTP initially and will hit these limits.
+
+**Design constraint:** Apply rate limiting to the WebSocket upgrade request
+(HTTP GET with `Upgrade: websocket` header) but with a **separate, higher
+limit** — `10/minute` per IP for WebSocket upgrades. This prevents connection
+floods while allowing legitimate rapid reconnects.
+
+```python
+# Separate limiter for WebSocket upgrades
+@limiter.limit("10/minute")
+async def game_websocket(websocket: WebSocket, game_code: str):
+    ...
+```
+
+Once the WebSocket is established, no further rate limiting applies at the
+HTTP layer — message-level throttling is handled by the `GameManager`
+(500ms minimum between answers).
+
+### CSP — WebSocket scheme
+
+The security roadmap's CSP sets `connect-src 'self' https://accounts.google.com`.
+WebSocket connections use the `wss://` scheme in production. Since `'self'`
+already covers same-origin `wss://` connections, no CSP change is needed —
+but this must be **verified** during integration testing.
+
+If CSP issues arise, explicitly add:
+```
+connect-src 'self' https://accounts.google.com wss://openmath.hu;
+```
+
+### JWT token expiry on persistent WebSocket connections
+
+The security roadmap plans 15-minute access tokens. A multiplayer game can
+last 30+ minutes (20-question marathon with slow answers).
+
+**Design constraint:** Validate JWT only at WebSocket connection time. Once
+connected, the WebSocket session is authenticated for the duration of the
+connection. Do NOT require token refresh over an active WebSocket — this
+avoids mid-game disconnection and simplifies the protocol.
+
+If the token expires while connected, the connection stays valid. If the
+user disconnects and tries to reconnect with an expired token, they must
+re-authenticate via the normal refresh flow before reconnecting.
+
+### Wazuh SIEM rules
+
+Add detection rules for WebSocket-specific abuse patterns:
+
+| Rule | Trigger | Severity |
+|---|---|---|
+| WS connection flood | > 20 WS connects from same IP in 1 minute | Medium |
+| Chat spam | > 10 chat messages from same user in 30 seconds | Low |
+| Rapid game creation | > 5 games created by same user in 5 minutes | Medium |
+| Invalid WS auth | > 5 failed WS auth attempts from same IP | High |
+
+## 13.10 Data & AI Alignment
+
+> Reference: `roadmap_data_and_ai.md`
+
+### Multiplayer as a new data source
+
+Multiplayer game results provide distinct analytical signals beyond
+single-player data:
+
+- **Accuracy under time pressure** — multiplayer demonstrates performance
+  under competitive stress, while single-player is self-paced
+- **Engagement correlation** — students who play multiplayer regularly are
+  likely more engaged; this signal should feed the engagement prediction
+  model
+- **Competitive motivation** — win/loss patterns can inform adaptive
+  difficulty recommendations differently than solo performance
+
+### Analytics query considerations
+
+The learning analytics queries in the data roadmap reference `quiz_sessions`
+and `answers`. Multiplayer data lives in separate tables (`multiplayer_games`,
+`multiplayer_answers`). Either:
+
+1. **Unified view** (recommended): Create a SQL view that unions single-player
+   and multiplayer answer data with a `mode` column (`'single'` / `'multi'`)
+2. **Separate queries**: Write multiplayer-specific analytics alongside
+   existing ones
+
+**Design constraint:** Include a `mode` or `source` discriminator when
+aggregating quiz performance data so ML models can weight competitive vs.
+solo performance appropriately.
+
+## 13.11 On-Premises AI Alignment
+
+> Reference: `roadmap_onpremises_nvidia_ai_ollama.md`
+
+Minimal impact. Both WebSocket game management and Ollama HTTP calls are
+async I/O operations sharing the FastAPI event loop. No conflict — but
+monitor event loop latency under combined load (concurrent games + LLM
+requests).
+
+**Future opportunity:** The content safety filter (`BLOCKED_PATTERNS`)
+defined in the AI roadmap could be applied to multiplayer chat messages
+in a future version. v4.0 uses no content filter — keep the chat message
+schema compatible (plain text, max 200 chars) so filtering can be added
+without schema changes.
+
+### Database migration ordering
+
+Both the AI roadmap (pgvector extension, `document_embeddings` table) and
+multiplayer (5 new tables) add migrations. Use sequential numbering in
+`db/migrations/` to ensure deterministic ordering regardless of which
+feature ships first.
+
+## 13.12 Kubernetes & Helm Alignment — CRITICAL
+
+> Reference: `roadmap_kubernetes_helm.md`
+
+This is the **most impactful roadmap intersection**. The multiplayer
+`GameManager` holds in-memory state (active games, WebSocket connections)
+in a single Python process. The Kubernetes roadmap deploys `python-api`
+with HPA auto-scaling (2–8 replicas). These are fundamentally incompatible
+without additional infrastructure.
+
+### The problem
+
+```
+Pod A (GameManager)                Pod B (GameManager)
+├── Game MATH-7X2 (4 players)     ├── (empty)
+├── Game MATH-A3K (2 players)     ├── (empty)
+└── 6 WebSocket connections       └── 0 connections
+
+HPA scales up → new game lands on Pod B → Pod B has no knowledge of Pod A's games
+Player reconnects → lands on Pod B → "game not found"
+```
+
+### The solution path (NOT in v4.0 scope, but design for it)
+
+**Phase 1 — Sticky sessions (quick Kubernetes fix):**
+- Traefik Ingress annotation: `traefik.ingress.kubernetes.io/service.sticky.cookie=true`
+- All WebSocket connections for a game route to the same pod
+- Works until the pod restarts (game state lost)
+
+**Phase 2 — Redis pub/sub (production-grade, future):**
+- Add Redis to the Helm chart as a sidecar/service
+- `GameManager` publishes state changes to Redis channels
+- All pods subscribe and maintain synchronized game state
+- Game state survives pod restarts (Redis persistence)
+
+### v4.0 design constraints for Kubernetes readiness
+
+To avoid a painful refactor when Kubernetes arrives, implement these
+patterns from day one:
+
+1. **Abstract the broadcast layer.** Do not call `websocket.send_json()`
+   directly from game logic. Instead, use a `GameBroadcaster` interface:
+
+   ```python
+   class GameBroadcaster(Protocol):
+       async def broadcast(self, game_code: str, message: dict,
+                          target: str = "all") -> None: ...
+
+   class InProcessBroadcaster:
+       """v4.0 — direct WebSocket send (single process)."""
+       async def broadcast(self, game_code, message, target="all"):
+           for ws in self.connections[game_code]:
+               await ws.send_json(message)
+
+   class RedisBroadcaster:
+       """Future — publish to Redis channel, subscribers relay to local WS."""
+       async def broadcast(self, game_code, message, target="all"):
+           await self.redis.publish(f"game:{game_code}", json.dumps(message))
+   ```
+
+2. **Persist game state to database eagerly.** Don't rely on in-memory
+   state surviving process restarts. Write to `multiplayer_games` and
+   `multiplayer_answers` tables on every state change, not just at game
+   completion. This way, a restarted pod can reconstruct game state from
+   the database.
+
+3. **Design the GameManager as injectable.** Use FastAPI's dependency
+   injection (`Depends()`) to provide the `GameManager` to the WebSocket
+   endpoint. This makes it replaceable in tests and swappable for a
+   Redis-backed implementation:
+
+   ```python
+   def get_game_manager() -> GameManager:
+       return _manager  # singleton, but injectable
+
+   @router.websocket("/ws/game/{game_code}")
+   async def game_websocket(
+       websocket: WebSocket,
+       game_code: str,
+       manager: GameManager = Depends(get_game_manager)
+   ):
+       ...
+   ```
+
+4. **Add a `/ws/health` endpoint.** Kubernetes liveness/readiness probes
+   need a health check for WebSocket capability:
+
+   ```python
+   @router.websocket("/ws/health")
+   async def ws_health(websocket: WebSocket):
+       await websocket.accept()
+       await websocket.send_json({"status": "ok"})
+       await websocket.close()
+   ```
+
+5. **NetworkPolicy.** The Kubernetes roadmap's default-deny policy allows
+   `angular-app → python-api:8000`. WebSocket traffic uses the same port
+   via HTTP upgrade — no additional NetworkPolicy rule is needed. However,
+   if Redis is added, a new rule must allow `python-api → redis:6379`.
+
+### Helm chart additions (future, not v4.0)
+
+When Kubernetes is deployed, the Helm `values.yaml` needs:
+
+```yaml
+# Future additions to helm/openmath/values.yaml
+pythonApi:
+  websocket:
+    enabled: true
+    idleTimeout: 3600     # seconds
+    stickySession: true   # Traefik cookie affinity
+
+redis:
+  enabled: false          # flip to true when multi-pod WS needed
+  image: redis:7-alpine
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+```
 
 ---
 
