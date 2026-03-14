@@ -1492,3 +1492,413 @@ async def get_session_full_detail(session_id: str) -> dict[str, Any] | None:
         "questions": questions,
         "reviews": reviews,
     }
+
+
+# ── Multiplayer (v4.0) ────────────────────────────────
+
+async def create_multiplayer_game(
+    game_code: str,
+    host_user_id: str,
+    quiz_type_id: str,
+    difficulty: str,
+    total_questions: int,
+    penalty_seconds: int,
+    min_players: int,
+    max_players: int,
+    learned_timetables: list[int] | None,
+) -> dict[str, Any]:
+    pool = await get_pool()
+    lt_json = json.dumps(learned_timetables) if learned_timetables else None
+    row = await pool.fetchrow(
+        """INSERT INTO multiplayer_games
+               (game_code, host_user_id, quiz_type_id, difficulty,
+                total_questions, penalty_seconds, min_players, max_players,
+                learned_timetables)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
+           RETURNING *""",
+        game_code,
+        UUID(host_user_id),
+        UUID(quiz_type_id),
+        difficulty,
+        total_questions,
+        penalty_seconds,
+        min_players,
+        max_players,
+        lt_json,
+    )
+    return _row_to_dict(row)
+
+
+async def insert_multiplayer_questions(
+    game_id: str, quiz_type_id: str, generated: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    pool = await get_pool()
+    gid = UUID(game_id)
+    qtid = UUID(quiz_type_id)
+    async with pool.acquire() as conn:
+        for q in generated:
+            prompt_json = json.dumps(q["prompt"]) if q.get("prompt") else None
+            await conn.execute(
+                """INSERT INTO multiplayer_questions
+                       (game_id, position, quiz_type_id, a, b, c, d, correct, prompt)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)""",
+                gid, q["position"], qtid,
+                q.get("a"), q.get("b"), q.get("c"), q.get("d"),
+                str(q["correct"]), prompt_json,
+            )
+        rows = await conn.fetch(
+            "SELECT * FROM multiplayer_questions WHERE game_id = $1 ORDER BY position",
+            gid,
+        )
+    result = []
+    for r in rows:
+        d = _row_to_dict(r)
+        if isinstance(d.get("prompt"), str):
+            d["prompt"] = json.loads(d["prompt"])
+        result.append(d)
+    return result
+
+
+async def get_multiplayer_game_by_code(game_code: str) -> dict[str, Any] | None:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """SELECT g.*, u.name AS host_name,
+                  qt.code AS quiz_type_code,
+                  qt.description AS quiz_type_description,
+                  (SELECT count(*)::int FROM multiplayer_players p WHERE p.game_id = g.id) AS player_count
+           FROM multiplayer_games g
+           LEFT JOIN users u ON g.host_user_id = u.id
+           LEFT JOIN quiz_types qt ON g.quiz_type_id = qt.id
+           WHERE g.game_code = $1""",
+        game_code,
+    )
+    return _row_to_dict(row) if row else None
+
+
+async def list_waiting_games() -> list[dict[str, Any]]:
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT g.id, g.game_code, g.host_user_id, g.quiz_type_id,
+                  g.difficulty, g.total_questions, g.penalty_seconds,
+                  g.min_players, g.max_players, g.status, g.created_at,
+                  u.name AS host_name,
+                  qt.code AS quiz_type_code,
+                  qt.description AS quiz_type_description,
+                  (SELECT count(*)::int FROM multiplayer_players p WHERE p.game_id = g.id) AS player_count
+           FROM multiplayer_games g
+           LEFT JOIN users u ON g.host_user_id = u.id
+           LEFT JOIN quiz_types qt ON g.quiz_type_id = qt.id
+           WHERE g.status = 'waiting'
+           ORDER BY g.created_at DESC"""
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+async def list_all_multiplayer_games() -> list[dict[str, Any]]:
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT g.id, g.game_code, g.host_user_id, g.quiz_type_id,
+                  g.difficulty, g.total_questions, g.penalty_seconds,
+                  g.min_players, g.max_players, g.status, g.created_at,
+                  g.started_at, g.completed_at, g.ended_at,
+                  u.name AS host_name,
+                  qt.code AS quiz_type_code,
+                  qt.description AS quiz_type_description,
+                  (SELECT count(*)::int FROM multiplayer_players p WHERE p.game_id = g.id) AS player_count
+           FROM multiplayer_games g
+           LEFT JOIN users u ON g.host_user_id = u.id
+           LEFT JOIN quiz_types qt ON g.quiz_type_id = qt.id
+           ORDER BY g.created_at DESC"""
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+async def join_multiplayer_game(game_id: str, user_id: str) -> dict[str, Any]:
+    pool = await get_pool()
+    # Get next slot number
+    slot_row = await pool.fetchrow(
+        "SELECT COALESCE(MAX(slot_number), 0) + 1 AS next_slot FROM multiplayer_players WHERE game_id = $1",
+        UUID(game_id),
+    )
+    next_slot = slot_row["next_slot"]
+    row = await pool.fetchrow(
+        """INSERT INTO multiplayer_players (game_id, user_id, slot_number)
+           VALUES ($1, $2, $3)
+           RETURNING *""",
+        UUID(game_id), UUID(user_id), next_slot,
+    )
+    return _row_to_dict(row)
+
+
+async def leave_multiplayer_game(game_id: str, user_id: str) -> bool:
+    pool = await get_pool()
+    result = await pool.execute(
+        "DELETE FROM multiplayer_players WHERE game_id = $1 AND user_id = $2",
+        UUID(game_id), UUID(user_id),
+    )
+    return result == "DELETE 1"
+
+
+async def get_multiplayer_players(game_id: str) -> list[dict[str, Any]]:
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT p.*, u.name AS user_name
+           FROM multiplayer_players p
+           LEFT JOIN users u ON p.user_id = u.id
+           WHERE p.game_id = $1
+           ORDER BY p.slot_number""",
+        UUID(game_id),
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+async def get_multiplayer_player(game_id: str, user_id: str) -> dict[str, Any] | None:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """SELECT p.*, u.name AS user_name
+           FROM multiplayer_players p
+           LEFT JOIN users u ON p.user_id = u.id
+           WHERE p.game_id = $1 AND p.user_id = $2""",
+        UUID(game_id), UUID(user_id),
+    )
+    return _row_to_dict(row) if row else None
+
+
+async def update_game_status(game_id: str, status: str) -> dict[str, Any] | None:
+    pool = await get_pool()
+    extra = ""
+    if status == "playing":
+        extra = ", started_at = NOW()"
+    elif status == "completed":
+        extra = ", completed_at = NOW()"
+    elif status == "ended":
+        extra = ", ended_at = NOW()"
+    row = await pool.fetchrow(
+        f"UPDATE multiplayer_games SET status = $1{extra} WHERE id = $2 RETURNING *",
+        status, UUID(game_id),
+    )
+    return _row_to_dict(row) if row else None
+
+
+async def update_player_ready(game_id: str, user_id: str, is_ready: bool) -> bool:
+    pool = await get_pool()
+    result = await pool.execute(
+        "UPDATE multiplayer_players SET is_ready = $1 WHERE game_id = $2 AND user_id = $3",
+        is_ready, UUID(game_id), UUID(user_id),
+    )
+    return result == "UPDATE 1"
+
+
+async def insert_multiplayer_answer(
+    game_id: str, player_id: str, question_id: str,
+    value: str | None, is_correct: bool, lap_time_ms: int, penalty_ms: int,
+) -> dict[str, Any]:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """INSERT INTO multiplayer_answers
+               (game_id, player_id, question_id, value, is_correct, lap_time_ms, penalty_ms)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING *""",
+        UUID(game_id), UUID(player_id), UUID(question_id),
+        value, is_correct, lap_time_ms, penalty_ms,
+    )
+    return _row_to_dict(row)
+
+
+async def update_player_stats(
+    player_id: str, correct_count: int, wrong_count: int,
+    penalty_time_ms: int, total_time_ms: int | None = None,
+    final_position: int | None = None, finished: bool = False,
+) -> bool:
+    pool = await get_pool()
+    extra = ""
+    params: list[Any] = [correct_count, wrong_count, penalty_time_ms, UUID(player_id)]
+    idx = 5
+    if total_time_ms is not None:
+        extra += f", total_time_ms = ${idx}"
+        params.append(total_time_ms)
+        idx += 1
+    if final_position is not None:
+        extra += f", final_position = ${idx}"
+        params.append(final_position)
+        idx += 1
+    if finished:
+        extra += ", finished_at = NOW()"
+    result = await pool.execute(
+        f"""UPDATE multiplayer_players
+            SET correct_count = $1, wrong_count = $2, penalty_time_ms = $3{extra}
+            WHERE id = $4""",
+        *params,
+    )
+    return result == "UPDATE 1"
+
+
+async def insert_chat_message(game_id: str, user_id: str, message: str) -> dict[str, Any]:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """INSERT INTO multiplayer_chat_messages (game_id, user_id, message)
+           VALUES ($1, $2, $3) RETURNING *""",
+        UUID(game_id), UUID(user_id), message,
+    )
+    return _row_to_dict(row)
+
+
+async def get_chat_messages(game_id: str) -> list[dict[str, Any]]:
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT c.*, u.name AS user_name
+           FROM multiplayer_chat_messages c
+           LEFT JOIN users u ON c.user_id = u.id
+           WHERE c.game_id = $1
+           ORDER BY c.sent_at""",
+        UUID(game_id),
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+async def get_multiplayer_questions(game_id: str) -> list[dict[str, Any]]:
+    pool = await get_pool()
+    rows = await pool.fetch(
+        "SELECT * FROM multiplayer_questions WHERE game_id = $1 ORDER BY position",
+        UUID(game_id),
+    )
+    result = []
+    for r in rows:
+        d = _row_to_dict(r)
+        if isinstance(d.get("prompt"), str):
+            d["prompt"] = json.loads(d["prompt"])
+        result.append(d)
+    return result
+
+
+async def get_multiplayer_answers(game_id: str) -> list[dict[str, Any]]:
+    pool = await get_pool()
+    rows = await pool.fetch(
+        "SELECT * FROM multiplayer_answers WHERE game_id = $1 ORDER BY answered_at",
+        UUID(game_id),
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+async def get_multiplayer_history_for_user(user_id: str) -> list[dict[str, Any]]:
+    """Games the user hosted or played in (completed/ended only)."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """SELECT g.id, g.game_code, g.host_user_id, g.quiz_type_id,
+                  g.difficulty, g.total_questions, g.penalty_seconds,
+                  g.min_players, g.max_players, g.status,
+                  g.created_at, g.completed_at,
+                  u.name AS host_name,
+                  qt.code AS quiz_type_code,
+                  qt.description AS quiz_type_description,
+                  (SELECT count(*)::int FROM multiplayer_players p2 WHERE p2.game_id = g.id) AS player_count,
+                  winner.name AS winner_name,
+                  winner_p.total_time_ms AS winner_time_ms
+           FROM multiplayer_games g
+           LEFT JOIN users u ON g.host_user_id = u.id
+           LEFT JOIN quiz_types qt ON g.quiz_type_id = qt.id
+           LEFT JOIN multiplayer_players winner_p ON winner_p.game_id = g.id AND winner_p.final_position = 1
+           LEFT JOIN users winner ON winner_p.user_id = winner.id
+           WHERE g.status IN ('completed', 'ended')
+             AND (g.host_user_id = $1
+                  OR EXISTS (SELECT 1 FROM multiplayer_players p WHERE p.game_id = g.id AND p.user_id = $1))
+           ORDER BY g.created_at DESC""",
+        UUID(user_id),
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+async def get_multiplayer_history_for_users(user_ids: list[str]) -> list[dict[str, Any]]:
+    """Games that any of the given users hosted or played in."""
+    if not user_ids:
+        return []
+    pool = await get_pool()
+    uuids = [UUID(uid) for uid in user_ids]
+    rows = await pool.fetch(
+        """SELECT g.id, g.game_code, g.host_user_id, g.quiz_type_id,
+                  g.difficulty, g.total_questions, g.penalty_seconds,
+                  g.min_players, g.max_players, g.status,
+                  g.created_at, g.completed_at,
+                  u.name AS host_name,
+                  qt.code AS quiz_type_code,
+                  qt.description AS quiz_type_description,
+                  (SELECT count(*)::int FROM multiplayer_players p2 WHERE p2.game_id = g.id) AS player_count,
+                  winner.name AS winner_name,
+                  winner_p.total_time_ms AS winner_time_ms
+           FROM multiplayer_games g
+           LEFT JOIN users u ON g.host_user_id = u.id
+           LEFT JOIN quiz_types qt ON g.quiz_type_id = qt.id
+           LEFT JOIN multiplayer_players winner_p ON winner_p.game_id = g.id AND winner_p.final_position = 1
+           LEFT JOIN users winner ON winner_p.user_id = winner.id
+           WHERE g.status IN ('completed', 'ended')
+             AND (g.host_user_id = ANY($1::uuid[])
+                  OR EXISTS (SELECT 1 FROM multiplayer_players p WHERE p.game_id = g.id AND p.user_id = ANY($1::uuid[])))
+           ORDER BY g.created_at DESC""",
+        uuids,
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+async def delete_multiplayer_game(game_id: str) -> bool:
+    pool = await get_pool()
+    result = await pool.execute(
+        "DELETE FROM multiplayer_games WHERE id = $1", UUID(game_id)
+    )
+    return result == "DELETE 1"
+
+
+async def check_game_code_exists(game_code: str) -> bool:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        "SELECT 1 FROM multiplayer_games WHERE game_code = $1", game_code
+    )
+    return row is not None
+
+
+async def get_multiplayer_player_count(game_id: str) -> int:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        "SELECT count(*)::int AS cnt FROM multiplayer_players WHERE game_id = $1",
+        UUID(game_id),
+    )
+    return row["cnt"] if row else 0
+
+
+async def get_multiplayer_wins_count(user_id: str) -> int:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """SELECT count(*)::int AS cnt FROM multiplayer_players
+           WHERE user_id = $1 AND final_position = 1""",
+        UUID(user_id),
+    )
+    return row["cnt"] if row else 0
+
+
+async def get_multiplayer_games_played_count(user_id: str) -> int:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """SELECT count(*)::int AS cnt FROM multiplayer_players p
+           JOIN multiplayer_games g ON p.game_id = g.id
+           WHERE p.user_id = $1 AND g.status IN ('completed', 'ended')""",
+        UUID(user_id),
+    )
+    return row["cnt"] if row else 0
+
+
+async def get_multiplayer_games_hosted_count(user_id: str) -> int:
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """SELECT count(*)::int AS cnt FROM multiplayer_games
+           WHERE host_user_id = $1 AND status IN ('completed', 'ended')""",
+        UUID(user_id),
+    )
+    return row["cnt"] if row else 0
+
+
+async def get_player_answers_for_game(player_id: str) -> list[dict[str, Any]]:
+    pool = await get_pool()
+    rows = await pool.fetch(
+        "SELECT * FROM multiplayer_answers WHERE player_id = $1 ORDER BY answered_at",
+        UUID(player_id),
+    )
+    return [_row_to_dict(r) for r in rows]

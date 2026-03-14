@@ -1,0 +1,166 @@
+// ══════════════════════════════════════════════════════════════
+// OpenMath — Database Schema DIFF (DBML)
+// Migration 0022 — multiplayer_tables (v4.0)
+// Shows ONLY new/changed tables (red) + FK reference stubs
+// Import at https://dbdiagram.io
+// ══════════════════════════════════════════════════════════════
+
+Project OpenMath {
+  database_type: 'PostgreSQL'
+  Note: '''
+    DIFF view for migration 0022 — multiplayer_tables
+    RED tables (#dc3545) = new tables created in this migration
+    ORANGE tables (#fd7e14) = existing tables with data changes only
+    GREY tables = existing tables shown as FK reference stubs
+  '''
+}
+
+// ── FK Reference Stubs (existing, unchanged) ────────────────
+// These tables already exist — shown here only because new
+// tables reference them via foreign keys.
+
+Table users {
+  id UUID [pk, default: `gen_random_uuid()`]
+  name TEXT [not null]
+
+  Note: 'FK stub — full definition in 0022_after.dbml'
+}
+
+Table quiz_types {
+  id UUID [pk, default: `gen_random_uuid()`]
+  code TEXT [not null, unique]
+
+  Note: 'FK stub — full definition in 0022_after.dbml'
+}
+
+// ── Data-Only Change ────────────────────────────────────────
+
+// ┌─────────────────────────────────────────────────────────────┐
+// │ DATA CHANGE: INSERT 6 multiplayer badges                    │
+// │ (mp_first_win, mp_5_wins, mp_perfect_game, mp_10_games,     │
+// │  mp_speed_demon, mp_host_10)                                 │
+// └─────────────────────────────────────────────────────────────┘
+Table badges [headercolor: #fd7e14] {
+  id UUID [pk, default: `gen_random_uuid()`]
+  code TEXT [not null, unique]
+  name_en TEXT [not null]
+  name_hu TEXT [not null]
+  description_en TEXT [not null]
+  description_hu TEXT [not null]
+  icon TEXT [not null, default: 'pi pi-star']
+  category TEXT [not null, default: 'general']
+  rule JSONB [not null]
+  sort_order INT [not null, default: 0]
+  is_active BOOLEAN [not null, default: true]
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+
+  Note: 'DATA ONLY: 6 new multiplayer badges inserted.'
+}
+
+// ── NEW Tables (created in migration 0022) ──────────────────
+
+Table multiplayer_games [headercolor: #dc3545] {
+  id UUID [pk, default: `gen_random_uuid()`]
+  game_code VARCHAR(10) [not null, unique]
+  host_user_id UUID [not null, ref: > users.id]
+  quiz_type_id UUID [not null, ref: > quiz_types.id]
+  difficulty TEXT [not null, default: 'medium', note: 'CHECK: difficulty IN (low, medium, hard)']
+  total_questions INTEGER [not null, default: 10, note: 'CHECK: total_questions > 0']
+  penalty_seconds INTEGER [not null, default: 10, note: 'CHECK: penalty_seconds IN (5, 10, 20)']
+  min_players INTEGER [not null, default: 2, note: 'CHECK: min_players BETWEEN 2 AND 25']
+  max_players INTEGER [not null, default: 5, note: 'CHECK: max_players BETWEEN 2 AND 25, max >= min']
+  status VARCHAR(20) [not null, default: 'waiting', note: 'CHECK: status IN (waiting, countdown, playing, completed, ended)']
+  learned_timetables JSONB
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  started_at TIMESTAMPTZ
+  completed_at TIMESTAMPTZ
+  ended_at TIMESTAMPTZ
+
+  indexes {
+    status [name: 'idx_mp_games_status']
+    host_user_id [name: 'idx_mp_games_host']
+    game_code [name: 'idx_mp_games_code']
+    (created_at) [name: 'idx_mp_games_created']
+  }
+
+  Note: 'NEW — Multiplayer game instances with game code, config, and state machine.'
+}
+
+Table multiplayer_questions [headercolor: #dc3545] {
+  id UUID [pk, default: `gen_random_uuid()`]
+  game_id UUID [not null, ref: > multiplayer_games.id]
+  position INTEGER [not null, note: 'CHECK: position >= 1']
+  quiz_type_id UUID [not null, ref: > quiz_types.id]
+  a INTEGER
+  b INTEGER
+  c INTEGER
+  d INTEGER
+  correct TEXT [not null]
+  prompt JSONB
+
+  indexes {
+    game_id [name: 'idx_mp_questions_game']
+    (game_id, position) [unique]
+  }
+
+  Note: 'NEW — Shared question set for all players in a game.'
+}
+
+Table multiplayer_players [headercolor: #dc3545] {
+  id UUID [pk, default: `gen_random_uuid()`]
+  game_id UUID [not null, ref: > multiplayer_games.id]
+  user_id UUID [not null, ref: > users.id]
+  slot_number INTEGER [not null, note: 'CHECK: slot_number >= 1']
+  is_ready BOOLEAN [not null, default: false]
+  total_time_ms INTEGER
+  penalty_time_ms INTEGER [not null, default: 0]
+  correct_count INTEGER [not null, default: 0]
+  wrong_count INTEGER [not null, default: 0]
+  final_position INTEGER
+  joined_at TIMESTAMPTZ [not null, default: `NOW()`]
+  finished_at TIMESTAMPTZ
+
+  indexes {
+    game_id [name: 'idx_mp_players_game']
+    user_id [name: 'idx_mp_players_user']
+    (game_id, user_id) [unique]
+    (game_id, slot_number) [unique]
+  }
+
+  Note: 'NEW — Player entries with ready state, scoring, and final position.'
+}
+
+Table multiplayer_answers [headercolor: #dc3545] {
+  id UUID [pk, default: `gen_random_uuid()`]
+  game_id UUID [not null, ref: > multiplayer_games.id]
+  player_id UUID [not null, ref: > multiplayer_players.id]
+  question_id UUID [not null, ref: > multiplayer_questions.id]
+  value TEXT
+  is_correct BOOLEAN [not null]
+  lap_time_ms INTEGER [not null]
+  penalty_ms INTEGER [not null, default: 0]
+  answered_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  indexes {
+    game_id [name: 'idx_mp_answers_game']
+    player_id [name: 'idx_mp_answers_player']
+    (player_id, question_id) [unique]
+  }
+
+  Note: 'NEW — Per-player answers with cumulative lap times and penalty tracking.'
+}
+
+Table multiplayer_chat_messages [headercolor: #dc3545] {
+  id UUID [pk, default: `gen_random_uuid()`]
+  game_id UUID [not null, ref: > multiplayer_games.id]
+  user_id UUID [not null, ref: > users.id]
+  message VARCHAR(200) [not null]
+  sent_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  indexes {
+    game_id [name: 'idx_mp_chat_game']
+    (game_id, sent_at) [name: 'idx_mp_chat_sent']
+  }
+
+  Note: 'NEW — In-game chat messages for multiplayer lobbies and post-game.'
+}

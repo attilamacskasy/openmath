@@ -153,6 +153,15 @@ export class HeaderComponent implements OnInit {
       { label: t('nav.start'), icon: 'pi pi-home', command: () => this.navigateTo('/') },
       { label: t('nav.profile'), icon: 'pi pi-user', command: () => this.navigateTo('/profile') },
       { label: t('nav.history'), icon: 'pi pi-clock', command: () => this.navigateTo('/history') },
+      {
+        label: t('nav.multiplayer'),
+        icon: 'pi pi-users',
+        items: [
+          { label: t('multiplayer.menu.join'), icon: 'pi pi-search', command: () => this.navigateTo('/multiplayer/join') },
+          { label: t('multiplayer.menu.create'), icon: 'pi pi-plus', command: () => this.navigateTo('/multiplayer/create') },
+          { label: t('multiplayer.menu.history'), icon: 'pi pi-history', command: () => this.navigateTo('/multiplayer/history') },
+        ],
+      },
     ];
 
     if (this.auth.isTeacher()) {

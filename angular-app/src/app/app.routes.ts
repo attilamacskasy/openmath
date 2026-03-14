@@ -77,6 +77,72 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
 
+  // Multiplayer routes
+  {
+    path: 'multiplayer',
+    loadComponent: () =>
+      import('./features/multiplayer/multiplayer-menu.component').then(
+        (m) => m.MultiplayerMenuComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'multiplayer/create',
+    loadComponent: () =>
+      import('./features/multiplayer/create-game.component').then(
+        (m) => m.CreateGameComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'multiplayer/join',
+    loadComponent: () =>
+      import('./features/multiplayer/join-game.component').then(
+        (m) => m.JoinGameComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'multiplayer/lobby/:code',
+    loadComponent: () =>
+      import('./features/multiplayer/lobby.component').then(
+        (m) => m.LobbyComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'multiplayer/play/:code',
+    loadComponent: () =>
+      import('./features/multiplayer/multiplayer-quiz.component').then(
+        (m) => m.MultiplayerQuizComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'multiplayer/dashboard/:code',
+    loadComponent: () =>
+      import('./features/multiplayer/host-dashboard.component').then(
+        (m) => m.HostDashboardComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'multiplayer/history',
+    loadComponent: () =>
+      import('./features/multiplayer/history-list.component').then(
+        (m) => m.MultiplayerHistoryListComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'multiplayer/history/:code',
+    loadComponent: () =>
+      import('./features/multiplayer/history-detail.component').then(
+        (m) => m.MultiplayerHistoryDetailComponent
+      ),
+    canActivate: [authGuard],
+  },
+
   // Teacher routes
   {
     path: 'teacher',

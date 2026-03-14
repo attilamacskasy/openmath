@@ -384,5 +384,66 @@
   "userGuide.adminQuizTypes": "Admin — Quiz Type Editor",
   "userGuide.adminQuizTypesText": "Admins can create, edit, and delete quiz types. Each quiz type defines the operation, difficulty range, number format, and example questions shown on the Start page.",
   "userGuide.adminDatabase": "Admin — Database & Statistics",
-  "userGuide.adminDatabaseText": "Admins can view database table statistics and reset all quiz data for testing purposes."
+  "userGuide.adminDatabaseText": "Admins can view database table statistics and reset all quiz data for testing purposes.",
+
+  "nav.multiplayer": "Multiplayer",
+  "common.refresh": "Refresh",
+
+  "multiplayer.menu.title": "Multiplayer",
+  "multiplayer.menu.subtitle": "Real-time competitive quizzes",
+  "multiplayer.menu.join": "Join Game",
+  "multiplayer.menu.joinDesc": "Find and join an open game",
+  "multiplayer.menu.create": "Create Game",
+  "multiplayer.menu.createDesc": "Host a new multiplayer game",
+  "multiplayer.menu.history": "History",
+  "multiplayer.menu.historyDesc": "View previous game results",
+
+  "multiplayer.create.title": "Create Multiplayer Game",
+  "multiplayer.create.questions": "Number of Questions",
+  "multiplayer.create.penalty": "Wrong Answer Penalty",
+  "multiplayer.create.penaltyHelp": "Penalty time added for wrong answers",
+  "multiplayer.create.minPlayers": "Min Players",
+  "multiplayer.create.maxPlayers": "Max Players",
+  "multiplayer.create.createGame": "Create Game",
+
+  "multiplayer.join.find": "Find Games",
+  "multiplayer.join.gameCode": "Enter game code",
+  "multiplayer.join.code": "Code",
+  "multiplayer.join.questions": "Questions",
+  "multiplayer.join.players": "Players",
+  "multiplayer.join.available": "games available",
+  "multiplayer.join.noGames": "No games available",
+
+  "multiplayer.lobby.title": "Game Lobby",
+  "multiplayer.lobby.players": "Players",
+  "multiplayer.lobby.player": "Player",
+  "multiplayer.lobby.status": "Status",
+  "multiplayer.lobby.ready": "I am ready!",
+  "multiplayer.lobby.waiting": "Waiting for players...",
+  "multiplayer.lobby.start": "Start Game",
+  "multiplayer.lobby.end": "End Game",
+  "multiplayer.lobby.leave": "Leave Game",
+  "multiplayer.lobby.leaveConfirm": "Are you sure you want to leave this game?",
+  "multiplayer.lobby.starting": "Game starting in...",
+  "multiplayer.lobby.chat": "Chat",
+  "multiplayer.lobby.noMessages": "No messages yet",
+  "multiplayer.lobby.typeMessage": "Type a message...",
+
+  "multiplayer.game.penalty": "Penalty",
+  "multiplayer.game.totalTime": "Total Time",
+  "multiplayer.game.elapsed": "Time",
+  "multiplayer.game.correct": "correct",
+  "multiplayer.game.waiting": "Finished!",
+  "multiplayer.game.waitingOthers": "Waiting for other players to finish...",
+
+  "multiplayer.dashboard.title": "Host Dashboard",
+
+  "multiplayer.results.position": "Position",
+  "multiplayer.results.winner": "Winner",
+
+  "multiplayer.history.title": "Multiplayer History",
+  "multiplayer.history.date": "Date",
+  "multiplayer.history.noGames": "No multiplayer games yet",
+  "multiplayer.history.correct": "Correct",
+  "multiplayer.history.wrong": "Wrong"
 }

@@ -13,15 +13,16 @@ Maintain database schema snapshots in **DBML format** (Database Markup Language)
 every migration. DBML files can be imported into [dbdiagram.io](https://dbdiagram.io)
 for instant ER-diagram visualization.
 
-Starting from migration **0021**, every migration that ships will have two companion
+Starting from migration **0021**, every migration that ships will have three companion
 files:
 
 | File | Purpose |
 |---|---|
 | `db/migrations/{NNN}_before.dbml` | Full schema **before** the migration runs |
 | `db/migrations/{NNN}_after.dbml` | Full schema **after** the migration runs |
+| `db/migrations/{NNN}_diff.dbml` | **Diff view** — only new/changed tables (red) + FK stubs |
 
-"Before" of migration *N* is always identical to "after" of migration *N − 1*.  
+"Before" of migration *N* is always identical to "after" of migration *N − 1*.
 The first baseline (`0021_before.dbml`) captures the cumulative schema of
 migrations 0001 – 0020.
 
@@ -34,9 +35,11 @@ db/migrations/
   0021_basic_fractions_quiz_type.sql
   0021_before.dbml        ← schema as of 0020
   0021_after.dbml         ← schema after 0021
+  0021_diff.dbml          ← only tables changed/added in 0021 (red) + FK stubs
   0022_<name>.sql
   0022_before.dbml        ← copy of 0021_after.dbml
   0022_after.dbml
+  0022_diff.dbml          ← only tables changed/added in 0022 (red) + FK stubs
   ...
 ```
 
@@ -95,6 +98,27 @@ Table quiz_types [headercolor: #fd7e14] {
 ```
 
 Unchanged tables keep the default header (no `headercolor`).
+
+---
+
+## 4.1 Diff File Convention
+
+The `{NNN}_diff.dbml` file provides a **focused view** of what changed in a migration,
+making it easy to review at a glance without scanning the full schema.
+
+**Contents of a diff file:**
+
+1. **New tables** — shown in full with `headercolor: #dc3545` (red)
+2. **Structurally modified tables** — shown in full with `headercolor: #dc3545` (red)
+3. **Data-only-affected tables** — shown in full with `headercolor: #fd7e14` (orange)
+4. **FK reference stubs** — existing tables that are referenced by new tables' foreign
+   keys. Shown as minimal stubs (PK column + referenced columns only) with **no
+   headercolor** (default grey), and a `Note: 'FK stub'` marker.
+
+**Unchanged tables that are NOT referenced by new FK relationships are omitted entirely.**
+
+This makes the diff file ideal for code review and quick understanding of a migration's
+impact, while the `after.dbml` provides the complete schema for reference.
 
 ---
 

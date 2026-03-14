@@ -144,4 +144,111 @@ async def _check_rule(rule: dict, user_id: str, session: dict) -> bool:
         qualifying = sum(1 for s in scores if float(s.get("avg_score", 0)) >= min_score)
         return qualifying >= min_types
 
+    # Multiplayer badge rules (basic check — full eval in evaluate_multiplayer_badges)
+    elif rule_type == "mp_wins":
+        from app.queries import get_multiplayer_wins_count
+        threshold = rule.get("threshold", 1)
+        count = await get_multiplayer_wins_count(user_id)
+        return count >= threshold
+
+    elif rule_type == "mp_games_played":
+        from app.queries import get_multiplayer_games_played_count
+        threshold = rule.get("threshold", 10)
+        count = await get_multiplayer_games_played_count(user_id)
+        return count >= threshold
+
+    elif rule_type == "mp_games_hosted":
+        from app.queries import get_multiplayer_games_hosted_count
+        threshold = rule.get("threshold", 10)
+        count = await get_multiplayer_games_hosted_count(user_id)
+        return count >= threshold
+
+    elif rule_type in ("mp_perfect_game", "mp_speed_demon"):
+        return False  # Handled by evaluate_multiplayer_badges
+
     return False
+
+
+async def evaluate_multiplayer_badges(
+    user_id: str, game_id: str, player_result: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Evaluate multiplayer-specific badges after game completion."""
+    try:
+        all_badges = await list_badges()
+        earned = await list_user_badges(user_id)
+        earned_codes = {b["badge"]["code"] for b in earned}
+
+        new_badges: list[dict[str, Any]] = []
+
+        for badge in all_badges:
+            if badge["code"] in earned_codes:
+                continue
+
+            rule = badge.get("rule")
+            if isinstance(rule, str):
+                rule = json.loads(rule)
+            if not rule:
+                continue
+
+            rule_type = rule.get("type")
+            met = False
+
+            if rule_type == "mp_wins":
+                from app.queries import get_multiplayer_wins_count
+                threshold = rule.get("threshold", 1)
+                count = await get_multiplayer_wins_count(user_id)
+                met = count >= threshold
+
+            elif rule_type == "mp_perfect_game":
+                met = (
+                    player_result.get("final_position") == 1
+                    and player_result.get("wrong_count", 1) == 0
+                )
+
+            elif rule_type == "mp_games_played":
+                from app.queries import get_multiplayer_games_played_count
+                threshold = rule.get("threshold", 10)
+                count = await get_multiplayer_games_played_count(user_id)
+                met = count >= threshold
+
+            elif rule_type == "mp_speed_demon":
+                if player_result.get("final_position") == 1:
+                    from app.queries import get_player_answers_for_game
+                    answers = await get_player_answers_for_game(player_result["player_id"])
+                    if answers:
+                        prev_lap = 0
+                        all_fast = True
+                        for a in answers:
+                            diff = a["lap_time_ms"] - prev_lap
+                            if diff > 3000:
+                                all_fast = False
+                                break
+                            prev_lap = a["lap_time_ms"]
+                        met = all_fast
+
+            elif rule_type == "mp_games_hosted":
+                from app.queries import get_multiplayer_games_hosted_count
+                threshold = rule.get("threshold", 10)
+                count = await get_multiplayer_games_hosted_count(user_id)
+                met = count >= threshold
+
+            if met:
+                awarded = await award_badge(user_id, badge["id"], game_id)
+                if awarded:
+                    new_badges.append({
+                        "code": badge["code"],
+                        "name_en": badge["name_en"],
+                        "name_hu": badge["name_hu"],
+                        "icon": badge["icon"],
+                    })
+                    await create_notification(
+                        user_id,
+                        "badge_earned",
+                        "Badge earned!",
+                        f"You earned the '{badge['name_en']}' badge!",
+                        {"badge_id": badge["id"], "badge_code": badge["code"]},
+                    )
+
+        return new_badges
+    except Exception:
+        return []
