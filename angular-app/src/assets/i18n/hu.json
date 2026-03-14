@@ -384,5 +384,66 @@
   "userGuide.adminQuizTypes": "Admin — Kvíztípus szerkesztő",
   "userGuide.adminQuizTypesText": "Az adminok létrehozhatnak, szerkeszthetnek és törölhetnek kvíztípusokat. Minden kvíztípus meghatározza a műveletet, nehézségi tartományt, számformátumot és a Kezdőoldalon megjelenő példakérdéseket.",
   "userGuide.adminDatabase": "Admin — Adatbázis és statisztikák",
-  "userGuide.adminDatabaseText": "Az adminok megtekinthetik az adatbázis-táblák statisztikáit és visszaállíthatják az összes kvízadatot tesztelési célokra."
+  "userGuide.adminDatabaseText": "Az adminok megtekinthetik az adatbázis-táblák statisztikáit és visszaállíthatják az összes kvízadatot tesztelési célokra.",
+
+  "nav.multiplayer": "Többjátékos",
+  "common.refresh": "Frissítés",
+
+  "multiplayer.menu.title": "Többjátékos",
+  "multiplayer.menu.subtitle": "Valós idejű versenykvízek",
+  "multiplayer.menu.join": "Csatlakozás",
+  "multiplayer.menu.joinDesc": "Nyitott játék keresése és csatlakozás",
+  "multiplayer.menu.create": "Játék létrehozása",
+  "multiplayer.menu.createDesc": "Új többjátékos játék indítása",
+  "multiplayer.menu.history": "Előzmények",
+  "multiplayer.menu.historyDesc": "Korábbi játékok eredményei",
+
+  "multiplayer.create.title": "Többjátékos játék létrehozása",
+  "multiplayer.create.questions": "Kérdések száma",
+  "multiplayer.create.penalty": "Rossz válasz büntetés",
+  "multiplayer.create.penaltyHelp": "Rossz válaszért járó büntetésidő",
+  "multiplayer.create.minPlayers": "Min. játékos",
+  "multiplayer.create.maxPlayers": "Max. játékos",
+  "multiplayer.create.createGame": "Játék létrehozása",
+
+  "multiplayer.join.find": "Játékok keresése",
+  "multiplayer.join.gameCode": "Játékkód megadása",
+  "multiplayer.join.code": "Kód",
+  "multiplayer.join.questions": "Kérdések",
+  "multiplayer.join.players": "Játékosok",
+  "multiplayer.join.available": "elérhető játék",
+  "multiplayer.join.noGames": "Nincs elérhető játék",
+
+  "multiplayer.lobby.title": "Játék előszoba",
+  "multiplayer.lobby.players": "Játékosok",
+  "multiplayer.lobby.player": "Játékos",
+  "multiplayer.lobby.status": "Állapot",
+  "multiplayer.lobby.ready": "Készen állok!",
+  "multiplayer.lobby.waiting": "Várakozás a játékosokra...",
+  "multiplayer.lobby.start": "Játék indítása",
+  "multiplayer.lobby.end": "Játék befejezése",
+  "multiplayer.lobby.leave": "Kilépés",
+  "multiplayer.lobby.leaveConfirm": "Biztosan ki akarsz lépni a játékból?",
+  "multiplayer.lobby.starting": "A játék indul...",
+  "multiplayer.lobby.chat": "Chat",
+  "multiplayer.lobby.noMessages": "Még nincsenek üzenetek",
+  "multiplayer.lobby.typeMessage": "Írj üzenetet...",
+
+  "multiplayer.game.penalty": "Büntetés",
+  "multiplayer.game.totalTime": "Összidő",
+  "multiplayer.game.elapsed": "Idő",
+  "multiplayer.game.correct": "helyes",
+  "multiplayer.game.waiting": "Befejezve!",
+  "multiplayer.game.waitingOthers": "Várakozás a többi játékos befejezésére...",
+
+  "multiplayer.dashboard.title": "Házigazda műszerfal",
+
+  "multiplayer.results.position": "Helyezés",
+  "multiplayer.results.winner": "Győztes",
+
+  "multiplayer.history.title": "Többjátékos előzmények",
+  "multiplayer.history.date": "Dátum",
+  "multiplayer.history.noGames": "Még nincsenek többjátékos játékok",
+  "multiplayer.history.correct": "Helyes",
+  "multiplayer.history.wrong": "Hibás"
 }

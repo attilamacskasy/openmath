@@ -1,0 +1,454 @@
+// ══════════════════════════════════════════════════════════════
+// OpenMath — Database Schema (DBML)
+// State: AFTER migration 0022 — multiplayer_tables
+// Import at https://dbdiagram.io
+// ══════════════════════════════════════════════════════════════
+
+Project OpenMath {
+  database_type: 'PostgreSQL'
+  Note: 'Schema after migration 0022 — multiplayer_tables (v4.0)'
+}
+
+// ── Enums (derived from CHECK constraints) ──────────────────
+
+Enum difficulty {
+  low
+  medium
+  hard
+}
+
+Enum gender {
+  female
+  male
+  other
+  prefer_not_say
+}
+
+Enum role {
+  student
+  admin
+}
+
+Enum auth_provider {
+  local
+  google
+  both
+}
+
+Enum locale {
+  en
+  hu
+}
+
+Enum reviewer_role {
+  teacher
+  parent
+}
+
+Enum review_status {
+  pending
+  reviewed
+  signed
+}
+
+Enum review_sentiment {
+  positive
+  neutral
+  negative
+}
+
+Enum badge_category {
+  general
+  speed
+  accuracy
+  consistency
+  mastery
+}
+
+Enum game_status {
+  waiting
+  countdown
+  playing
+  completed
+  ended
+}
+
+// ── Existing Tables (unchanged) ─────────────────────────────
+
+Table users {
+  id UUID [pk, default: `gen_random_uuid()`]
+  name TEXT [not null]
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+  age INT [note: 'CHECK: age IS NULL OR age BETWEEN 4 AND 120']
+  gender TEXT [note: 'CHECK: gender IN (female, male, other, prefer_not_say)']
+  learned_timetables "INT[]" [not null, default: `ARRAY[1,2,3,4,5,6,7,8,9,10]`, note: 'CHECK: length >= 1 AND subset of 1..10']
+  email TEXT [unique]
+  password_hash TEXT
+  role TEXT [not null, default: 'student', note: 'CHECK: role IN (student, admin)']
+  auth_provider TEXT [not null, default: 'local', note: 'CHECK: auth_provider IN (local, google, both)']
+  google_sub TEXT [unique]
+  birthday DATE
+  locale TEXT [not null, default: 'en', note: 'CHECK: locale IN (en, hu)']
+
+  indexes {
+    email [name: 'idx_users_email']
+    google_sub [name: 'idx_users_google_sub']
+    role [name: 'idx_users_role']
+    locale [name: 'idx_users_locale']
+  }
+
+  Note: 'Originally "students" (0001), renamed in 0009. Auth columns added 0006. Locale added 0016.'
+}
+
+Table quiz_types {
+  id UUID [pk, default: `gen_random_uuid()`]
+  code TEXT [not null, unique]
+  description TEXT [not null]
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+  answer_type TEXT [not null, default: 'int']
+  template_kind TEXT
+  category TEXT
+  recommended_age_min INT
+  recommended_age_max INT [note: 'CHECK: min <= max when both set']
+  is_active BOOLEAN [not null, default: true]
+  sort_order INT [not null, default: 0]
+  render_mode "VARCHAR(20)" [not null, default: 'text']
+
+  Note: 'Quiz type definitions. Created 0002, extended 0005/0007, render_mode added 0020.'
+}
+
+Table quiz_sessions {
+  id UUID [pk, default: `gen_random_uuid()`]
+  user_id UUID [ref: > users.id]
+  quiz_type_id UUID [not null, ref: > quiz_types.id]
+  difficulty TEXT [not null, note: 'CHECK: difficulty IN (low, medium, hard)']
+  total_questions INT [not null, note: 'CHECK: total_questions > 0']
+  correct_count INT [not null, default: 0]
+  wrong_count INT [not null, default: 0]
+  score_percent "NUMERIC(5,2)" [not null, default: 0]
+  started_at TIMESTAMPTZ [not null, default: `now()`]
+  finished_at TIMESTAMPTZ
+
+  indexes {
+    (started_at) [name: 'idx_sessions_started']
+    quiz_type_id [name: 'idx_sessions_quiz_type']
+    user_id [name: 'idx_sessions_user']
+  }
+
+  Note: 'Each quiz attempt. Originally referenced students(id), renamed to user_id in 0009.'
+}
+
+Table questions {
+  id UUID [pk, default: `gen_random_uuid()`]
+  session_id UUID [not null, ref: > quiz_sessions.id]
+  quiz_type_id UUID [not null, ref: > quiz_types.id]
+  a INT [note: 'Nullable since 0008']
+  b INT [note: 'Nullable since 0008']
+  c INT [note: 'CHECK: c IS NULL OR c BETWEEN 1 AND 10']
+  d INT [note: 'CHECK: d IS NULL OR d BETWEEN 1 AND 10']
+  correct TEXT [not null, note: 'Changed from INT to TEXT in 0008']
+  position INT [not null, note: 'CHECK: position >= 1']
+  prompt JSONB
+
+  indexes {
+    session_id [name: 'idx_questions_session']
+    quiz_type_id [name: 'idx_questions_quiz_type']
+    prompt [type: gin, name: 'questions_prompt_gin']
+    (`prompt->'template'->>'kind'`) [name: 'questions_template_kind_idx']
+    (session_id, position) [unique]
+  }
+
+  Note: 'Individual quiz questions. a/b constraints relaxed in 0008, prompt JSONB added 0005.'
+}
+
+Table answers {
+  id UUID [pk, default: `gen_random_uuid()`]
+  question_id UUID [not null, unique, ref: > questions.id]
+  quiz_type_id UUID [not null, ref: > quiz_types.id]
+  value INT [not null]
+  is_correct BOOLEAN [not null]
+  answered_at TIMESTAMPTZ [not null, default: `now()`]
+  response JSONB [not null, default: `'{}'::jsonb`]
+  raw_input TEXT
+
+  indexes {
+    question_id [name: 'idx_answers_question']
+    quiz_type_id [name: 'idx_answers_quiz_type']
+    response [type: gin, name: 'answers_response_gin']
+  }
+
+  Note: 'User answers. JSONB response + raw_input added 0005.'
+}
+
+Table roles {
+  id UUID [pk, default: `gen_random_uuid()`]
+  name TEXT [not null, unique]
+  description TEXT
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+
+  Note: 'RBAC role definitions (admin, student, teacher, parent). Created 0010.'
+}
+
+Table user_roles {
+  id UUID [pk, default: `gen_random_uuid()`]
+  user_id UUID [not null, ref: > users.id]
+  role_id UUID [not null, ref: > roles.id]
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+
+  indexes {
+    user_id [name: 'idx_user_roles_user']
+    role_id [name: 'idx_user_roles_role']
+    (user_id, role_id) [unique]
+  }
+
+  Note: 'Many-to-many user ↔ role assignments. Created 0010.'
+}
+
+Table teacher_students {
+  id UUID [pk, default: `gen_random_uuid()`]
+  teacher_id UUID [not null, ref: > users.id]
+  student_id UUID [not null, ref: > users.id]
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+
+  indexes {
+    teacher_id [name: 'idx_teacher_students_teacher']
+    student_id [name: 'idx_teacher_students_student']
+    (teacher_id, student_id) [unique]
+  }
+
+  Note: 'Teacher ↔ student assignments. Created 0010.'
+}
+
+Table parent_students {
+  id UUID [pk, default: `gen_random_uuid()`]
+  parent_id UUID [not null, ref: > users.id]
+  student_id UUID [not null, ref: > users.id]
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+
+  indexes {
+    parent_id [name: 'idx_parent_students_parent']
+    student_id [name: 'idx_parent_students_student']
+    (parent_id, student_id) [unique]
+  }
+
+  Note: 'Parent ↔ student assignments. Max 2 parents enforced by trigger (0011). Created 0010.'
+}
+
+Table quiz_reviews {
+  id UUID [pk, default: `gen_random_uuid()`]
+  session_id UUID [not null, ref: > quiz_sessions.id]
+  reviewer_id UUID [not null, ref: > users.id]
+  reviewer_role TEXT [not null, note: 'CHECK: reviewer_role IN (teacher, parent)']
+  status TEXT [not null, default: 'pending', note: 'CHECK: status IN (pending, reviewed, signed)']
+  comment TEXT
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+  updated_at TIMESTAMPTZ
+
+  indexes {
+    session_id [name: 'idx_quiz_reviews_session']
+    reviewer_id [name: 'idx_quiz_reviews_reviewer']
+  }
+
+  Note: 'Teacher/parent quiz reviews. Created 0010.'
+}
+
+Table review_templates {
+  id UUID [pk, default: `gen_random_uuid()`]
+  reviewer_role TEXT [not null, note: 'CHECK: reviewer_role IN (teacher, parent)']
+  sentiment TEXT [not null, note: 'CHECK: sentiment IN (positive, neutral, negative)']
+  label TEXT [not null]
+  message TEXT [not null]
+  sort_order INT [not null, default: 0]
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+  locale TEXT [not null, default: 'en']
+
+  indexes {
+    (reviewer_role, locale, sort_order) [unique, name: 'idx_review_templates_role_locale_sort']
+  }
+
+  Note: 'Predefined review messages for teachers and parents. Created 0013, locale added 0017.'
+}
+
+Table notifications {
+  id UUID [pk, default: `gen_random_uuid()`]
+  user_id UUID [not null, ref: > users.id]
+  type TEXT [not null]
+  title TEXT [not null]
+  message TEXT [not null]
+  metadata JSONB [default: `'{}'`]
+  is_read BOOLEAN [not null, default: false]
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+  read_at TIMESTAMPTZ
+
+  indexes {
+    user_id [name: 'idx_notifications_user']
+    (user_id, is_read) [name: 'idx_notifications_user_unread', note: 'partial: WHERE is_read = false']
+  }
+
+  Note: 'In-app notification system. Created 0014.'
+}
+
+// ┌─────────────────────────────────────────────────────────────┐
+// │ DATA CHANGE in 0022: INSERT 6 multiplayer badges            │
+// │ (mp_first_win, mp_5_wins, mp_perfect_game, mp_10_games,     │
+// │  mp_speed_demon, mp_host_10)                                 │
+// └─────────────────────────────────────────────────────────────┘
+Table badges [headercolor: #fd7e14] {
+  id UUID [pk, default: `gen_random_uuid()`]
+  code TEXT [not null, unique]
+  name_en TEXT [not null]
+  name_hu TEXT [not null]
+  description_en TEXT [not null]
+  description_hu TEXT [not null]
+  icon TEXT [not null, default: 'pi pi-star']
+  category TEXT [not null, default: 'general', note: 'CHECK: category IN (general, speed, accuracy, consistency, mastery)']
+  rule JSONB [not null]
+  sort_order INT [not null, default: 0]
+  is_active BOOLEAN [not null, default: true]
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+
+  Note: '''
+    Badge definitions for gamification. Created 0018.
+    Migration 0022: inserted 6 multiplayer badges (mp_first_win, mp_5_wins, mp_perfect_game, mp_10_games, mp_speed_demon, mp_host_10).
+  '''
+}
+
+Table user_badges {
+  id UUID [pk, default: `gen_random_uuid()`]
+  user_id UUID [not null, ref: > users.id]
+  badge_id UUID [not null, ref: > badges.id]
+  session_id UUID [ref: > quiz_sessions.id]
+  awarded_at TIMESTAMPTZ [not null, default: `now()`]
+
+  indexes {
+    user_id [name: 'idx_user_badges_user']
+    badge_id [name: 'idx_user_badges_badge']
+    (user_id, badge_id) [unique]
+  }
+
+  Note: 'Awarded badges per user. Created 0019.'
+}
+
+// ── NEW Tables (migration 0022) ─────────────────────────────
+
+Table multiplayer_games [headercolor: #dc3545] {
+  id UUID [pk, default: `gen_random_uuid()`]
+  game_code VARCHAR(10) [not null, unique]
+  host_user_id UUID [not null, ref: > users.id]
+  quiz_type_id UUID [not null, ref: > quiz_types.id]
+  difficulty TEXT [not null, default: 'medium', note: 'CHECK: difficulty IN (low, medium, hard)']
+  total_questions INTEGER [not null, default: 10, note: 'CHECK: total_questions > 0']
+  penalty_seconds INTEGER [not null, default: 10, note: 'CHECK: penalty_seconds IN (5, 10, 20)']
+  min_players INTEGER [not null, default: 2, note: 'CHECK: min_players BETWEEN 2 AND 25']
+  max_players INTEGER [not null, default: 5, note: 'CHECK: max_players BETWEEN 2 AND 25, max >= min']
+  status VARCHAR(20) [not null, default: 'waiting', note: 'CHECK: status IN (waiting, countdown, playing, completed, ended)']
+  learned_timetables JSONB
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  started_at TIMESTAMPTZ
+  completed_at TIMESTAMPTZ
+  ended_at TIMESTAMPTZ
+
+  indexes {
+    status [name: 'idx_mp_games_status']
+    host_user_id [name: 'idx_mp_games_host']
+    game_code [name: 'idx_mp_games_code']
+    (created_at) [name: 'idx_mp_games_created']
+  }
+
+  Note: 'Multiplayer game instances. Created 0022 (v4.0).'
+}
+
+Table multiplayer_questions [headercolor: #dc3545] {
+  id UUID [pk, default: `gen_random_uuid()`]
+  game_id UUID [not null, ref: > multiplayer_games.id]
+  position INTEGER [not null, note: 'CHECK: position >= 1']
+  quiz_type_id UUID [not null, ref: > quiz_types.id]
+  a INTEGER
+  b INTEGER
+  c INTEGER
+  d INTEGER
+  correct TEXT [not null]
+  prompt JSONB
+
+  indexes {
+    game_id [name: 'idx_mp_questions_game']
+    (game_id, position) [unique]
+  }
+
+  Note: 'Shared question set for all players in a multiplayer game. Created 0022 (v4.0).'
+}
+
+Table multiplayer_players [headercolor: #dc3545] {
+  id UUID [pk, default: `gen_random_uuid()`]
+  game_id UUID [not null, ref: > multiplayer_games.id]
+  user_id UUID [not null, ref: > users.id]
+  slot_number INTEGER [not null, note: 'CHECK: slot_number >= 1']
+  is_ready BOOLEAN [not null, default: false]
+  total_time_ms INTEGER
+  penalty_time_ms INTEGER [not null, default: 0]
+  correct_count INTEGER [not null, default: 0]
+  wrong_count INTEGER [not null, default: 0]
+  final_position INTEGER
+  joined_at TIMESTAMPTZ [not null, default: `NOW()`]
+  finished_at TIMESTAMPTZ
+
+  indexes {
+    game_id [name: 'idx_mp_players_game']
+    user_id [name: 'idx_mp_players_user']
+    (game_id, user_id) [unique]
+    (game_id, slot_number) [unique]
+  }
+
+  Note: 'Player entries in multiplayer games with scoring data. Created 0022 (v4.0).'
+}
+
+Table multiplayer_answers [headercolor: #dc3545] {
+  id UUID [pk, default: `gen_random_uuid()`]
+  game_id UUID [not null, ref: > multiplayer_games.id]
+  player_id UUID [not null, ref: > multiplayer_players.id]
+  question_id UUID [not null, ref: > multiplayer_questions.id]
+  value TEXT
+  is_correct BOOLEAN [not null]
+  lap_time_ms INTEGER [not null]
+  penalty_ms INTEGER [not null, default: 0]
+  answered_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  indexes {
+    game_id [name: 'idx_mp_answers_game']
+    player_id [name: 'idx_mp_answers_player']
+    (player_id, question_id) [unique]
+  }
+
+  Note: 'Per-player answers in multiplayer games with lap times and penalties. Created 0022 (v4.0).'
+}
+
+Table multiplayer_chat_messages [headercolor: #dc3545] {
+  id UUID [pk, default: `gen_random_uuid()`]
+  game_id UUID [not null, ref: > multiplayer_games.id]
+  user_id UUID [not null, ref: > users.id]
+  message VARCHAR(200) [not null]
+  sent_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  indexes {
+    game_id [name: 'idx_mp_chat_game']
+    (game_id, sent_at) [name: 'idx_mp_chat_sent']
+  }
+
+  Note: 'In-game chat messages for multiplayer lobbies. Created 0022 (v4.0).'
+}
+
+// ── Views ───────────────────────────────────────────────────
+// VIEW student_associations (created 0015)
+//   Unions teacher_students and parent_students with user details.
+//   Columns: student_id, relationship, related_user_id, related_name,
+//            related_email, associated_at
+
+// ── Functions & Triggers ────────────────────────────────────
+// FUNCTION check_max_parents() — returns TRIGGER (created 0011)
+//   Raises exception if a student already has 2 parents.
+//
+// TRIGGER trg_max_parents ON parent_students
+//   BEFORE INSERT, executes check_max_parents().
+
+// ── Extensions ──────────────────────────────────────────────
+// pgcrypto (created 0001)

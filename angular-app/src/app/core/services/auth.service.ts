@@ -40,6 +40,10 @@ export class AuthService {
 
   // ── Public API ──────────────────────────────────────────
 
+  getToken(): string | null {
+    return localStorage.getItem(ACCESS_TOKEN_KEY);
+  }
+
   login(email: string, password: string): Observable<AuthResponse> {
     return this.http
       .post<AuthResponse>(`${this.baseUrl}/auth/login`, { email, password })
