@@ -111,6 +111,38 @@ Senior mentors (human full-stack developers) and AI together achieved what would
 
 ---
 
+## Roadmap & Vision
+
+OpenMath started as a math quiz app for my sons Attila and Levente. It became
+something bigger — a deliberate engineering laboratory where I build, break,
+and rebuild every layer of a modern production system on my own infrastructure.
+
+I have 28 years in IT. I work as a Multi-Cloud Architect inside a large
+enterprise, designing infrastructure that serves millions of users. But there
+is a gap between *advising on* systems and *owning* them end-to-end. OpenMath
+closes that gap. I treat it the way an enterprise treats a production
+application — proper environments (DEV, UAT, PROD), CI/CD pipelines,
+observability, security hardening, and infrastructure-as-code — all self-hosted
+on hardware I own, running open-source tools that mirror what the cloud
+services abstract away.
+
+Eight roadmap documents define the path forward:
+
+| # | Roadmap | What it covers |
+|---|---|---|
+| 1 | [Application Gateway](docs/roadmap_application_gateway_publish.md) | Traefik reverse proxy, HTTPS with Let's Encrypt, multi-domain routing |
+| 2 | [Automated Testing](docs/roadmap_automated_testing.md) | pytest, Playwright, Grafana k6 load testing across 40+ endpoints |
+| 3 | [DevOps & CI/CD](docs/roadmap_devops.md) | Self-hosted GitLab CE, container registry, pipeline-as-code |
+| 4 | [Observability](docs/roadmap_observability_otel_monitoring.md) | OpenTelemetry, Prometheus, Grafana, Loki — real-time dashboards |
+| 5 | [Security](docs/roadmap_security.md) | SAST/DAST, HashiCorp Vault, Wazuh SIEM, container hardening |
+| 6 | [Data & AI](docs/roadmap_data_and_ai.md) | Learning analytics, DuckDB OLAP, scikit-learn ML models |
+| 7 | [On-Premises AI](docs/roadmap_onpremises_nvidia_ai_ollama.md) | 2× RTX 3090 GPU server, Ollama, Qwen2.5 72B, RAG with pgvector |
+| 8 | [Kubernetes & Helm](docs/roadmap_kubernetes_helm.md) | Multi-node kubeadm on Proxmox, Calico, Longhorn, Helm releases |
+
+**[Read the full roadmap & vision →](docs/roadmap.md)**
+
+---
+
 ## Documentation
 
 All specifications and implementation summaries are in the `docs/` folder. Specs were written first, then implemented and documented — this table shows them side by side in development order.

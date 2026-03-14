@@ -1,8 +1,9 @@
-# OpenMath Specification — v3.3
+# OpenMath Specification
 ## OpenTelemetry Monitoring Stack for Real-Time Observability
 
-**Version:** 3.3 
+**Version:** n/a
 **Status:** Draft Specification  
+**Date:** 2026-03-14  
 **Module:** Observability / Monitoring / Telemetry / Operations
 
 ---
