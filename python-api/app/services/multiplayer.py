@@ -118,9 +118,9 @@ class GameManager:
 
         if game_code not in self._games:
             self._games[game_code] = ActiveGame(
-                game_id=game_data["id"],
+                game_id=str(game_data["id"]),
                 game_code=game_code,
-                host_user_id=game_data["host_user_id"],
+                host_user_id=str(game_data["host_user_id"]),
                 status=game_data["status"],
                 penalty_seconds=game_data["penalty_seconds"],
                 total_questions=game_data["total_questions"],
