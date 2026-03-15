@@ -1,4 +1,7 @@
-"""FastAPI application entry point for OpenMath API v4.0."""
+"""FastAPI application entry point for OpenMath API."""
+
+import json
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,9 +13,25 @@ from app.routers import (
     notifications, parent, quiz_types, sessions, stats, teacher, users,
 )
 
+
+def _read_version() -> str:
+    """Read API version from centralized version.json."""
+    for candidate in [
+        Path(__file__).resolve().parent.parent / "version.json",   # Docker: /app/version.json
+        Path(__file__).resolve().parents[2] / "version.json",      # Dev:   repo_root/version.json
+    ]:
+        if candidate.exists():
+            try:
+                data = json.loads(candidate.read_text(encoding="utf-8"))
+                return data["components"].get("python-api", data["app"]["version"])
+            except Exception:
+                pass
+    return "0.0.0"
+
+
 app = FastAPI(
     title="OpenMath API",
-    version="4.0.0",
+    version=_read_version(),
     lifespan=lifespan,
 )
 

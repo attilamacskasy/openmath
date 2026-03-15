@@ -30,55 +30,55 @@ This is the first production-ready release of OpenMath. The focus was to get a *
 
 Choose quiz type, difficulty, learned timetables, and question count. KaTeX renders math beautifully.
 
-![Start page with quiz configuration](assets/images/v_3.2_first_prod_release/fe_start.JPG)
+![Start page with quiz configuration](assets/images/v3.2_first_prod_release/fe_start.JPG)
 
 ### Session Detail & Review
 
 Review each question with correct/wrong status, your answer vs. the expected answer, and session summary metrics.
 
-![Session detail with per-question results](assets/images/v_3.2_first_prod_release/fe_session_detail.JPG)
+![Session detail with per-question results](assets/images/v3.2_first_prod_release/fe_session_detail.JPG)
 
-![Review page with session analytics](assets/images/v_3.2_first_prod_release/fe_review.JPG)
+![Review page with session analytics](assets/images/v3.2_first_prod_release/fe_review.JPG)
 
 ### User Profiles with Badges & Performance
 
 Earned badges are displayed on the profile. Performance stats are aggregated by quiz type with time tracking.
 
-![Profile page showing earned badges](assets/images/v_3.2_first_prod_release/fe_profile_badges.JPG)
+![Profile page showing earned badges](assets/images/v3.2_first_prod_release/fe_profile_badges.JPG)
 
-![Profile page showing performance statistics](assets/images/v_3.2_first_prod_release/fe_profile_perf.JPG)
+![Profile page showing performance statistics](assets/images/v3.2_first_prod_release/fe_profile_perf.JPG)
 
 ### User Management
 
 Manage users with role-based access control (Admin, Teacher, Student, Parent).
 
-![User management page](assets/images/v_3.2_first_prod_release/fe_users.JPG)
+![User management page](assets/images/v3.2_first_prod_release/fe_users.JPG)
 
 ### Admin Panel & Quiz Type Management
 
 Database statistics, table browser, danger zone reset, and quiz type configuration.
 
-![Admin panel with database statistics](assets/images/v_3.2_first_prod_release/fe_admin.JPG)
+![Admin panel with database statistics](assets/images/v3.2_first_prod_release/fe_admin.JPG)
 
-![Quiz type management](assets/images/v_3.2_first_prod_release/fe_admin_quiz_types.JPG)
+![Quiz type management](assets/images/v3.2_first_prod_release/fe_admin_quiz_types.JPG)
 
 ### Backend — FastAPI with Swagger UI
 
 Clean, well-typed API with auto-generated interactive documentation.
 
-![FastAPI Swagger UI](assets/images/v_3.2_first_prod_release/be_fastapi.JPG)
+![FastAPI Swagger UI](assets/images/v3.2_first_prod_release/be_fastapi.JPG)
 
 ### DevOps CLI & Production Tooling
 
 A powerful Python-based CLI (`dev.py`) manages the entire development and production lifecycle.
 
-![DevOps CLI main menu](assets/images/v_3.2_first_prod_release/dev_main.JPG)
+![DevOps CLI main menu](assets/images/v3.2_first_prod_release/dev_main.JPG)
 
-![DevOps CLI start options](assets/images/v_3.2_first_prod_release/dev_start.JPG)
+![DevOps CLI start options](assets/images/v3.2_first_prod_release/dev_start.JPG)
 
-![DevOps CLI development mode](assets/images/v_3.2_first_prod_release/dev_dev.JPG)
+![DevOps CLI development mode](assets/images/v3.2_first_prod_release/dev_dev.JPG)
 
-![DevOps CLI production deployment](assets/images/v_3.2_first_prod_release/dev_prod.JPG)
+![DevOps CLI production deployment](assets/images/v3.2_first_prod_release/dev_prod.JPG)
 
 ---
 

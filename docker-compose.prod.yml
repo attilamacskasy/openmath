@@ -63,6 +63,8 @@ services:
     build:
       context: ./angular-app
       dockerfile: Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-0.0.0}
     image: openmath/angular-app:latest
     container_name: openmath-local-prod-frontend
     restart: unless-stopped

@@ -36,6 +36,11 @@ Thumbs.db
 # Project helper artifacts
 .dev-assistant/
 
+# Centralized version — copies synced into sub-projects at build time
+python-api/version.json
+angular-app/version.json
+angular-app/src/version.ts
+
 # Database backups
 backups/*.sql.gz
  # Claude Code worktrees and config

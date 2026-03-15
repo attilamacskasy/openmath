@@ -11,6 +11,7 @@ from devops.prod.local import prod_local_down, prod_local_reset, prod_local_stat
 from devops.prod.remote import remote_down, remote_push, remote_setup, remote_status, remote_up
 from devops.ui.banner import clear_screen, show_banner, wait_for_key
 from devops.ui.theme import CYAN, DIM, RED, RESET, THEME
+from devops.utils.promote_admin import promote_first_admin
 
 
 # ── Human-readable feedback per action key ────────────────
@@ -33,6 +34,7 @@ _STATUS_MSG: dict[str, str] = {
     "remote-start":  "✅ Remote containers started",
     "remote-stop":   "✅ Remote containers stopped",
     "remote-status": "ℹ️  Remote status shown",
+    "promote-admin": "✅ First user promoted to admin",
 }
 
 
@@ -60,6 +62,8 @@ _ACTIONS: dict[str, object] = {
     "remote-start": remote_up,
     "remote-stop": remote_down,
     "remote-status": remote_status,
+    # Utility
+    "promote-admin": promote_first_admin,
 }
 
 
@@ -103,6 +107,8 @@ def show_prod_menu() -> None:
                     {"name": "Start             Start remote containers",        "value": "remote-start"},
                     {"name": "Stop              Stop remote containers",         "value": "remote-stop"},
                     {"name": "Status            Remote status + logs",           "value": "remote-status"},
+                    Separator("── Utility ────────────────────────────────────"),
+                    {"name": "Promote Admin     Make first user an admin",        "value": "promote-admin"},
                     Separator(),
                     {"name": "← Back",                                           "value": "back"},
                 ],

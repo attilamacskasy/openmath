@@ -2,11 +2,23 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
+from pathlib import Path
 
 from devops.ui.theme import CYAN, DIM, GREEN, RESET
 from devops.utils.commands import command_exists, get_command_version
+
+
+def _load_version() -> str:
+    """Read the application version from the centralized version.json."""
+    try:
+        vf = Path(__file__).resolve().parents[2] / "version.json"
+        data = json.loads(vf.read_text(encoding="utf-8"))
+        return data["components"]["devops"]
+    except Exception:
+        return "?.?.?"
 
 
 def clear_screen() -> None:
@@ -26,7 +38,7 @@ _BANNER = rf"""
   ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝{RESET}
 """
 
-_VERSION = "DevOps Console v3.1"
+_VERSION = f"DevOps Console v{_load_version()}"
 
 
 def _detect_version(name: str) -> str:
