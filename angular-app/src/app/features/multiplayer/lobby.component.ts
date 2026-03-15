@@ -177,7 +177,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
       next: (detail) => {
         this.game.set(detail.game);
         this.players.set(detail.players);
-        const userId = this.auth.currentUser()?.sub;
+        const userId = this.auth.currentUser()?.id;
         this.isHost.set(detail.game.host_user_id === userId);
       },
       error: () => this.router.navigate(['/multiplayer']),

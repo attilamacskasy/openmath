@@ -45,8 +45,10 @@ import { MultiplayerGame } from '../../models/multiplayer.model';
             <p-divider></p-divider>
 
             <p-table [value]="games()" [loading]="loading()" [rows]="10"
-              styleClass="p-datatable-sm" [sortField]="'created_at'" [sortOrder]="-1"
-              [emptyMessage]="t('multiplayer.join.noGames')">
+              styleClass="p-datatable-sm" [sortField]="'created_at'" [sortOrder]="-1">
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="6" class="text-center p-4">{{ t('multiplayer.join.noGames') }}</td></tr>
+              </ng-template>
               <ng-template pTemplate="header">
                 <tr>
                   <th pSortableColumn="game_code">{{ t('multiplayer.join.code') }} <p-sortIcon field="game_code"></p-sortIcon></th>
