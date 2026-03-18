@@ -150,6 +150,16 @@ export class HostDashboardComponent implements OnInit, OnDestroy {
     this.startTime = Date.now();
     this.startTimer();
 
+    // Check if game_started already fired before this component mounted
+    const cached = this.ws.lastGameStarted();
+    if (cached && cached.questions?.length) {
+      console.log('[DASHBOARD] Using cached game_started payload:', cached.questions.length, 'questions');
+      const qs = cached.questions;
+      this.totalQuestions.set(qs.length);
+      this.questionNumbers.set(qs.map((_: any, i: number) => i + 1));
+    }
+
+    // Also subscribe for future game_started events
     this.ws.onMessage('game_started').subscribe((p) => {
       const qs = p.questions || [];
       this.totalQuestions.set(qs.length);

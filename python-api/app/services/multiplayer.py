@@ -1,9 +1,10 @@
-"""Multiplayer game engine — GameManager, GameBroadcaster, state machine (v4.0)."""
+"""Multiplayer game engine — GameManager, GameBroadcaster, state machine (v4.0 + v4.1 logging)."""
 
 from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -26,6 +27,8 @@ from app.queries import (
     update_player_stats,
 )
 from app.services.grader import grade_answer
+
+logger = logging.getLogger("openmath.multiplayer")
 
 COUNTDOWN_SECONDS = 10
 MIN_ANSWER_INTERVAL_MS = 500
@@ -79,31 +82,46 @@ class GameManager:
     async def _broadcast(
         self, game: ActiveGame, message: dict, exclude: str | None = None
     ) -> None:
+        msg_type = message.get("type", "?")
+        targets = [uid for uid in game.connections if uid != exclude]
+        logger.info(
+            "[MP] BROADCAST game=%s type=%s to=%d clients exclude=%s",
+            game.game_code, msg_type, len(targets), exclude[:8] if exclude else "none",
+        )
         dead: list[str] = []
         for uid, conn in game.connections.items():
             if uid == exclude:
                 continue
             try:
                 await conn.websocket.send_json(message)
-            except Exception:
+            except Exception as e:
+                logger.warning("[MP] BROADCAST_FAIL game=%s user=%s error=%s", game.game_code, uid, str(e))
                 dead.append(uid)
         for uid in dead:
             game.connections.pop(uid, None)
 
     async def _send_to_host(self, game: ActiveGame, message: dict) -> None:
+        msg_type = message.get("type", "?")
+        logger.info("[MP] SEND_TO_HOST game=%s type=%s", game.game_code, msg_type)
         conn = game.connections.get(game.host_user_id)
         if conn:
             try:
                 await conn.websocket.send_json(message)
-            except Exception:
+            except Exception as e:
+                logger.warning("[MP] SEND_TO_HOST_FAIL game=%s error=%s", game.game_code, str(e))
                 game.connections.pop(game.host_user_id, None)
+        else:
+            logger.warning("[MP] SEND_TO_HOST_SKIP game=%s host_not_connected", game.game_code)
 
     async def _send_to_user(self, game: ActiveGame, user_id: str, message: dict) -> None:
+        msg_type = message.get("type", "?")
+        logger.info("[MP] SEND_TO_USER game=%s user=%s type=%s", game.game_code, user_id[:8], msg_type)
         conn = game.connections.get(user_id)
         if conn:
             try:
                 await conn.websocket.send_json(message)
-            except Exception:
+            except Exception as e:
+                logger.warning("[MP] SEND_TO_USER_FAIL game=%s user=%s error=%s", game.game_code, user_id[:8], str(e))
                 game.connections.pop(user_id, None)
 
     # ── Connection management ──
@@ -135,6 +153,11 @@ class GameManager:
             is_host=is_host,
         )
 
+        logger.info(
+            "[MP] WS_CONNECT game=%s user=%s name=%s is_host=%s connections=%d",
+            game_code, user_id[:8], user_name, is_host, len(game.connections),
+        )
+
         # Notify others
         if not is_host:
             await self._broadcast(
@@ -156,6 +179,11 @@ class GameManager:
         conn = game.connections.pop(user_id, None)
         if not conn:
             return
+
+        logger.info(
+            "[MP] WS_DISCONNECT game=%s user=%s name=%s status=%s remaining=%d",
+            game_code, user_id[:8], conn.user_name, game.status, len(game.connections),
+        )
 
         if game.status == "waiting":
             if user_id == game.host_user_id:
@@ -182,6 +210,7 @@ class GameManager:
 
         # Clean up if no connections left
         if not game.connections:
+            logger.info("[MP] GAME_CLEANUP game=%s (no connections left)", game_code)
             self._games.pop(game_code, None)
 
     async def _handle_player_disconnect_during_game(
@@ -231,6 +260,7 @@ class GameManager:
     ) -> None:
         game = self._games.get(game_code)
         if not game:
+            logger.warning("[MP] MSG_NO_GAME game=%s user=%s", game_code, user_id[:8])
             return
 
         msg_type = data.get("type", "")
@@ -256,6 +286,7 @@ class GameManager:
             return  # Host doesn't ready up
 
         is_ready = payload.get("ready", False)
+        logger.info("[MP] READY game=%s user=%s ready=%s", game.game_code, user_id[:8], is_ready)
         await update_player_ready(game.game_id, user_id, is_ready)
         await self._broadcast(
             game,
@@ -275,6 +306,7 @@ class GameManager:
         conn = game.connections.get(user_id)
         sender_name = conn.user_name if conn else "Unknown"
 
+        logger.info("[MP] CHAT game=%s from=%s len=%d", game.game_code, sender_name, len(text))
         await insert_chat_message(game.game_id, user_id, text)
         await self._broadcast(
             game,
@@ -311,11 +343,14 @@ class GameManager:
             )
             return
 
+        logger.info("[MP] START_GAME game=%s players=%d", game.game_code, player_count)
+
         # Start countdown
         game.status = "countdown"
         await update_game_status(game.game_id, "countdown")
 
         for i in range(COUNTDOWN_SECONDS, 0, -1):
+            logger.info("[MP] COUNTDOWN game=%s tick=%d", game.game_code, i)
             await self._broadcast(game, self._msg("countdown_tick", {"value": i}))
             await asyncio.sleep(1)
 
@@ -339,6 +374,8 @@ class GameManager:
             for q in questions
         ]
 
+        logger.info("[MP] GAME_STARTED game=%s questions=%d connections=%d",
+                     game.game_code, len(safe_questions), len(game.connections))
         await self._broadcast(
             game,
             self._msg("game_started", {"questions": safe_questions}),
@@ -394,6 +431,12 @@ class GameManager:
         # Calculate times
         elapsed_ms = int((now - game.started_at) * 1000) if game.started_at else 0
         penalty_ms = 0 if is_correct else game.penalty_seconds * 1000
+
+        logger.info(
+            "[MP] ANSWER game=%s user=%s q=%d correct=%s value=%s elapsed=%dms penalty=%dms",
+            game.game_code, user_id[:8], question["position"], is_correct,
+            answer_value, elapsed_ms, penalty_ms,
+        )
 
         await insert_multiplayer_answer(
             game_id=game.game_id,
@@ -455,6 +498,7 @@ class GameManager:
 
         # Check if all players finished
         if finished:
+            logger.info("[MP] PLAYER_FINISHED game=%s user=%s", game.game_code, user_id[:8])
             await self._check_game_completion(game)
 
     async def _send_position_update(self, game: ActiveGame) -> None:
@@ -492,6 +536,8 @@ class GameManager:
         if not all_finished:
             return
 
+        logger.info("[MP] GAME_COMPLETED game=%s", game.game_code)
+
         # Calculate final positions
         answers = await get_multiplayer_answers(game.game_id)
         player_results = []
@@ -516,6 +562,10 @@ class GameManager:
 
         for i, pr in enumerate(player_results):
             pr["final_position"] = i + 1
+            logger.info(
+                "[MP] FINAL_POSITION game=%s pos=%d name=%s correct=%d time=%dms",
+                game.game_code, i + 1, pr["user_name"], pr["correct_count"], pr["total_time_ms"],
+            )
             await update_player_stats(
                 player_id=pr["player_id"],
                 correct_count=pr["correct_count"],
@@ -607,6 +657,7 @@ class GameManager:
         if game.status not in ("completed", "waiting"):
             return
 
+        logger.info("[MP] END_GAME game=%s by=%s", game.game_code, user_id[:8])
         game.status = "ended"
         await update_game_status(game.game_id, "ended")
         await self._broadcast(game, self._msg("game_ended", {}))
