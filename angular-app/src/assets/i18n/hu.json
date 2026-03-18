@@ -350,7 +350,6 @@
   "examPaper.viewTable": "Táblázat",
   "quizEditor.renderMode": "Megjelenítési mód",
 
-  "footer.version": "OpenMath v2.6",
   "footer.techStack": "Angular + FastAPI + PrimeNG + PostgreSQL",
   "footer.source": "Forráskód",
 

@@ -6,11 +6,12 @@ from InquirerPy import inquirer
 from InquirerPy.separator import Separator
 
 from devops.prod.builds import prod_build_all, prod_build_component
-from devops.prod.database import db_backup, db_list_backups, db_migrate, db_restore
+from devops.prod.database import db_backup, db_list_backups, db_migrate, db_restore, db_status
 from devops.prod.local import prod_local_down, prod_local_reset, prod_local_status, prod_local_up
 from devops.prod.remote import remote_down, remote_push, remote_setup, remote_status, remote_up
 from devops.ui.banner import clear_screen, show_banner, wait_for_key
 from devops.ui.theme import CYAN, DIM, RED, RESET, THEME
+from devops.utils.promote_admin import promote_first_admin
 
 
 # ── Human-readable feedback per action key ────────────────
@@ -22,6 +23,7 @@ _STATUS_MSG: dict[str, str] = {
     "db-backup":     "✅ Database backup created",
     "db-restore":    "✅ Database restored from backup",
     "db-migrate":    "✅ Database migrations applied",
+    "db-status":     "ℹ️  Database status shown",
     "db-list":       "ℹ️  Backup list shown",
     "local-start":   "✅ Local containers started",
     "local-stop":    "✅ Local containers stopped",
@@ -32,6 +34,7 @@ _STATUS_MSG: dict[str, str] = {
     "remote-start":  "✅ Remote containers started",
     "remote-stop":   "✅ Remote containers stopped",
     "remote-status": "ℹ️  Remote status shown",
+    "promote-admin": "✅ First user promoted to admin",
 }
 
 
@@ -46,6 +49,7 @@ _ACTIONS: dict[str, object] = {
     "db-backup": db_backup,
     "db-restore": db_restore,
     "db-migrate": db_migrate,
+    "db-status": db_status,
     "db-list": db_list_backups,
     # Local deploy
     "local-start": prod_local_up,
@@ -58,6 +62,8 @@ _ACTIONS: dict[str, object] = {
     "remote-start": remote_up,
     "remote-stop": remote_down,
     "remote-status": remote_status,
+    # Utility
+    "promote-admin": promote_first_admin,
 }
 
 
@@ -85,6 +91,7 @@ def show_prod_menu() -> None:
                     {"name": "Build Angular     openmath/angular-app:latest",              "value": "build-angular"},
                     {"name": "Build PostgreSQL  postgres:16-alpine (pull)",                "value": "build-db"},
                     Separator("── Database ───────────────────────────────────"),
+                    {"name": "Status            Connection check + table stats", "value": "db-status"},
                     {"name": "Run Migrations    Apply db/migrations/*.sql",     "value": "db-migrate"},
                     {"name": "Backup            Create pg_dump → backups/",     "value": "db-backup"},
                     {"name": "Restore           Restore from backup file",      "value": "db-restore"},
@@ -100,6 +107,8 @@ def show_prod_menu() -> None:
                     {"name": "Start             Start remote containers",        "value": "remote-start"},
                     {"name": "Stop              Stop remote containers",         "value": "remote-stop"},
                     {"name": "Status            Remote status + logs",           "value": "remote-status"},
+                    Separator("── Utility ────────────────────────────────────"),
+                    {"name": "Promote Admin     Make first user an admin",        "value": "promote-admin"},
                     Separator(),
                     {"name": "← Back",                                           "value": "back"},
                 ],

@@ -285,6 +285,125 @@ def db_migrate() -> None:
     print()
 
 
+def db_status() -> None:
+    """Check database connectivity and show table statistics."""
+    label = "DB-STATUS"
+
+    # 1. Container check
+    print()
+    print("\033[96m  ═══ Database Status ═══\033[0m")
+    print()
+
+    if not _is_container_running():
+        print(f"  \033[91m✗ Container:\033[0m  '{_CONTAINER}' is NOT running")
+        print()
+        log(f"Start the database first with PROD → Local → Start.", level="ERROR", label=label)
+        return
+
+    print(f"  \033[92m✓ Container:\033[0m  '{_CONTAINER}' is running")
+
+    user, db = _get_db_credentials()
+
+    # 2. Connection check — simple SELECT 1
+    try:
+        conn_result = subprocess.run(
+            ["docker", "exec", _CONTAINER, "psql", "-U", user, "-d", db,
+             "-c", "SELECT 1;"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if conn_result.returncode != 0:
+            print(f"  \033[91m✗ Connection:\033[0m  FAILED — {conn_result.stderr.strip()}")
+            print()
+            return
+        print(f"  \033[92m✓ Connection:\033[0m  OK (user={user}, db={db})")
+    except Exception as exc:
+        print(f"  \033[91m✗ Connection:\033[0m  FAILED — {exc}")
+        print()
+        return
+
+    # 3. Database version
+    try:
+        ver_result = subprocess.run(
+            ["docker", "exec", _CONTAINER, "psql", "-U", user, "-d", db,
+             "-t", "-A", "-c", "SELECT version();"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if ver_result.returncode == 0:
+            version = ver_result.stdout.strip().split(",")[0]  # first part only
+            print(f"  \033[92m✓ Version:\033[0m    {version}")
+    except Exception:
+        pass
+
+    # 4. Database size
+    try:
+        size_result = subprocess.run(
+            ["docker", "exec", _CONTAINER, "psql", "-U", user, "-d", db,
+             "-t", "-A", "-c", f"SELECT pg_size_pretty(pg_database_size('{db}'));"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if size_result.returncode == 0:
+            print(f"  \033[92m✓ DB Size:\033[0m    {size_result.stdout.strip()}")
+    except Exception:
+        pass
+
+    # 5. Table statistics
+    query = """
+        SELECT
+            schemaname AS schema,
+            relname    AS table_name,
+            n_live_tup AS row_count
+        FROM pg_stat_user_tables
+        ORDER BY n_live_tup DESC, relname;
+    """
+    try:
+        tbl_result = subprocess.run(
+            ["docker", "exec", _CONTAINER, "psql", "-U", user, "-d", db,
+             "-t", "-A", "-F", "|", "-c", query],
+            capture_output=True, text=True, timeout=15,
+        )
+        if tbl_result.returncode != 0:
+            print(f"\n  \033[91m✗ Could not query table stats:\033[0m {tbl_result.stderr.strip()}")
+            print()
+            return
+
+        lines = [l.strip() for l in tbl_result.stdout.strip().splitlines() if l.strip()]
+        if not lines:
+            print(f"\n  \033[93m⚠ No user tables found in database '{db}'.\033[0m")
+            print()
+            return
+
+        rows: list[tuple[str, str, int]] = []
+        total_rows = 0
+        for line in lines:
+            parts = line.split("|")
+            if len(parts) >= 3:
+                schema, table, count_str = parts[0], parts[1], parts[2]
+                count = int(count_str) if count_str.isdigit() else 0
+                rows.append((schema, table, count))
+                total_rows += count
+
+        print()
+        print(f"\033[96m  ═══ Table Statistics ({len(rows)} tables, {total_rows:,} total rows) ═══\033[0m")
+        print()
+        print(f"  {'#':<4} {'Schema':<10} {'Table':<40} {'Rows':>10}")
+        print(f"  {'─'*4} {'─'*10} {'─'*40} {'─'*10}")
+
+        for i, (schema, table, count) in enumerate(rows, 1):
+            # Color-code: green for populated, dim for empty
+            if count > 0:
+                row_str = f"\033[92m{count:>10,}\033[0m"
+            else:
+                row_str = f"\033[90m{count:>10,}\033[0m"
+            print(f"  {i:<4} {schema:<10} {table:<40} {row_str}")
+
+        print(f"  {'─'*4} {'─'*10} {'─'*40} {'─'*10}")
+        print(f"  {'':4} {'':10} {'TOTAL':<40} {total_rows:>10,}")
+        print()
+
+    except Exception as exc:
+        log(f"Failed to query table statistics: {exc}", level="ERROR", label=label)
+
+
 def db_list_backups() -> None:
     """List all available backup files with timestamps and sizes."""
     label = "DB-LIST"

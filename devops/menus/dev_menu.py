@@ -12,6 +12,7 @@ from devops.components.nuxt import nuxt_build, nuxt_init, nuxt_start, nuxt_statu
 from devops.components.quickstart import dev_quick_start, dev_quick_stop
 from devops.ui.banner import clear_screen, show_banner, wait_for_key
 from devops.ui.theme import CYAN, DIM, GREEN, RED, RESET, YELLOW, THEME
+from devops.utils.promote_admin import promote_first_admin
 
 
 # ── Human-readable feedback per action key ────────────────
@@ -39,6 +40,7 @@ _STATUS_MSG: dict[str, str] = {
     "nuxt-validate":  "✅ Nuxt typecheck complete",
     "nuxt-build":     "✅ Nuxt production build complete",
     "nuxt-status":    "ℹ️  Nuxt status shown",
+    "promote-admin": "✅ First user promoted to admin",
 }
 
 
@@ -71,6 +73,8 @@ _ACTIONS: dict[str, object] = {
     "angular-stop": angular_stop,
     "angular-build": angular_build,
     "angular-status": angular_status,
+    # Utility
+    "promote-admin": promote_first_admin,
 }
 
 
@@ -119,6 +123,8 @@ def show_dev_menu() -> None:
                     {"name": "Validate      Typecheck",                     "value": "nuxt-validate"},
                     {"name": "Build         Production build",              "value": "nuxt-build"},
                     {"name": "Status        Show Nuxt status + logs",       "value": "nuxt-status"},
+                    Separator("── Utility ────────────────────────────────────"),
+                    {"name": "Promote Admin     Make first user an admin",    "value": "promote-admin"},
                     Separator(),
                     {"name": "← Back",                                      "value": "back"},
                 ],

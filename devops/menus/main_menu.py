@@ -11,6 +11,7 @@ from devops.menus.prod_menu import show_prod_menu
 from devops.ui.banner import clear_screen, show_banner, show_shortcuts, wait_for_key
 from devops.ui.theme import CYAN, DIM, RESET, THEME
 from devops.utils.display import open_latest_log
+from devops.utils.version_sync import bump_version, check_versions, sync_versions
 
 
 def show_main_menu() -> None:
@@ -28,6 +29,10 @@ def show_main_menu() -> None:
                     {"name": "Check Requirements", "value": "check-reqs"},
                     {"name": "Open Latest Log", "value": "open-log"},
                     {"name": "? Shortcuts", "value": "shortcuts"},
+                    Separator("── Versioning ─────────────────────────────────"),
+                    {"name": "Check Versions    Compare version.json vs actual files",   "value": "check-ver"},
+                    {"name": "Sync Versions     Propagate version.json → all components", "value": "sync-ver"},
+                    {"name": "Bump Version      Update version and sync everywhere",      "value": "bump-ver"},
                     Separator(),
                     {"name": "Exit", "value": "exit"},
                 ],
@@ -57,3 +62,12 @@ def show_main_menu() -> None:
             wait_for_key()
         elif choice == "shortcuts":
             show_shortcuts()
+        elif choice == "check-ver":
+            check_versions()
+            wait_for_key()
+        elif choice == "sync-ver":
+            sync_versions()
+            wait_for_key()
+        elif choice == "bump-ver":
+            bump_version()
+            wait_for_key()

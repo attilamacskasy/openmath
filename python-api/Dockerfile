@@ -11,6 +11,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy centralized version config
+COPY version.json ./version.json
+
 # Copy application source
 COPY app/ ./app/
 

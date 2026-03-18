@@ -56,38 +56,38 @@ import { KatexPipe } from '../../shared/pipes/katex.pipe';
         </div>
       } @else {
         @if (currentQuestion(); as q) {
-        <div class="flex justify-content-center">
-          <p-card [style]="{ 'max-width': '600px', width: '100%' }">
-            <!-- Question indicators -->
-            <div class="flex gap-1 mb-3 flex-wrap">
-              @for (qi of questions(); track qi.id; let i = $index) {
-                <p-tag
-                  [value]="'' + (i + 1)"
-                  [severity]="indicatorSeverity(i)"
-                  [class.ring-2]="i === currentIndex()"
-                  styleClass="w-2rem text-center"
-                ></p-tag>
-              }
-            </div>
+          <div class="flex justify-content-center">
+            <p-card [style]="{ 'max-width': '600px', width: '100%' }">
+              <!-- Question indicators -->
+              <div class="flex gap-1 mb-3 flex-wrap">
+                @for (qi of questions(); track qi.id; let i = $index) {
+                  <p-tag
+                    [value]="'' + (i + 1)"
+                    [severity]="indicatorSeverity(i)"
+                    [class.ring-2]="i === currentIndex()"
+                    styleClass="w-2rem text-center"
+                  ></p-tag>
+                }
+              </div>
 
-            <!-- Question display -->
-            <div class="text-center mb-4" [class.penalty-flash]="showPenaltyFlash()">
-              <div class="text-4xl font-bold mb-2" [innerHTML]="q.prompt?.render_html || q.prompt?.render || ''"></div>
-              @if (q.prompt?.render && q.prompt?.template?.kind === 'basic_fractions') {
-                <div class="text-4xl font-bold mb-2" [innerHTML]="q.prompt.render | katex"></div>
-              }
-            </div>
+              <!-- Question display -->
+              <div class="text-center mb-4" [class.penalty-flash]="showPenaltyFlash()">
+                <div class="text-4xl font-bold mb-2" [innerHTML]="q.prompt?.render_html || q.prompt?.render || ''"></div>
+                @if (q.prompt?.render && q.prompt?.template?.kind === 'basic_fractions') {
+                  <div class="text-4xl font-bold mb-2" [innerHTML]="q.prompt.render | katex"></div>
+                }
+              </div>
 
-            <!-- Answer input -->
-            <div class="flex justify-content-center gap-2 mb-3">
-              <input pInputText [(ngModel)]="answerValue" [placeholder]="t('quiz.yourAnswer')"
-                class="text-center text-xl" style="max-width: 200px;"
-                (keyup.enter)="submitAnswer()" autofocus />
-              <p-button icon="pi pi-check" [label]="t('quiz.submit')"
-                (onClick)="submitAnswer()" [disabled]="!answerValue.trim()"></p-button>
-            </div>
-          </p-card>
-        </div>
+              <!-- Answer input -->
+              <div class="flex justify-content-center gap-2 mb-3">
+                <input pInputText [(ngModel)]="answerValue" [placeholder]="t('quiz.yourAnswer')"
+                  class="text-center text-xl" style="max-width: 200px;"
+                  (keyup.enter)="submitAnswer()" autofocus />
+                <p-button icon="pi pi-check" [label]="t('quiz.submit')"
+                  (onClick)="submitAnswer()" [disabled]="!answerValue.trim()"></p-button>
+              </div>
+            </p-card>
+          </div>
         }
       }
 

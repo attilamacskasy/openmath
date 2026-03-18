@@ -22,7 +22,7 @@ import { HistoryGame } from '../../models/multiplayer.model';
             [sortField]="'created_at'" [sortOrder]="-1" [loading]="loading()"
             selectionMode="single" (onRowSelect)="onSelect($event)">
             <ng-template pTemplate="emptymessage">
-              <tr><td colspan="5" class="text-center text-500">{{ t('multiplayer.history.noGames') }}</td></tr>
+              <tr><td colspan="5" class="text-center p-4">{{ t('multiplayer.history.noGames') }}</td></tr>
             </ng-template>
             <ng-template pTemplate="header">
               <tr>

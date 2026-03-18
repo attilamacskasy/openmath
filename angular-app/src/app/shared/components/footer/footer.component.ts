@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { TranslocoModule } from '@jsverse/transloco';
+import { APP_VERSION } from '../../../../version';
 
 @Component({
   selector: 'app-footer',
@@ -27,7 +28,7 @@ import { TranslocoModule } from '@jsverse/transloco';
             </g>
             <path d="M176 300 Q256 380 336 300" fill="none" stroke="#fff" stroke-width="26" stroke-linecap="round" />
           </svg>
-          <span>{{ t('footer.version') }}</span>
+          <span>OpenMath v{{ version }}</span>
           <span>&mdash;</span>
           <span>{{ t('footer.techStack') }}</span>
         </div>
@@ -40,4 +41,6 @@ import { TranslocoModule } from '@jsverse/transloco';
     </footer>
   `,
 })
-export class FooterComponent {}
+export class FooterComponent {
+  version = APP_VERSION;
+}

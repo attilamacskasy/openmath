@@ -13,6 +13,8 @@ from devops.prod.builds import prod_build_all
 from devops.prod.database import db_backup as prod_db_backup, db_list_backups as prod_db_list, db_migrate as prod_db_migrate, db_restore as prod_db_restore
 from devops.prod.local import prod_local_down, prod_local_reset, prod_local_status, prod_local_up
 from devops.prod.remote import remote_down, remote_push, remote_setup, remote_status, remote_up
+from devops.utils.promote_admin import promote_first_admin
+from devops.utils.version_sync import bump_version, check_versions, sync_versions
 
 
 def print_help() -> None:
@@ -75,6 +77,10 @@ def print_help() -> None:
     print()
     print(f"  {Y}Utility:{R}")
     print("    check-reqs        Verify all prerequisites")
+    print("    check-versions    Compare version.json vs actual files")
+    print("    sync-versions     Sync version.json to all components")
+    print("    bump-version      Update version and sync everywhere")
+    print("    promote-admin     Make first registered user an admin")
     print("    help              Show this help")
     print()
     print(f"  {D}Flags:{R}")
@@ -129,6 +135,10 @@ MODE_MAP: dict[str, object] = {
     "prod-db-list": prod_db_list,
     # Utility
     "check-reqs": check_requirements,
+    "check-versions": check_versions,
+    "sync-versions": sync_versions,
+    "bump-version": bump_version,
+    "promote-admin": promote_first_admin,
     "help": print_help,
     # Legacy aliases (backward compat from dev.ps1)
     "doctor": check_requirements,

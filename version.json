@@ -1,0 +1,14 @@
+{
+  "_comment": "Centralized version config — single source of truth for all components",
+  "app": {
+    "name": "OpenMath",
+    "version": "4.0.0",
+    "description": "Multiplayer math quiz platform"
+  },
+  "components": {
+    "angular-app": "4.0.0",
+    "python-api": "4.0.0",
+    "nuxt-app": "4.0.0",
+    "devops": "4.0.0"
+  }
+}

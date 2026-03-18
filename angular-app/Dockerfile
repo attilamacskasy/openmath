@@ -2,6 +2,8 @@
 # Stage 1: Build
 FROM node:20-alpine AS build
 
+ARG APP_VERSION=0.0.0
+
 WORKDIR /app
 
 # Install pnpm
