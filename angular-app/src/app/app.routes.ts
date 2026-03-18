@@ -127,6 +127,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'multiplayer/results/:code',
+    loadComponent: () =>
+      import('./features/multiplayer/game-results.component').then(
+        (m) => m.GameResultsComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'multiplayer/history',
     loadComponent: () =>
       import('./features/multiplayer/history-list.component').then(

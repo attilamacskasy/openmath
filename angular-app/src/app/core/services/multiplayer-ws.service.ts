@@ -16,6 +16,9 @@ export class MultiplayerWsService {
   /** Cached game_started payload so components mounting after the event can retrieve it */
   readonly lastGameStarted = signal<any>(null);
 
+  /** Cached game_completed payload for results component */
+  readonly lastGameCompleted = signal<any>(null);
+
   /** Current game code (for reconnection) */
   private currentGameCode = '';
   private reconnectAttempts = 0;
@@ -61,6 +64,11 @@ export class MultiplayerWsService {
         // Cache game_started payload for late-mounting components
         if (msg.type === 'game_started') {
           this.lastGameStarted.set(msg.payload);
+        }
+
+        // Cache game_completed payload for results component
+        if (msg.type === 'game_completed') {
+          this.lastGameCompleted.set(msg.payload);
         }
 
         // Respond to server pings
@@ -125,6 +133,7 @@ export class MultiplayerWsService {
     this.currentGameCode = '';
     this.reconnectAttempts = 0;
     this.lastGameStarted.set(null);
+    this.lastGameCompleted.set(null);
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;

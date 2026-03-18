@@ -181,10 +181,7 @@ export class MultiplayerQuizComponent implements OnInit, OnDestroy {
     });
 
     this.ws.onMessage('game_completed').subscribe((p) => {
-      // Navigate to results or lobby for results display
-      this.router.navigate(['/multiplayer/lobby', this.gameCode], {
-        queryParams: { results: true },
-      });
+      this.router.navigate(['/multiplayer/results', this.gameCode]);
     });
 
     this.ws.onMessage('game_ended').subscribe(() => {

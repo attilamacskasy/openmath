@@ -610,9 +610,13 @@ class GameManager:
         try:
             from app.services.badges import evaluate_multiplayer_badges
             for pr in results:
-                await evaluate_multiplayer_badges(pr["user_id"], game.game_id, pr)
-        except Exception:
-            pass  # Badge evaluation should not break game flow
+                logger.info("[MP] Evaluating badges for user=%s game=%s pos=%s",
+                            pr["user_id"], game.game_code, pr.get("final_position"))
+                new_badges = await evaluate_multiplayer_badges(pr["user_id"], game.game_id, pr)
+                if new_badges:
+                    logger.info("[MP] Awarded badges: %s", [b["code"] for b in new_badges])
+        except Exception as e:
+            logger.exception("[MP] Badge evaluation failed: %s", e)
 
     async def _send_completion_notifications(
         self, game: ActiveGame, results: list[dict]

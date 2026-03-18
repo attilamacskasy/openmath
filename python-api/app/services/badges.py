@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from app.database import get_pool
 from app.queries import (
@@ -67,7 +70,8 @@ async def evaluate_badges(user_id: str, session: dict[str, Any]) -> list[dict[st
                     )
 
         return new_badges
-    except Exception:
+    except Exception as e:
+        logger.exception("[BADGES] Badge evaluation failed: %s", e)
         return []
 
 
@@ -195,9 +199,10 @@ async def evaluate_multiplayer_badges(
 
             if rule_type == "mp_wins":
                 from app.queries import get_multiplayer_wins_count
-                threshold = rule.get("threshold", 1)
-                count = await get_multiplayer_wins_count(user_id)
-                met = count >= threshold
+                threshold = rule.get("count", rule.get("threshold", 1))
+                wins = await get_multiplayer_wins_count(user_id)
+                logger.debug("mp_wins check: user=%s wins=%d threshold=%d", user_id, wins, threshold)
+                met = wins >= threshold
 
             elif rule_type == "mp_perfect_game":
                 met = (
@@ -207,9 +212,10 @@ async def evaluate_multiplayer_badges(
 
             elif rule_type == "mp_games_played":
                 from app.queries import get_multiplayer_games_played_count
-                threshold = rule.get("threshold", 10)
-                count = await get_multiplayer_games_played_count(user_id)
-                met = count >= threshold
+                threshold = rule.get("count", rule.get("threshold", 10))
+                played = await get_multiplayer_games_played_count(user_id)
+                logger.debug("mp_games_played check: user=%s played=%d threshold=%d", user_id, played, threshold)
+                met = played >= threshold
 
             elif rule_type == "mp_speed_demon":
                 if player_result.get("final_position") == 1:
@@ -228,12 +234,15 @@ async def evaluate_multiplayer_badges(
 
             elif rule_type == "mp_games_hosted":
                 from app.queries import get_multiplayer_games_hosted_count
-                threshold = rule.get("threshold", 10)
-                count = await get_multiplayer_games_hosted_count(user_id)
-                met = count >= threshold
+                threshold = rule.get("count", rule.get("threshold", 10))
+                hosted = await get_multiplayer_games_hosted_count(user_id)
+                logger.debug("mp_games_hosted check: user=%s hosted=%d threshold=%d", user_id, hosted, threshold)
+                met = hosted >= threshold
 
             if met:
-                awarded = await award_badge(user_id, badge["id"], game_id)
+                # Pass None for session_id — multiplayer game IDs are not quiz sessions
+                # and session_id FK references quiz_sessions table
+                awarded = await award_badge(user_id, badge["id"], None)
                 if awarded:
                     new_badges.append({
                         "code": badge["code"],
@@ -250,5 +259,6 @@ async def evaluate_multiplayer_badges(
                     )
 
         return new_badges
-    except Exception:
+    except Exception as e:
+        logger.exception("[BADGES] Badge evaluation failed: %s", e)
         return []

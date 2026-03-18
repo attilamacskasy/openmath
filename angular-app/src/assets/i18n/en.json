@@ -439,6 +439,8 @@
 
   "multiplayer.results.position": "Position",
   "multiplayer.results.winner": "Winner",
+  "multiplayer.results.gameOver": "Game Over!",
+  "multiplayer.results.restartGame": "Restart Game",
 
   "multiplayer.history.title": "Multiplayer History",
   "multiplayer.history.date": "Date",

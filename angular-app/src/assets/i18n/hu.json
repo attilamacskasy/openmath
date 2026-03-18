@@ -439,6 +439,8 @@
 
   "multiplayer.results.position": "Helyezés",
   "multiplayer.results.winner": "Győztes",
+  "multiplayer.results.gameOver": "Játék vége!",
+  "multiplayer.results.restartGame": "Új játék",
 
   "multiplayer.history.title": "Többjátékos előzmények",
   "multiplayer.history.date": "Dátum",

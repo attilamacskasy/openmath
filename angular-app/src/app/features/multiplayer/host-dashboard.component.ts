@@ -92,14 +92,19 @@ interface DashboardPlayer {
                 <td class="text-center">
                   @if (player.answers.has(qn); as hasAnswer) {
                     @if (player.answers.get(qn); as ans) {
-                      @if (ans.is_correct) {
-                        <i class="pi pi-check-circle text-green-500"></i>
-                      } @else {
-                        <div>
+                      <div>
+                        @if (ans.is_correct) {
+                          <i class="pi pi-check-circle text-green-500"></i>
+                        } @else {
                           <i class="pi pi-times-circle text-red-500"></i>
-                          <div class="text-xs text-red-400">+{{ ans.penalty / 1000 }}s</div>
+                        }
+                        <div class="text-xs" [class.text-green-600]="ans.is_correct" [class.text-600]="!ans.is_correct">
+                          {{ formatLapTime(ans.lap_time) }}
                         </div>
-                      }
+                        @if (!ans.is_correct && ans.penalty > 0) {
+                          <div class="text-xs text-red-400">+{{ ans.penalty / 1000 }}s</div>
+                        }
+                      </div>
                     }
                   }
                 </td>
@@ -220,11 +225,10 @@ export class HostDashboardComponent implements OnInit, OnDestroy {
     this.ws.onMessage('game_completed').subscribe((p) => {
       this.gameCompleted.set(true);
       this.stopTimer();
-      this.messageService.add({
-        severity: 'success',
-        summary: 'Game Complete',
-        detail: 'All players have finished!',
-      });
+      // Navigate to results after a brief delay so host can see final state
+      setTimeout(() => {
+        this.router.navigate(['/multiplayer/results', this.gameCode]);
+      }, 2000);
     });
   }
 
@@ -263,5 +267,11 @@ export class HostDashboardComponent implements OnInit, OnDestroy {
     const min = Math.floor(totalSec / 60);
     const sec = totalSec % 60;
     return `${min}:${sec.toString().padStart(2, '0')}`;
+  }
+
+  formatLapTime(ms: number): string {
+    if (ms == null) return '';
+    const sec = (ms / 1000).toFixed(1);
+    return `${sec}s`;
   }
 }
