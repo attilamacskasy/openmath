@@ -19,6 +19,9 @@ services:
     volumes:
       - openmath-local-prod-pgdata:/var/lib/postgresql/data
       - ./db/migrations:/docker-entrypoint-initdb.d:ro
+    # ⚠️  DEV-ONLY: expose DB to host for pgAdmin. See docs/NOTE_dev_db_port.md
+    ports:
+      - "5433:5432"
     networks:
       - openmath-local-prod-net
     healthcheck:
