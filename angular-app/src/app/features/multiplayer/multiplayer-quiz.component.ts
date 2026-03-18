@@ -54,7 +54,8 @@ import { KatexPipe } from '../../shared/pipes/katex.pipe';
             </div>
           </p-card>
         </div>
-      } @else if (currentQuestion(); as q) {
+      } @else {
+        @if (currentQuestion(); as q) {
         <div class="flex justify-content-center">
           <p-card [style]="{ 'max-width': '600px', width: '100%' }">
             <!-- Question indicators -->
@@ -87,6 +88,7 @@ import { KatexPipe } from '../../shared/pipes/katex.pipe';
             </div>
           </p-card>
         </div>
+        }
       }
 
       <style>
@@ -131,15 +133,26 @@ export class MultiplayerQuizComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.gameCode = this.route.snapshot.paramMap.get('code') || '';
 
-    // Listen for game_started (questions already received via lobby)
-    this.ws.onMessage('game_started').subscribe((p) => {
-      this.questions.set(p.questions || []);
+    // Check if game_started already fired before this component mounted
+    // (lobby navigates here AFTER receiving game_started, so the event is already gone)
+    const cached = this.ws.lastGameStarted();
+    if (cached && cached.questions?.length) {
+      console.log('[QUIZ] Using cached game_started payload:', cached.questions.length, 'questions');
+      this.questions.set(cached.questions);
       this.startTime = Date.now();
       this.startTimer();
+    }
+
+    // Also subscribe for future game_started events (in case component mounts before event)
+    this.ws.onMessage('game_started').subscribe((p) => {
+      if (this.questions().length === 0) {
+        console.log('[QUIZ] Received game_started via subscription:', (p.questions || []).length, 'questions');
+        this.questions.set(p.questions || []);
+        this.startTime = Date.now();
+        this.startTimer();
+      }
     });
 
-    // If already have questions (navigated from lobby after game_started)
-    // The lobby stores questions - check WS for them
     this.ws.onMessage('answer_result').subscribe((p) => {
       const idx = this.currentIndex();
       this.answerResults.update((m) => {

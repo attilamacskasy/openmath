@@ -20,8 +20,10 @@ import { HistoryGame } from '../../models/multiplayer.model';
           <p-table [value]="games()" [paginator]="true" [rows]="10"
             [rowsPerPageOptions]="[5, 10, 25]" styleClass="p-datatable-sm"
             [sortField]="'created_at'" [sortOrder]="-1" [loading]="loading()"
-            [emptyMessage]="t('multiplayer.history.noGames')"
             selectionMode="single" (onRowSelect)="onSelect($event)">
+            <ng-template pTemplate="emptymessage">
+              <tr><td colspan="5" class="text-center text-500">{{ t('multiplayer.history.noGames') }}</td></tr>
+            </ng-template>
             <ng-template pTemplate="header">
               <tr>
                 <th pSortableColumn="created_at">{{ t('multiplayer.history.date') }} <p-sortIcon field="created_at"></p-sortIcon></th>
